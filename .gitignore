@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+.idea
+*.db
+*.db-wal
+*.db-shm
+.work-trees/

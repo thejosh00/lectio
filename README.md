@@ -1,0 +1,206 @@
+<p align="center">
+  <img src="src/web/logo.svg" alt="lectio" width="96" height="96">
+</p>
+
+# lectio
+
+*Lectio*: Latin for "a reading". The word "lesson" comes from it.
+
+A personal tutor that teaches you something every day. You give it subjects ("Rust", "music
+theory", "the AWS Solutions Architect exam"), each with what you want to get out of it. Every day
+an AI tutor (a Claude Code skill, run by [otto](https://github.com/thejosh00/otto)) writes you a
+lesson and a quiz for each one. It decides what you should learn next, explains it the way that
+has worked for you before, and brings back what you are about to forget.
+
+The app contains no AI. It stores subjects, lessons and questions, renders them, grades what can
+be graded mechanically, schedules reviews with a formula (FSRS, per concept), and records every
+answer in enough detail for the tutor to see what works: right or wrong, how sure you were, how
+long it took, whether you used a hint, and which wrong idea you picked. The judgement lives in the
+skill.
+
+## Install
+
+Needs [Bun](https://bun.sh) 1.4+.
+
+```bash
+bun install
+bun link            # puts `lectio` on your PATH (~/.bun/bin)
+```
+
+## Quick start
+
+```bash
+lectio serve                                       # the server and web app, on :7780
+lectio token you                                   # a token for you (in another terminal)
+lectio login --url http://127.0.0.1:7780 --token <it>
+lectio subject add "Rust" --goal "read and change our Rust services" --minutes 15
+```
+
+Open `http://localhost:7780` and sign in with the same `you` token. To sign in a phone once,
+open `http://<your-mac>:7780/?token=<it>`; the token is traded for a cookie and removed from the
+address bar. The web app is made for a phone first; add it to your home screen.
+
+To keep it running in the background (macOS), with a daily backup into `$LECTIO_DIR/backups`:
+
+```bash
+lectio service install             # [--port N] [--host H]
+lectio service status | logs | restart | stop | uninstall
+```
+
+`LECTIO_DIR` (default `~/.lectio`) holds an instance's database, its uploaded files, its
+`client.json` and its backups. Instances share nothing, so a second one is a second directory and
+port. `lectio settings` lists every setting; `listen_host 127.0.0.1` keeps it to this machine.
+
+## A day with lectio
+
+```bash
+lectio today                     # what is waiting: lessons, quizzes, reviews, replies
+lectio lesson                    # read today's lesson in the terminal (or open the web app)
+lectio finish <lesson> --rate clear
+lectio quiz                      # take the quiz: answer, then s/t/g for how sure you were
+lectio practice                  # reviews that are due, now
+lectio rate block <id> wrong --note "…"   |   lectio ask <block> "…"   |   lectio dispute <attempt>
+lectio progress                  # retention, same-day accuracy, calibration, what's working
+lectio notes [--history]         # what the tutor believes about how you learn; `notes edit` to correct it
+```
+
+Ids can be shortened to a unique prefix; a subject can be named by its title. Every command takes
+`--json`.
+
+**What gets measured.** The number that matters is *retention*: whether you can still answer about
+an idea a day or more after meeting it — first try, no hint, not guessing. Same-day accuracy is the
+difficulty dial (the tutor aims at 85%, not 100%). There are no streaks or points: an honest
+Progress page is the motivation.
+
+**A week away** comes back to one lesson waiting, not seven: a subject gets at most one lesson a
+day, and none while an earlier one is unfinished.
+
+## The tutor
+
+The tutor is just another actor, with its own token. The server enforces what it may do:
+
+- **Attributed.** Every write records its actor (`agent:tutor`) and the run that made it.
+- **Capped and idempotent.** One lesson per subject per day, none before `lesson_ready_hour`, none
+  while one is unfinished. Re-submitting a day returns `"existing": true` and changes nothing.
+- **Refused what is yours.** An agent can't answer quizzes, give feedback, finish or skip lessons,
+  change subjects or settings, or issue tokens. Those exit `2`.
+- **Wrong is worse than nothing.** Flag a block as wrong in one tap; the tutor fixes flags before it
+  writes anything new.
+
+`lectio agents` prints the contract the tutor follows — setup, every command with an example, the
+JSON shapes, the block and question types, exit codes and limits. It is generated from the code, and
+a test runs every example in it against a real server.
+
+| Exit | Meaning |
+|---|---|
+| 0 | ok |
+| 1 | failed: not ready, a cap, a refused write |
+| 2 | bad usage, an invalid submission, or not allowed for this actor |
+| 3 | not found |
+| 4 | server unreachable or busy |
+
+### Setting it up
+
+Install the skills for Claude Code:
+
+```bash
+ln -s "$PWD/skills/lectio-teach" ~/.claude/skills/lectio-teach
+ln -s "$PWD/skills/lectio-build" ~/.claude/skills/lectio-build
+```
+
+Give the tutor a token, and let the CLI find it without environment variables (it runs unattended,
+where no shell profile is loaded):
+
+```bash
+lectio token agent:tutor
+lectio login --url http://127.0.0.1:7780 --token <it> --default     # writes $LECTIO_DIR/client.json
+```
+
+Try a run by hand first: in `claude`, ask it to "run the lectio tutor". Then look at the Tutor page.
+
+## Running it under otto
+
+```bash
+otto run --skill lectio-teach \
+  --goal "Each day, teach me each of my lectio subjects with a lesson and a quiz made for me, and get better at teaching me from how I do" \
+  --perpetual --period 1h
+otto check <run> --script "$PWD/skills/lectio-teach/check.sh"
+```
+
+- **Hourly, behind a check script.** `check.sh` runs `lectio due` and wakes the model only when
+  there is something to do: a subject became ready, a new subject was added, or a flag or ask is
+  waiting. Most hours cost nothing. A stopped server doesn't wake it either; otto's daily safety
+  net does, and that wake reports it.
+- `--perpetual`: there is no done. Retire it with `otto stop`.
+- The tutor talks to you through the app (replies, notes, run summaries), not otto's inbox.
+- For a non-default instance, put `LECTIO_DIR` in a copy of `check.sh`: otto launchers don't set
+  environment variables.
+
+## Improving lectio itself
+
+The tutor is lectio's most demanding user. When the app gets in the way of teaching, it proposes a
+change. You approve it, a second agent (the builder) implements it on a branch with tests, and you
+ship it. Once the tutor has used the change, it records whether it helped.
+
+```bash
+lectio proposals                                   # or the Improvements page (Tutor → Improvements)
+lectio proposal approve <n> [--priority high] [--protected]
+lectio proposal decline|defer <n> --note "…"
+lectio proposal answer <n> "…"                     # to a builder's question
+scripts/ship.sh lectio/p<n>-<slug>                 # from this checkout, to ship a reviewed branch
+lectio proposal request-changes <n> --note "…"
+```
+
+Run the builder against this repository, with its own token beside the tutor's:
+
+```bash
+lectio token agent:builder
+lectio login --url http://127.0.0.1:7780 --token <it>     # added to client.json; the tutor stays the default
+otto run --skill lectio-build --repo ~/workspace/lectio \
+  --goal "Build the approved lectio improvement proposals, one at a time, and hand each back for review" \
+  --perpetual --period 1h
+otto check <run> --script "$PWD/skills/lectio-build/check.sh"
+```
+
+The builder works in `.work-trees/lectio-build/` on `lectio/p<n>-<slug>` branches, never in this
+checkout; it never pushes, merges or deploys. It sends an otto inbox message when a branch is ready.
+
+**Shipping.** `scripts/ship.sh <branch>` refuses a dirty checkout or a proposal that isn't in
+review; takes a labelled backup; rebases the branch onto `main` if needed and fast-forwards `main`;
+runs `bun install` if the lockfile changed, the tests, and the guard; restarts the service and waits
+for `/api/health` to report the new commit. If anything fails it resets `main`, restores the backup,
+restarts, and says what failed. A server run from a checkout marks a proposal shipped when its
+commit is running; `lectio proposal shipped <n>` does it by hand for a binary build.
+
+**Guardrails.** People sit at both ends: nothing is built until you approve it and nothing runs
+until you ship it. Some things the loop can't change by itself — the measures, the actors'
+permissions, the caps and the no-stacking rule, the widget sandbox, the loop's own code, and the
+tutor's rules. They are listed in `PROTECTED`; `bun run guard <range>` lists any a branch touches;
+a proposal in a protected area needs `--protected` to approve, and `ship.sh` refuses protected paths
+the approval didn't acknowledge. `tests/guard/` pins the invariants.
+
+## Backups
+
+The server backs up daily and keeps a fortnight. `lectio backup --label <name>` takes one on
+demand; `lectio backup restore <file>` puts one back (stop the server first). Uploaded files are
+copied alongside, once each.
+
+## Development
+
+```bash
+bun run dev          # serve with hot reload
+bun run test         # typecheck + the whole suite
+bun run guard        # protected paths touched by main..HEAD
+```
+
+Layout: `src/core/` is pure (no fs, db, clock, randomness or React). `src/blocks/` has one module
+per block type and `src/questions/` one per question type, each behind its interface and listed in
+a registry; the web renderers are in `src/web/blocks/`. Then `src/db/`, `src/server/`,
+`src/commands/` (a thin CLI client: flags → one HTTP call), `src/web/` (React, bundled by Bun from
+`index.html`), `src/local/` (launchd, git) and `skills/`.
+
+Tests never touch the network, and the clock is injected so a test can live through a week in a
+second. A preload points `LECTIO_DIR` at a temporary directory and sets a non-UTC time zone, so
+"today" is tested as the local day it is.
+
+The plan, milestones and reasoning are in [PLAN.md](PLAN.md).
