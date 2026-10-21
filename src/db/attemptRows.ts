@@ -59,7 +59,8 @@ export function outcomeOf(attempt: Attempt, question: Question): Outcome {
     const read = type.readAnswer(attempt.answer, question.body, 'answer');
     if (read.ok) {
       const graded = type.grade(question.body, read.value);
-      why = graded.why;
+      // Counted as right, there is no "why not that one".
+      why = attempt.graded_by === 'disputed' ? null : graded.why;
       detail = graded.detail;
     }
   }

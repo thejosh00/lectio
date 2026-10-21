@@ -51,6 +51,57 @@ describe('inline checks and finishing a lesson', () => {
   });
 });
 
+describe('anticipated wrong numbers', () => {
+  const WHY = 'A `u8` wraps at 256, not 255: 260 − 256 is 4.';
+  async function wrapCheck() {
+    const subject = await rustSubject(lc);
+    const run = await startRun(lc);
+    const numeric = {
+      ref: 'q1',
+      type: 'numeric',
+      aim: 'apply',
+      difficulty: 2,
+      concepts: ['ownership'],
+      prompt: 'What does `250u8.wrapping_add(10)` give?',
+      body: {
+        answer: 4,
+        tolerance: 0,
+        wrong: [
+          {answer: 5, misconception: 'wrap-at-255', why: WHY},
+          {answer: 260, misconception: 'u8-never-wraps'},
+        ],
+      },
+      explanation: '`wrapping_add` drops the carry: 260 mod 256 is 4.',
+    };
+    const lesson = await submitLesson(lc, subject, run, ownershipLesson({questions: [numeric]}));
+    expect(lesson.code).toBe(0);
+    return {lessonId: lesson.json.lesson.id as string, question: lesson.json.question_ids.q1 as string};
+  }
+
+  test('one records its tag and shows its why, and the tag reaches the counts', async () => {
+    const {lessonId, question} = await wrapCheck();
+    const wrong = await answerQ(lc, {question, lesson: lessonId, answer: '5', confidence: 'sure'});
+    expect(wrong.attempt).toMatchObject({score: 0, misconception: 'wrap-at-255'});
+    expect(wrong.outcome).toMatchObject({why: WHY, disputable: true, key: {answer: 4}});
+    const unforeseen = await answerQ(lc, {question, lesson: lessonId, answer: 7});
+    expect(unforeseen.attempt).toMatchObject({score: 0, misconception: null});
+    expect(unforeseen.outcome.why).toBeNull();
+    const right = await answerQ(lc, {question, lesson: lessonId, answer: 4});
+    expect(right.attempt).toMatchObject({score: 1, misconception: null});
+    const s = (await lc.j(['context'], TUTOR)).json.subjects[0];
+    expect(s.measures.misconceptions).toEqual([expect.objectContaining({tag: 'wrap-at-255', count: 1, concept_keys: ['ownership']})]);
+  });
+
+  test('disputing one counts it right and drops its tag', async () => {
+    const {lessonId, question} = await wrapCheck();
+    const wrong = await answerQ(lc, {question, lesson: lessonId, answer: 5});
+    const disputed = await lc.j(['dispute', wrong.attempt.id, '--note', 'it printed 5 for me']);
+    expect(disputed.json.attempt).toMatchObject({score: 1, graded_by: 'disputed', misconception: null});
+    expect(disputed.json.outcome).toMatchObject({why: null});
+    expect((await lc.j(['context'], TUTOR)).json.subjects[0].measures.misconceptions).toEqual([]);
+  });
+});
+
 describe('no stacking', () => {
   test('a second lesson is refused while one is unfinished, and allowed once it is', async () => {
     const subject = await rustSubject(lc);

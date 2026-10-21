@@ -121,6 +121,52 @@ describe('numeric', () => {
   test('a relative tolerance is a fraction', () => {
     expect(issues('numeric', {answer: 1, tolerance: 5, relative: true})).toHaveLength(1);
   });
+
+  const wrap = {
+    answer: 44,
+    tolerance: 0,
+    wrong: [
+      {answer: 45, misconception: 'wrap-at-255', why: 'A uint8 wraps at 256: 300 − 256 is 44.'},
+      {answer: 300, tolerance: 0, misconception: 'uint8-never-wraps'},
+      {answer: -1, tolerance: 2, why: 'Unsigned values are never negative.'},
+    ],
+  };
+  test('an anticipated wrong answer records its tag and its why, like a tagged choice', () => {
+    expect(check('numeric', wrap, 45)).toMatchObject({score: 0, misconception: 'wrap-at-255', why: 'A uint8 wraps at 256: 300 − 256 is 44.'});
+    expect(check('numeric', wrap, '300')).toMatchObject({score: 0, misconception: 'uint8-never-wraps', why: null});
+    expect(check('numeric', wrap, -2.5)).toMatchObject({score: 0, misconception: null, why: 'Unsigned values are never negative.'});
+    expect(check('numeric', wrap, 46)).toMatchObject({score: 0, misconception: null, why: null});
+    expect(check('numeric', wrap, 44)).toMatchObject({score: 1, misconception: null, why: null});
+  });
+  test("a wrong answer's tolerance is read like the key's: a fraction when relative", () => {
+    const body = {answer: 1000, tolerance: 0.01, relative: true, wrong: [{answer: 1024, tolerance: 0.01, misconception: 'kib-as-kb'}]};
+    expect(check('numeric', body, 1034)).toMatchObject({score: 0, misconception: 'kib-as-kb'});
+    expect(check('numeric', body, 1035)).toMatchObject({score: 0, misconception: null});
+    expect(issues('numeric', {...body, wrong: [{answer: 1024, tolerance: 2, misconception: 'kib-as-kb'}]})).toEqual(['body.wrong[0].tolerance: a relative tolerance is a fraction: 0.05 means within 5%']);
+  });
+  test('each wrong answer says something, is outside the key, and is listed once', () => {
+    expect(issues('numeric', {answer: 44, tolerance: 1, wrong: [{answer: 45, misconception: 'wrap-at-255'}]})).toEqual(["body.wrong[0].answer: is graded right: an anticipated wrong answer must be outside the answer's tolerance"]);
+    expect(issues('numeric', {answer: 44, tolerance: 0, wrong: [{answer: 45}, {answer: 46, why: '  '}]})).toEqual([
+      'body.wrong[0]: says nothing: give it a misconception, a why, or both',
+      'body.wrong[1]: says nothing: give it a misconception, a why, or both',
+    ]);
+    expect(issues('numeric', {answer: 44, tolerance: 0, wrong: [{answer: 45, why: 'a'}, {answer: 45, why: 'b'}]})).toEqual(['body.wrong[1].answer: 45 is listed twice']);
+    expect(issues('numeric', {answer: 44, tolerance: 0, wrong: [{answer: 45, misconception: 'Wrap At 255', choice: 'a'}]})).toEqual([
+      'body.wrong[0].choice: is not a field here; expected answer, tolerance, misconception, why',
+      'body.wrong[0].misconception: must be a lowercase slug like wrap-at-255',
+    ]);
+    expect(issues('numeric', {answer: 44, tolerance: 0, wrong: {answer: 45}})).toEqual(['body.wrong: must be a list']);
+  });
+  test('the learner never sees the wrong answers, and a body without them keeps its shape', () => {
+    const t = questionType('numeric')!;
+    const parsed = t.validate(wrap, 'body');
+    if (!parsed.ok) throw new Error('invalid');
+    expect(JSON.stringify(t.learnerBody(parsed.value))).not.toMatch(/wrong|misconception|why|45/);
+    const plain = t.validate({answer: 4, tolerance: 0}, 'body');
+    expect(plain.ok && plain.value).toEqual({answer: 4, tolerance: 0, relative: false, unit: null});
+    const empty = t.validate({answer: 4, tolerance: 0, wrong: []}, 'body');
+    expect(empty.ok && empty.value).toEqual({answer: 4, tolerance: 0, relative: false, unit: null});
+  });
 });
 
 describe('short text', () => {

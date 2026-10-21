@@ -176,13 +176,16 @@ export function selfGrade(ctx: Ctx, attempt: Attempt, grade: string | undefined)
   return {attempt: updated, outcome: outcomeOf(updated, question), quiz: quizStatus(ctx, attempt.quiz_id)};
 }
 
-/** "I was right": the score becomes 1 and the question is flagged for the tutor. */
+/**
+ * "I was right": the score becomes 1 and the question is flagged for the tutor. An answer
+ * counted as right shows no misconception, so a tag it matched no longer counts.
+ */
 export function dispute(ctx: Ctx, attempt: Attempt, note: string | undefined): AnswerResult {
   const question = getQuestion(ctx, attempt.question_id)!;
   if (!(questionType(question.type)?.disputable ?? false)) throw usageError(`${question.type.replace('_', ' ')} answers can't be disputed; flag the question instead (lectio rate question ${question.id} wrong_key)`);
   if (attempt.graded_by === 'disputed') return {attempt, outcome: outcomeOf(attempt, question), quiz: quizStatus(ctx, attempt.quiz_id)};
   if (attempt.score === null || attempt.score >= 1) throw failed('only a miss can be disputed');
-  ctx.db.query("UPDATE attempts SET score = 1, graded_by = 'disputed' WHERE id = ?").run(attempt.id);
+  ctx.db.query("UPDATE attempts SET score = 1, graded_by = 'disputed', misconception = NULL WHERE id = ?").run(attempt.id);
   addFeedback(ctx, {target: 'attempt', target_id: attempt.id, kind: 'dispute', note: note ?? ''});
   refreshMemory(ctx, conceptIdsOf(ctx, question.id));
   ctx.event('attempt', attempt.id, {kind: 'disputed', question_id: question.id});

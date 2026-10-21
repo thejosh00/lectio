@@ -3,7 +3,7 @@
  * was right"), because a key written in advance can't foresee every right phrasing.
  */
 import {normalizeAnswer, parseNumber, patternProblem, textMatches} from '../core/normalize.ts';
-import {Node, result} from '../core/validate.ts';
+import {Node, SLUG, result} from '../core/validate.ts';
 import {graded, PART_ID, PART_ID_MESSAGE, type QuestionType} from './types.ts';
 
 export interface NumericBody {
@@ -11,6 +11,16 @@ export interface NumericBody {
   tolerance: number;
   relative: boolean;
   unit: string | null;
+  /** Wrong answers the tutor saw coming, each tagged like a wrong choice. Absent when none. */
+  wrong?: NumericWrong[];
+}
+
+/** An anticipated wrong answer: within its tolerance (read like the key's), it records the tag. */
+export interface NumericWrong {
+  answer: number;
+  tolerance: number;
+  misconception: string | null;
+  why: string | null;
 }
 
 export interface Accepting {
@@ -45,6 +55,34 @@ function readAccepting(node: Node, allowed: readonly string[]): Accepting | unde
   return o && accept ? {accept, regex, case_sensitive: caseSensitive} : undefined;
 }
 
+const RELATIVE_MESSAGE = 'a relative tolerance is a fraction: 0.05 means within 5%';
+
+/** Whether `value` is within `tolerance` of `target`: a fraction of it when `relative`. */
+function withinTolerance(value: number, target: number, tolerance: number, relative: boolean): boolean {
+  const allowed = relative ? tolerance * Math.abs(target) : tolerance;
+  // A hair of slack, so 0.1 + 0.2 within 0 of 0.3 is right.
+  return Math.abs(value - target) <= allowed + 1e-9 * Math.max(1, Math.abs(target));
+}
+
+/** `wrong`: anticipated wrong answers, each outside the key and saying something. */
+function readWrong(node: Node, relative: boolean, key: {answer: number; tolerance: number; relative: boolean} | undefined): NumericWrong[] {
+  const out: NumericWrong[] = [];
+  for (const item of node.optionalArray({max: 10})) {
+    const o = item.object(['answer', 'tolerance', 'misconception', 'why']);
+    const answer = item.get('answer').number();
+    const tolerance = item.get('tolerance').optionalNumber({min: 0}) ?? 0;
+    const misconception = item.get('misconception').optionalString({max: 48, pattern: SLUG, patternMessage: 'must be a lowercase slug like wrap-at-255'});
+    const why = item.get('why').optionalString({max: 1000})?.trim() || undefined;
+    if (relative && tolerance >= 1) item.get('tolerance').fail(RELATIVE_MESSAGE);
+    if (o !== undefined && o['misconception'] === undefined && why === undefined) item.fail('says nothing: give it a misconception, a why, or both');
+    if (answer === undefined) continue;
+    if (key !== undefined && withinTolerance(answer, key.answer, key.tolerance, key.relative)) item.get('answer').fail('is graded right: an anticipated wrong answer must be outside the answer\'s tolerance');
+    if (out.some(w => w.answer === answer)) item.get('answer').fail(`${answer} is listed twice`);
+    out.push({answer, tolerance, misconception: misconception ?? null, why: why ?? null});
+  }
+  return out;
+}
+
 const readText = (answer: unknown, _body: unknown, path: string) => {
   const node = Node.root(answer, path);
   if (typeof node.value === 'number') return result(node.issues, String(node.value));
@@ -56,17 +94,19 @@ export const numeric: QuestionType<NumericBody, number> = {
   milestone: 'M2',
   gradedBy: 'app',
   disputable: true,
-  shape: '{answer: <number>, tolerance: <number ≥ 0>, relative?: false, unit?: "ms"}',
+  shape: '{answer: <number>, tolerance: <number ≥ 0>, relative?: false, unit?: "ms", wrong?: [{answer, tolerance?: 0, misconception?, why?}]}',
   answerShape: '<number> (or a string like "1,024" or "12 ms")',
   validate(body, path) {
     const node = Node.root(body, path);
-    const o = node.object(['answer', 'tolerance', 'relative', 'unit']);
+    const o = node.object(['answer', 'tolerance', 'relative', 'unit', 'wrong']);
     const answer = node.get('answer').number();
     const tolerance = node.get('tolerance').number({min: 0});
     const relative = node.get('relative').optionalBoolean() ?? false;
     const unit = node.get('unit').optionalString({max: 24});
-    if (relative && tolerance !== undefined && tolerance >= 1) node.get('tolerance').fail('a relative tolerance is a fraction: 0.05 means within 5%');
-    return result(node.issues, o && answer !== undefined && tolerance !== undefined ? {answer, tolerance, relative, unit: unit?.trim() || null} : undefined);
+    if (relative && tolerance !== undefined && tolerance >= 1) node.get('tolerance').fail(RELATIVE_MESSAGE);
+    const key = answer !== undefined && tolerance !== undefined ? {answer, tolerance, relative} : undefined;
+    const wrong = readWrong(node.get('wrong'), relative, key);
+    return result(node.issues, o && key !== undefined ? {...key, unit: unit?.trim() || null, ...(wrong.length === 0 ? {} : {wrong})} : undefined);
   },
   learnerBody: body => ({unit: body.unit}),
   reveal: body => ({answer: body.answer, tolerance: body.tolerance, relative: body.relative, unit: body.unit}),
@@ -82,9 +122,9 @@ export const numeric: QuestionType<NumericBody, number> = {
     return result<number>([{path, message: 'must be a number'}], undefined);
   },
   grade(body, answer) {
-    const allowed = body.relative ? body.tolerance * Math.abs(body.answer) : body.tolerance;
-    // A hair of slack, so 0.1 + 0.2 within 0 of 0.3 is right.
-    return graded(Math.abs(answer - body.answer) <= allowed + 1e-9 * Math.max(1, Math.abs(body.answer)) ? 1 : 0);
+    if (withinTolerance(answer, body.answer, body.tolerance, body.relative)) return graded(1);
+    const anticipated = body.wrong?.find(w => withinTolerance(answer, w.answer, w.tolerance, body.relative));
+    return graded(0, {misconception: anticipated?.misconception ?? null, why: anticipated?.why ?? null});
   },
   plainText: body => (body.unit === null ? '  (a number)' : `  (a number, in ${body.unit})`),
   answerText: body => {

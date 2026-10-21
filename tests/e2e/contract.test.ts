@@ -121,6 +121,11 @@ test('every example in the contract runs as documented', async () => {
   const today = (await lc.j(['today'])).json;
   expect(today.subjects.map((s: {lesson: {title: string}}) => s.lesson.title)).toEqual(['Moves: handing ownership over', 'Intervals: a map of the road ahead']);
   expect(today.replies).toHaveLength(3);
+  // The placement probe's anticipated wrong answer records its tag.
+  const probe = lc.db.query("SELECT i.quiz_id, i.question_id FROM quiz_items i JOIN questions q ON q.id = i.question_id WHERE q.type = 'numeric'").get() as {quiz_id: string; question_id: string};
+  const counted = await answerQ(lc, {question: probe.question_id, quiz: probe.quiz_id, answer: 5});
+  expect(counted.attempt).toMatchObject({score: 0, misconception: 'counts-notes-not-steps'});
+  expect(counted.outcome.why).toContain('four steps');
 });
 
 test('the document shows exactly those examples, the registries and the limits', async () => {
