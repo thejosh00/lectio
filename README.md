@@ -18,6 +18,13 @@ answer in enough detail for the tutor to see what works: right or wrong, how sur
 long it took, whether you used a hint, and which wrong idea you picked. The judgement lives in the
 skill.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png">
+    <img src="docs/screenshot.png" alt="lectio on a phone: today's lessons, a lesson with an inline check, and the answer revealed with the tutor's note on the wrong idea" width="760">
+  </picture>
+</p>
+
 ## Install
 
 Needs [Bun](https://bun.sh) 1.4+.
@@ -140,15 +147,16 @@ otto check <run> --script "$PWD/skills/lectio-teach/check.sh"
 
 The tutor is lectio's most demanding user. When the app gets in the way of teaching, it proposes a
 change. You approve it, a second agent (the builder) implements it on a branch with tests, and you
-ship it. Once the tutor has used the change, it records whether it helped.
+ship it like any other change. The tutor's next run sees it, checks it works, and asks for another
+change if it doesn't. Once it has used the change for a while, it records whether it helped.
 
 ```bash
 lectio proposals                                   # or the Improvements page (Tutor → Improvements)
-lectio proposal approve <n> [--priority high] [--protected]
+lectio proposal approve <n> [--priority high]
 lectio proposal decline|defer <n> --note "…"
 lectio proposal answer <n> "…"                     # to a builder's question
-scripts/ship.sh lectio/p<n>-<slug>                 # from this checkout, to ship a reviewed branch
-lectio proposal request-changes <n> --note "…"
+git merge lectio/p<n>-<slug> && lectio service restart   # ship a built branch
+lectio proposal request-changes <n> --note "…"     # or send it back instead
 ```
 
 Run the builder against this repository, with its own token beside the tutor's:
@@ -165,19 +173,19 @@ otto check <run> --script "$PWD/skills/lectio-build/check.sh"
 The builder works in `.work-trees/lectio-build/` on `lectio/p<n>-<slug>` branches, never in this
 checkout; it never pushes, merges or deploys. It sends an otto inbox message when a branch is ready.
 
-**Shipping.** `scripts/ship.sh <branch>` refuses a dirty checkout or a proposal that isn't in
-review; takes a labelled backup; rebases the branch onto `main` if needed and fast-forwards `main`;
-runs `bun install` if the lockfile changed, the tests, and the guard; restarts the service and waits
-for `/api/health` to report the new commit. If anything fails it resets `main`, restores the backup,
-restarts, and says what failed. A server run from a checkout marks a proposal shipped when its
-commit is running; `lectio proposal shipped <n>` does it by hand for a binary build.
+**Shipping.** Merge the branch into `main` and restart lectio, as you would any change. A server run
+from a checkout records the commit it is running at startup and marks every built proposal whose
+commit is part of it as shipped. (Squashing or rebasing gives the branch new commits, so mark those
+by hand with `lectio proposal shipped <n> --commit <sha>`, as you would for a binary build.)
+
+**The tutor checks what shipped for it.** A shipped proposal the tutor filed wakes its next run
+(`lectio due`). It reads the new contract and the builder's hand-back, tries the change, and either
+accepts it or asks for another change, which goes back to the builder (`lectio proposal review <n>
+accept|changes`). Until then the Improvements page lists it under *With your tutor*.
 
 **Guardrails.** People sit at both ends: nothing is built until you approve it and nothing runs
-until you ship it. Some things the loop can't change by itself — the measures, the actors'
-permissions, the caps and the no-stacking rule, the widget sandbox, the loop's own code, and the
-tutor's rules. They are listed in `PROTECTED`; `bun run guard <range>` lists any a branch touches;
-a proposal in a protected area needs `--protected` to approve, and `ship.sh` refuses protected paths
-the approval didn't acknowledge. `tests/guard/` pins the invariants.
+until you ship it. `tests/guard/` pins what an agent's token can never do and what the measures
+mean; the builder never loosens a test to make a change pass.
 
 ## Backups
 
@@ -190,7 +198,6 @@ copied alongside, once each.
 ```bash
 bun run dev          # serve with hot reload
 bun run test         # typecheck + the whole suite
-bun run guard        # protected paths touched by main..HEAD
 ```
 
 Layout: `src/core/` is pure (no fs, db, clock, randomness or React). `src/blocks/` has one module

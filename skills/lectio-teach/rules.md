@@ -1,7 +1,7 @@
 # Rules
 
-These are protected: changing this file needs the learner's explicit acknowledgement (§11). Read
-them before anything else, every session.
+Read these before anything else, every session. Only the learner changes them; never propose
+changing this file.
 
 1. **What is the learner's stays theirs.** Never write attempts or feedback, add or change subjects
    or settings, finish or skip lessons, issue tokens, or delete anything. Your token is refused anyway;

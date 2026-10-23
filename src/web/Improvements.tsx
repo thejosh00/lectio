@@ -1,10 +1,12 @@
 /**
- * Improvements: changes to lectio itself, grouped by what they need from you — a
- * decision, an answer to the builder, a review — then what's in progress and what
- * shipped, with the tutor's verdicts beside the retention trend.
+ * Improvements: changes to lectio itself, grouped by whose turn it is — yours (a decision,
+ * an answer to the builder, a build to ship), the tutor's (checking a change it asked for
+ * once it runs), the builder's — then what shipped, with the tutor's verdicts beside the
+ * retention trend.
  */
 import {useState} from 'react';
 import {weekOf} from '../core/measures.ts';
+import {awaitsTutorReview} from '../core/proposals.ts';
 import {enc, post, type Progress} from './api.ts';
 import {Chart} from './Charts.tsx';
 import {Markdown} from './markdown.tsx';
@@ -28,17 +30,17 @@ interface Proposal {
   success: string;
   evidence: Array<{kind: string; id: string | null; note: string}>;
   support: number;
-  protected: boolean;
-  acknowledged: boolean;
   priority: string;
   status: string;
   proposed_by: string;
   branch: string | null;
   commit_sha: string | null;
   shipped_at: string | null;
+  accepted_at: string | null;
   outcome: string | null;
   outcome_note: string | null;
   added: string;
+  changed: string;
 }
 
 const who = (actor: string) => (actor === 'you' ? 'you' : actor === 'agent:builder' ? 'the builder' : 'your tutor');
@@ -98,7 +100,6 @@ function Head({p}: {p: Proposal}) {
         #{p.number} {p.title}
       </h3>
       <span className="pill">{p.area.replace(/_/g, ' ')}</span>
-      {p.protected && <span className="pill danger">protected</span>}
       <span className="small-text muted">
         from {who(p.proposed_by)}, {ago(p.added)}
       </span>
@@ -109,7 +110,6 @@ function Head({p}: {p: Proposal}) {
 function Decide({p, onDone}: {p: Proposal; onDone: () => void}) {
   const act = useAct();
   const [priority, setPriority] = useState('normal');
-  const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState('');
   const [declining, setDeclining] = useState<'decline' | 'defer' | null>(null);
   return (
@@ -126,18 +126,11 @@ function Decide({p, onDone}: {p: Proposal; onDone: () => void}) {
               </button>
             ))}
           </div>
-          {p.protected && (
-            <label className="row small-text" style={{marginTop: 8}}>
-              <input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)} style={{width: 'auto', minHeight: 0}} />
-              I know this changes lectio's own rules ({p.area.replace(/_/g, ' ')}).
-            </label>
-          )}
           <div className="actions">
             <button
               type="button"
               className="primary"
-              disabled={p.protected && !confirm}
-              onClick={() => void act(p.number, 'approve', {priority, protected: p.protected && confirm}, `Approved #${p.number}. The builder picks it up next.`).then(ok => ok && onDone())}
+              onClick={() => void act(p.number, 'approve', {priority}, `Approved #${p.number}. The builder picks it up next.`).then(ok => ok && onDone())}
             >
               Approve
             </button>
@@ -189,26 +182,16 @@ function Answer({p, comments, onDone}: {p: Proposal; comments: Comment[]; onDone
   );
 }
 
-function Review({p, comments, onDone}: {p: Proposal; comments: Comment[]; onDone: () => void}) {
-  const act = useAct();
+function ShipCommand({p}: {p: Proposal}) {
   const {toast} = useShared();
-  const [note, setNote] = useState<string | null>(null);
-  const handback = comments.filter(c => c.kind === 'handback').at(-1);
-  const command = `scripts/ship.sh ${p.branch ?? ''}`;
+  const command = `git merge ${p.branch ?? ''} && lectio service restart`;
   return (
-    <div className="card">
-      <Head p={p} />
-      {handback !== undefined && (
-        <details className="more" open>
-          <summary>The builder's hand-back</summary>
-          <Markdown text={handback.body} />
-        </details>
-      )}
+    <>
       <p className="small-text muted" style={{marginBottom: 4}}>
-        Branch <code>{p.branch}</code> at <code>{p.commit_sha?.slice(0, 12)}</code>. To ship it, from the lectio checkout:
+        Ship it like any other change: merge it in the lectio checkout and restart. Once it's running, lectio marks it shipped and your tutor checks it on its next run.
       </p>
       <div className="row">
-        <pre className="hint-box" style={{flex: 1, margin: 0, overflowX: 'auto'}}>{command}</pre>
+        <pre className="hint-box ship-command">{command}</pre>
         <button
           type="button"
           className="small"
@@ -222,23 +205,86 @@ function Review({p, comments, onDone}: {p: Proposal; comments: Comment[]; onDone
           Copy
         </button>
       </div>
-      {note === null ? (
-        <div className="actions">
-          <button type="button" onClick={() => setNote('')}>
-            Request changes
-          </button>
-        </div>
-      ) : (
-        <div className="stack" style={{marginTop: 10}}>
-          <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="What should change?" />
-          <div className="row">
-            <button type="button" className="primary" disabled={note.trim() === ''} onClick={() => void act(p.number, 'request-changes', {note}, 'Sent back to the builder.').then(ok => ok && onDone())}>
-              Send back
-            </button>
-            <button type="button" className="ghost" onClick={() => setNote(null)}>
-              Cancel
-            </button>
-          </div>
+      <p className="small-text muted" style={{margin: '4px 0 0'}}>
+        Branch <code>{p.branch}</code> at <code>{p.commit_sha?.slice(0, 12)}</code>.
+      </p>
+    </>
+  );
+}
+
+function RequestChanges({p, onDone}: {p: Proposal; onDone: () => void}) {
+  const act = useAct();
+  const [note, setNote] = useState<string | null>(null);
+  return note === null ? (
+    <div className="actions">
+      <button type="button" onClick={() => setNote('')}>
+        Request changes
+      </button>
+    </div>
+  ) : (
+    <div className="stack" style={{marginTop: 10}}>
+      <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="What should change?" />
+      <div className="row">
+        <button type="button" className="primary" disabled={note.trim() === ''} onClick={() => void act(p.number, 'request-changes', {note}, 'Sent back to the builder.').then(ok => ok && onDone())}>
+          Send back
+        </button>
+        <button type="button" className="ghost" onClick={() => setNote(null)}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Handback({comments}: {comments: Comment[]}) {
+  const handback = comments.filter(c => c.kind === 'handback').at(-1);
+  if (handback === undefined) return null;
+  return (
+    <details className="more handback">
+      <summary>What the builder did</summary>
+      <Markdown text={handback.body} />
+    </details>
+  );
+}
+
+/** Built and handed back: yours to ship. */
+function Ship({p, comments, onDone}: {p: Proposal; comments: Comment[]; onDone: () => void}) {
+  return (
+    <div className="card">
+      <Head p={p} />
+      <Handback comments={comments} />
+      <ShipCommand p={p} />
+      <RequestChanges p={p} onDone={onDone} />
+    </div>
+  );
+}
+
+/** Shipped, and the tutor asked for it: it checks it on its next run. */
+function TutorChecking({p, comments}: {p: Proposal; comments: Comment[]}) {
+  return (
+    <div className="card">
+      <Head p={p} />
+      <p className="small-text" style={{margin: '6px 0 0'}}>
+        Shipped {ago(p.shipped_at)}. On its next run your tutor tries it, then accepts it or asks the builder for another change. Nothing for you to do.
+      </p>
+      <Handback comments={comments} />
+    </div>
+  );
+}
+
+/** Approved, building, or sent back: the builder's turn. */
+function Building({p, comments}: {p: Proposal; comments: Comment[]}) {
+  const sentBack = p.status === 'changes_requested' ? comments.filter(c => c.kind === 'review').at(-1) : undefined;
+  return (
+    <div className="card">
+      <Head p={p} />
+      <p className="small-text muted" style={{margin: '6px 0 0'}}>
+        {p.status === 'approved' ? `Approved (${p.priority}); waiting for the builder.` : p.status === 'building' ? 'The builder is working on it.' : 'Sent back to the builder for changes.'}
+      </p>
+      {sentBack !== undefined && (
+        <div className="reply">
+          <div className="from">{sentBack.actor === 'you' ? 'You asked' : 'Your tutor asked'}</div>
+          <Markdown text={sentBack.body} />
         </div>
       )}
     </div>
@@ -258,16 +304,18 @@ export function ImprovementsView() {
   const by = (...statuses: string[]) => data.proposals.filter(p => statuses.includes(p.status));
   const decide = by('open');
   const questions = by('needs_info');
-  const review = by('in_review');
-  const progressing = by('approved', 'building', 'changes_requested');
+  const ship = by('in_review');
+  const checking = data.proposals.filter(awaitsTutorReview);
+  const building = by('approved', 'building', 'changes_requested');
   const shipped = by('shipped');
+  const done = shipped.filter(p => !awaitsTutorReview(p));
   const closed = by('declined', 'deferred', 'withdrawn');
   const weeks = progress.data?.progress.retention_by_week ?? [];
   return (
     <div>
       <h2 className="page">Improving lectio</h2>
       <p className="muted small-text">
-        Your tutor proposes changes when lectio gets in the way of teaching you. You decide, the builder builds, you ship, and your tutor says whether it helped.
+        Your tutor proposes changes when lectio gets in the way of teaching you. You decide, the builder builds, you ship it, and your tutor checks it works and later says whether it helped.
       </p>
       {data.proposals.length === 0 && <p className="empty">No proposals yet.</p>}
       {decide.length > 0 && <div className="section">To decide</div>}
@@ -280,22 +328,25 @@ export function ImprovementsView() {
           {comments => <Answer p={p} comments={comments} onDone={reload} />}
         </WithComments>
       ))}
-      {review.length > 0 && <div className="section">Ready to review</div>}
-      {review.map(p => (
+      {ship.length > 0 && <div className="section">Ready to ship</div>}
+      {ship.map(p => (
         <WithComments key={p.id} p={p}>
-          {comments => <Review p={p} comments={comments} onDone={reload} />}
+          {comments => <Ship p={p} comments={comments} onDone={reload} />}
         </WithComments>
       ))}
-      {progressing.length > 0 && <div className="section">In progress</div>}
-      {progressing.map(p => (
-        <div key={p.id} className="card">
-          <Head p={p} />
-          <p className="small-text muted" style={{margin: '6px 0 0'}}>
-            {p.status === 'approved' ? `Approved (${p.priority}); waiting for the builder.` : p.status === 'building' ? 'The builder is working on it.' : 'Sent back for changes.'}
-          </p>
-        </div>
+      {checking.length > 0 && <div className="section">With your tutor</div>}
+      {checking.map(p => (
+        <WithComments key={p.id} p={p}>
+          {comments => <TutorChecking p={p} comments={comments} />}
+        </WithComments>
       ))}
-      {shipped.length > 0 && (
+      {building.length > 0 && <div className="section">With the builder</div>}
+      {building.map(p => (
+        <WithComments key={p.id} p={p}>
+          {comments => <Building p={p} comments={comments} />}
+        </WithComments>
+      ))}
+      {done.length > 0 && (
         <>
           <div className="section">Shipped</div>
           {weeks.length > 0 && (
@@ -311,12 +362,15 @@ export function ImprovementsView() {
               />
             </div>
           )}
-          {shipped.map(p => (
+          {done.map(p => (
             <div key={p.id} className="card">
               <Head p={p} />
               <p className="small-text" style={{margin: '6px 0 0'}}>
                 {p.outcome === null ? (
-                  <span className="muted">Shipped {ago(p.shipped_at)}; your tutor judges it once it has used it.</span>
+                  <span className="muted">
+                    Shipped {ago(p.shipped_at)}
+                    {p.accepted_at === null ? '' : `; your tutor checked it ${ago(p.accepted_at)}`}. It says whether it helped once it has used it for a while.
+                  </span>
                 ) : (
                   <>
                     <span className={`pill ${p.outcome === 'helped' ? 'ok' : p.outcome === 'got_in_the_way' ? 'danger' : ''}`}>{OUTCOME[p.outcome] ?? p.outcome}</span> {p.outcome_note}
@@ -340,7 +394,7 @@ export function ImprovementsView() {
           ))}
         </details>
       )}
-      {progress.data !== undefined && progress.data.progress.retention.n > 0 && shipped.length === 0 && <p className="small-text muted">Retention so far: {pct(progress.data.progress.retention.rate)}.</p>}
+      {progress.data !== undefined && progress.data.progress.retention.n > 0 && done.length === 0 && <p className="small-text muted">Retention so far: {pct(progress.data.progress.retention.rate)}.</p>}
     </div>
   );
 }

@@ -1,71 +1,88 @@
-/* lectio — paper and ink. Deep teal for what you act on, ochre for the tutor's voice. */
+/* lectio — "Rubric". Paper and ink: deep teal for what you act on; vermilion, like the red
+   notes scribes wrote in a manuscript's margin, for the tutor's voice. Right is green-teal
+   and wrong is amber, never red against green, so neither is mistaken for the tutor. */
+
+/* The faces (Newsreader, Instrument Sans, JetBrains Mono) are declared in /fonts/fonts.css,
+   served beside the bundle so they stay out of it (src/server/static.ts). */
 
 :root {
-  --bg: #f6f3ec;
+  --bg: #f5f3ee;
   --surface: #ffffff;
-  --surface-2: #eeeae0;
-  --text: #1c1b18;
-  --muted: #6a645a;
-  --line: #e0dbcf;
-  --accent: #1f5f73;
-  --accent-soft: #dfedf1;
+  --surface-2: #ece8df;
+  --bar-bg: #fbfaf7;
+  --text: #1a1a18;
+  --muted: #66625a;
+  --line: #e2ded4;
+  --line-strong: #d3cec2;
+  --accent: #0f5566;
+  --accent-mid: #2f6e7d;
+  --accent-soft: #e1ecee;
   --accent-text: #ffffff;
-  --tutor: #8a5a14;
-  --tutor-soft: #f6ead6;
-  --ok: #2f7d4f;
-  --ok-soft: #e1f2e7;
-  --warn: #a8660f;
-  --warn-soft: #fbeed8;
+  --tutor: #a8371b;
+  --tutor-soft: #f6e6df;
+  --tutor-line: #e8c9bd;
+  --tutor-ink: #2a211c;
+  --ok: #1e6b52;
+  --ok-soft: #e3f0ea;
+  --warn: #8a4b05;
+  --warn-soft: #fbebd6;
+  --wrong: #b4650c;
   --danger: #b3261e;
   --danger-soft: #fbe5e3;
-  --chart-1: #08779a;
-  --chart-2: #b07015;
-  --chart-grid: #e0dbcf;
-  --shadow: 0 1px 2px rgb(40 30 20 / 0.06), 0 4px 16px rgb(40 30 20 / 0.06);
-  --radius: 12px;
-  --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
-  --serif: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --code-bg: #f3f0e8;
-  --hl-keyword: #7a3e9d;
-  --hl-string: #2f7d4f;
-  --hl-comment: #8a8478;
-  --hl-number: #b0521b;
-  --hl-title: #1f5f73;
-  --hl-type: #8a5a14;
+  --chart-1: #0f5566;
+  --chart-2: #a8371b;
+  --chart-soft: #8fb3bc;
+  --chart-grid: #e2ded4;
+  --shadow: 0 1px 2px rgb(40 30 20 / 0.04);
+  --radius: 16px;
+  --font: 'Instrument Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Newsreader', ui-serif, 'Iowan Old Style', Palatino, Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --code-bg: #ece8df;
+  /* Code blocks are dark in both themes, so their highlight colours are too. */
+  --codeblock-bg: #1e1d1a;
+  --code-text: #ebe6dc;
+  --hl-keyword: #c79ae6;
+  --hl-string: #8fd6a8;
+  --hl-comment: #9a9385;
+  --hl-number: #f0a36b;
+  --hl-title: #7cc7de;
+  --hl-type: #e3b46a;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #141412;
-    --surface: #1e1d1a;
+    --surface: #1c1b19;
     --surface-2: #2a2824;
+    --bar-bg: #181715;
     --text: #ebe6dc;
     --muted: #a39b8f;
-    --line: #36332d;
-    --accent: #6fbad1;
-    --accent-soft: #1b3139;
-    --accent-text: #0d1b20;
-    --tutor: #e3b46a;
-    --tutor-soft: #33281a;
-    --ok: #6ccf93;
-    --ok-soft: #1d3326;
-    --warn: #f0b660;
-    --warn-soft: #3a2d17;
+    --line: #34312c;
+    --line-strong: #4a463f;
+    --accent: #7cc3d6;
+    --accent-mid: #5aa6ba;
+    --accent-soft: #17323a;
+    --accent-text: #08191e;
+    --tutor: #f08f72;
+    --tutor-soft: #3a221a;
+    --tutor-line: #5a3326;
+    --tutor-ink: #ead9cf;
+    --ok: #6fd0a6;
+    --ok-soft: #17332a;
+    --warn: #f2b566;
+    --warn-soft: #3a2b16;
+    --wrong: #e0973d;
     --danger: #ff8a80;
     --danger-soft: #3d2020;
-    --chart-1: #2f9cc2;
-    --chart-2: #bf852b;
-    --chart-grid: #36332d;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.3);
-    --code-bg: #24221e;
-    --hl-keyword: #c79ae6;
-    --hl-string: #8fd6a8;
-    --hl-comment: #8a8478;
-    --hl-number: #f0a36b;
-    --hl-title: #7cc7de;
-    --hl-type: #e3b46a;
+    --chart-1: #4fa9c2;
+    --chart-2: #f08f72;
+    --chart-soft: #3e6a75;
+    --chart-grid: #34312c;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    --code-bg: #2a2824;
+    --codeblock-bg: #0e0e0d;
     color-scheme: dark;
   }
 }
@@ -100,11 +117,12 @@ textarea {
 button,
 .button {
   cursor: pointer;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   background: var(--surface);
   border-radius: 999px;
-  padding: 8px 15px;
-  min-height: 40px;
+  padding: 8px 18px;
+  min-height: 44px;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -134,21 +152,24 @@ button.primary,
 }
 
 button.on {
-  background: var(--text);
-  border-color: var(--text);
-  color: var(--bg);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 button.small,
 .button.small {
-  min-height: 32px;
-  padding: 4px 12px;
-  font-size: 13px;
+  min-height: 36px;
+  padding: 4px 14px;
+  font-size: 14px;
 }
 
 button.ghost {
   border-color: transparent;
   background: transparent;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 button.link {
@@ -168,11 +189,11 @@ button.wide,
 input,
 select,
 textarea {
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   background: var(--surface);
-  border-radius: 10px;
-  padding: 10px 12px;
-  min-height: 44px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 48px;
   width: 100%;
 }
 
@@ -192,15 +213,17 @@ button:focus-visible {
 label.field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--muted);
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 label.field > input,
 label.field > select,
 label.field > textarea {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 400;
   color: var(--text);
 }
 
@@ -249,14 +272,15 @@ pre {
 
 .shell {
   min-height: 100vh;
-  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
 }
 
+/* On a phone the page's own title stands in for a top bar; it shows from tablet width up. */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 5;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 20px;
   padding: 10px 16px;
@@ -267,9 +291,9 @@ pre {
 
 .brand {
   font-family: var(--serif);
-  font-size: 22px;
-  font-style: italic;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   text-decoration: none;
   color: var(--accent);
   display: inline-flex;
@@ -310,37 +334,40 @@ pre {
   z-index: 5;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--bar-bg) 94%, transparent);
+  backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 6px 4px env(safe-area-inset-bottom);
 }
 
 .tabs-bottom a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 8px 0 7px;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
   font-size: 11px;
+  font-weight: 600;
   text-decoration: none;
   color: var(--muted);
   position: relative;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.tabs-bottom a span {
-  font-size: 18px;
-  line-height: 1.1;
+.tabs-bottom a svg {
+  width: 24px;
+  height: 24px;
 }
 
 .tabs-bottom a.active {
   color: var(--accent);
-  font-weight: 600;
 }
 
 .dot {
   position: absolute;
-  top: 5px;
-  right: calc(50% - 16px);
+  top: 4px;
+  right: calc(50% - 18px);
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -355,18 +382,37 @@ pre {
 .content {
   max-width: 760px;
   margin: 0 auto;
-  padding: 14px 16px 28px;
+  padding: calc(env(safe-area-inset-top) + 28px) 16px 32px;
 }
 
 h1,
 h2 {
   font-family: var(--serif);
-  line-height: 1.2;
+  font-weight: 500;
+  line-height: 1.15;
 }
 
 h2.page {
-  font-size: 26px;
-  margin: 6px 0 14px;
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin: 4px 4px 16px;
+}
+
+/* A small capitalised label above a title or a group: "FRIDAY · OCTOBER 23". */
+.kicker-line {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 4px;
+}
+
+.page-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: -12px 4px 16px;
 }
 
 h3 {
@@ -374,6 +420,9 @@ h3 {
 }
 
 @media (min-width: 760px) {
+  .topbar {
+    display: flex;
+  }
   .tabs-top {
     display: flex;
   }
@@ -425,7 +474,20 @@ h3 {
 }
 
 .signin .brand {
-  font-size: 40px;
+  font-size: 52px;
+  letter-spacing: -0.02em;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  color: var(--text);
+}
+
+.signin .tagline {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .signin form {
@@ -435,9 +497,10 @@ h3 {
 }
 
 .hint-box {
-  background: var(--surface-2);
-  border-radius: 8px;
-  padding: 8px 12px;
+  background: var(--codeblock-bg);
+  color: var(--code-text);
+  border-radius: 10px;
+  padding: 12px 14px;
 }
 
 /* --- cards, pills, chips ------------------------------------------------------------ */
@@ -447,16 +510,64 @@ h3 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 14px;
+  padding: 18px;
 }
 
-.card + .card {
-  margin-top: 10px;
+.card + .card,
+.banner + .card {
+  margin-top: 12px;
 }
 
 .card h3 {
-  font-size: 17px;
-  line-height: 1.3;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Something that needs you, on top of a page: "2 improvements to lectio need you". */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--tutor-soft);
+  color: var(--tutor);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.banner .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--tutor);
+  color: var(--surface);
+  font-size: 12px;
+}
+
+/* The tutor's own card ("From your tutor"): a warmer sheet of paper. */
+.card.from-tutor {
+  background: color-mix(in srgb, var(--tutor-soft) 25%, var(--surface));
+}
+
+.card.from-tutor .card-kicker {
+  color: var(--tutor);
+}
+
+.card-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .card-title {
@@ -467,10 +578,10 @@ h3 {
 }
 
 .section {
-  margin: 22px 0 8px;
-  font-size: 13px;
+  margin: 26px 4px 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
   color: var(--muted);
   font-weight: 600;
 }
@@ -484,8 +595,9 @@ h3 {
 .pill {
   display: inline-block;
   font-size: 12px;
-  padding: 1px 8px;
-  border-radius: 999px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
   background: var(--surface-2);
   color: var(--text);
   white-space: nowrap;
@@ -527,36 +639,75 @@ h3 {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .chip {
-  min-height: 36px;
+  min-height: 40px;
+  padding: 4px 14px;
   font-size: 14px;
-  background: var(--surface-2);
-  border-color: transparent;
+  background: var(--surface);
+  border-color: var(--line-strong);
 }
 
 .chip.on {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
+/* The tutor's voice is marginalia: italic serif between two vermilion hairlines, with a ¶. */
 .tutor-voice {
-  background: var(--tutor-soft);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
+  position: relative;
+  border-top: 1px solid var(--tutor-line);
+  border-bottom: 1px solid var(--tutor-line);
+  padding: 12px 0 12px 26px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--tutor-ink);
+}
+
+.tutor-voice::before,
+.reply::before {
+  content: '¶';
+  position: absolute;
+  left: 0;
+  font-family: var(--serif);
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--tutor);
+}
+
+.tutor-voice::before {
+  top: 11px;
 }
 
 .tutor-voice strong {
   color: var(--tutor);
+  font-family: var(--font);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tutor-voice :is(.small-text, .muted, .pill) {
+  font-family: var(--font);
+  font-style: normal;
 }
 
 .objectives {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   padding-left: 18px;
   font-size: 14px;
+  color: color-mix(in srgb, var(--text) 82%, var(--bg));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .actions {
@@ -572,8 +723,8 @@ h3 {
 }
 
 .bar {
-  height: 6px;
-  border-radius: 3px;
+  height: 4px;
+  border-radius: 2px;
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -593,13 +744,33 @@ h3 {
 
 .reader-head {
   position: sticky;
-  top: 53px;
+  top: 0;
   z-index: 4;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(8px);
-  margin: -14px -16px 12px;
-  padding: 8px 16px 6px;
-  border-bottom: 1px solid var(--line);
+  margin: calc(-28px - env(safe-area-inset-top)) -16px 20px;
+  padding: calc(env(safe-area-inset-top) + 14px) 20px 0;
+}
+
+.reader-head a {
+  color: var(--accent);
+  font-weight: 600;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.reader-head .progress {
+  margin: 8px -20px 0;
+  border-radius: 0;
+}
+
+@media (min-width: 760px) {
+  .reader-head {
+    top: 53px;
+    margin-top: -22px;
+    padding-top: 6px;
+  }
 }
 
 .progress {
@@ -618,8 +789,10 @@ h3 {
 }
 
 .lesson-title {
-  font-size: 28px;
-  margin: 4px 0 6px;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin: 6px 0 10px;
 }
 
 .block {
@@ -683,7 +856,7 @@ h3 {
 
 .prose {
   font-family: var(--serif);
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1.6;
   overflow-wrap: break-word;
 }
@@ -710,9 +883,10 @@ h3 {
 }
 
 .prose pre {
-  background: var(--code-bg);
-  border-radius: 10px;
-  padding: 12px 14px;
+  background: var(--codeblock-bg);
+  color: var(--code-text);
+  border-radius: 12px;
+  padding: 14px;
   overflow-x: auto;
   font-size: 14px;
   line-height: 1.5;
@@ -751,32 +925,29 @@ h3 {
 }
 
 .callout {
-  border-radius: 12px;
-  padding: 12px 14px;
-  border-left: 4px solid var(--accent);
+  border-radius: 14px;
+  padding: 16px 18px;
   background: var(--accent-soft);
 }
 
 .callout .label {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
   color: var(--accent);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .callout.pitfall {
-  border-color: var(--danger);
-  background: var(--danger-soft);
+  background: var(--warn-soft);
 }
 
 .callout.pitfall .label {
-  color: var(--danger);
+  color: var(--warn);
 }
 
 .callout.tip {
-  border-color: var(--ok);
   background: var(--ok-soft);
 }
 
@@ -785,16 +956,15 @@ h3 {
 }
 
 .callout.definition {
-  border-color: var(--tutor);
-  background: var(--tutor-soft);
+  background: var(--surface-2);
 }
 
 .callout.definition .label {
-  color: var(--tutor);
+  color: var(--muted);
 }
 
 .callout .prose {
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .callout .prose p:last-child {
@@ -809,12 +979,13 @@ h3 {
 
 .code-block pre {
   margin: 0;
-  background: var(--code-bg);
-  border-radius: 10px;
-  padding: 12px 14px;
+  background: var(--codeblock-bg);
+  color: var(--code-text);
+  border-radius: 12px;
+  padding: 14px;
   overflow-x: auto;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .code-block .output {
@@ -824,7 +995,8 @@ h3 {
 
 .code-block .output pre {
   background: transparent;
-  border: 1px dashed var(--line);
+  color: var(--text);
+  border: 1px dashed var(--line-strong);
 }
 
 .hljs-keyword,
@@ -866,7 +1038,7 @@ h3 {
 .hljs-attr,
 .hljs-variable,
 .hljs-params {
-  color: var(--text);
+  color: var(--code-text);
 }
 
 .hljs-meta {
@@ -896,23 +1068,23 @@ details.more summary {
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 18px;
   box-shadow: var(--shadow);
 }
 
 .question .kicker {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  margin-bottom: 6px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 8px;
 }
 
 .question .prompt {
   font-family: var(--serif);
-  font-size: 18px;
-  line-height: 1.5;
+  font-size: 22px;
+  line-height: 1.35;
 }
 
 .question .prompt p {
@@ -931,8 +1103,10 @@ details.more summary {
   text-align: left;
   white-space: normal;
   border-radius: 12px;
-  padding: 10px 14px;
-  min-height: 48px;
+  padding: 12px 14px;
+  min-height: 52px;
+  gap: 12px;
+  font-weight: 400;
   background: var(--surface);
 }
 
@@ -955,11 +1129,17 @@ details.more summary {
 .option.right {
   border-color: var(--ok);
   background: var(--ok-soft);
+  box-shadow: inset 0 0 0 1px var(--ok);
 }
 
 .option.wrong {
-  border-color: var(--danger);
-  background: var(--danger-soft);
+  border-color: var(--wrong);
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--wrong);
+}
+
+.option:disabled {
+  opacity: 1;
 }
 
 .option .mark {
@@ -967,13 +1147,26 @@ details.more summary {
   width: 20px;
   text-align: center;
   font-weight: 700;
+  color: var(--muted);
+}
+
+.option.picked .mark {
+  color: var(--accent);
+}
+
+.option.right .mark {
+  color: var(--ok);
+}
+
+.option.wrong .mark {
+  color: var(--wrong);
 }
 
 .order-item {
   display: flex;
   gap: 8px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
   padding: 8px 10px;
   background: var(--surface);
@@ -990,8 +1183,8 @@ details.more summary {
 }
 
 .order-item button {
-  min-height: 36px;
-  min-width: 36px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0;
 }
 
@@ -1033,9 +1226,14 @@ details.more summary {
   margin-top: 14px;
 }
 
+.confidence {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .confidence .label {
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
   margin-bottom: 6px;
 }
 
@@ -1045,37 +1243,57 @@ details.more summary {
   gap: 8px;
 }
 
-.confidence button {
-  min-height: 48px;
+.confidence .buttons button {
+  min-height: 52px;
+  padding: 0;
   font-weight: 600;
 }
 
+/* How sure, from solid to outline: Sure · Think so · Guessing. */
+.confidence .buttons .sure {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.confidence .buttons .think {
+  background: var(--accent-mid);
+  border-color: var(--accent-mid);
+  color: var(--accent-text);
+}
+
 .reveal {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--line);
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .verdict {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
 }
 
 .verdict.right {
   color: var(--ok);
+  background: var(--ok-soft);
 }
 
 .verdict.wrong {
-  color: var(--danger);
+  color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .verdict.partly {
   color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .reveal .prose {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .self-grade {
@@ -1103,14 +1321,21 @@ details.more summary {
 .quiz-head .progress {
   flex: 1;
   margin: 0;
-  height: 6px;
+  height: 4px;
+}
+
+.quiz-head a {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .score-big {
   font-family: var(--serif);
-  font-size: 44px;
-  font-weight: 600;
-  margin: 0;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 4px 0;
 }
 
 /* --- subjects ------------------------------------------------------------------------ */
@@ -1124,9 +1349,13 @@ details.more summary {
 .syllabus li {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 2px 10px;
-  padding: 10px 0;
+  gap: 4px 10px;
+  padding: 12px 0;
   border-top: 1px solid var(--line);
+}
+
+.syllabus li:first-child {
+  border-top: none;
 }
 
 .syllabus li .bar {
@@ -1141,31 +1370,45 @@ details.more summary {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+/* The first number is the one that matters, retention: it gets the whole width. */
+.stat-row > .stat:first-child {
+  grid-column: 1 / -1;
+}
+
+.stat-row > .stat:first-child .value {
+  font-size: 64px;
+  letter-spacing: -0.02em;
 }
 
 .stat {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: 16px 18px;
 }
 
 .stat .value {
-  font-family: var(--font);
-  font-size: 26px;
-  font-weight: 600;
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 500;
   line-height: 1.1;
+  margin: 2px 0;
 }
 
 .stat .label {
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
 .stat .sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
@@ -1217,15 +1460,29 @@ table.data th.num {
 .seg {
   display: flex;
   gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
   overflow-x: auto;
   scrollbar-width: none;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .seg button {
-  min-height: 34px;
-  padding: 4px 12px;
+  flex: 1 0 auto;
+  min-height: 40px;
+  padding: 4px 14px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
   font-size: 13px;
+  font-weight: 600;
+}
+
+.seg button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(40 30 20 / 0.12);
 }
 
 /* --- notes and runs --------------------------------------------------------------------- */
@@ -1266,19 +1523,51 @@ table.data th.num {
 }
 
 .reply {
-  border-left: 3px solid var(--tutor);
-  padding: 4px 0 4px 10px;
-  margin: 6px 0;
+  position: relative;
+  padding: 2px 0 2px 26px;
+  margin: 10px 0;
+}
+
+.reply::before {
+  top: 0;
 }
 
 .reply .prose {
-  font-size: 16px;
+  font-size: 17px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--tutor-ink);
+}
+
+.reply .prose p:last-child {
+  margin-bottom: 0;
 }
 
 .reply .from {
-  font-size: 12px;
-  color: var(--tutor);
-  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+/* A builder's hand-back: a report inside a card, not a lesson. */
+.handback .prose {
+  font-size: 15px;
+}
+
+.handback .prose :is(h1, h2, h3, h4) {
+  font-family: inherit;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 1em 0 0.3em;
+}
+
+.ship-command {
+  flex: 1;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .list {
@@ -1288,7 +1577,7 @@ table.data th.num {
 }
 
 .list > li {
-  padding: 10px 0;
+  padding: 12px 0;
   border-top: 1px solid var(--line);
 }
 
@@ -1352,10 +1641,11 @@ table.data th.num {
 .chart .ref {
   stroke: var(--chart-2);
   stroke-width: 1.5;
+  stroke-dasharray: 4 3;
 }
 
 .chart .ship {
-  stroke: var(--muted);
+  stroke: var(--tutor);
   stroke-width: 1;
 }
 
@@ -1396,8 +1686,8 @@ table.data th.num {
 }
 
 .hbar .track {
-  height: 12px;
-  border-radius: 0 4px 4px 0;
+  height: 10px;
+  border-radius: 5px;
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -1406,7 +1696,7 @@ table.data th.num {
   display: block;
   height: 100%;
   background: var(--chart-1);
-  border-radius: 0 4px 4px 0;
+  border-radius: 5px;
 }
 
 .hbar .value {

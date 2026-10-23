@@ -1,5 +1,23 @@
 import {usageError} from '../../core/errors.ts';
-import {addComment, addProposal, answer, ask, builderDue, claim, commentsOf, decide, listProposals, markShipped, recordOutcome, requestChanges, resolveProposal, submit, supportProposal, withdraw} from '../../db/proposals.ts';
+import {
+  addComment,
+  addProposal,
+  answer,
+  ask,
+  builderDue,
+  claim,
+  commentsOf,
+  decide,
+  listProposals,
+  markShipped,
+  recordOutcome,
+  requestChanges,
+  resolveProposal,
+  reviewBuild,
+  submit,
+  supportProposal,
+  withdraw,
+} from '../../db/proposals.ts';
 import {bool, q, str, type ApiRequest, type Route} from '../http.ts';
 import type {Ctx} from '../../db/context.ts';
 
@@ -23,7 +41,7 @@ export const proposalRoutes: Route[] = [
     handler: (ctx, req) =>
       ctx.write(() => {
         if (req.body['proposal'] === undefined) throw usageError('send the proposal JSON: --file p.json');
-        return {...addProposal(ctx, {proposal: req.body['proposal'], run: str(req.body, 'run'), open: bool(req.body, 'open') === true, acknowledge: bool(req.body, 'protected') === true})};
+        return {...addProposal(ctx, {proposal: req.body['proposal'], run: str(req.body, 'run'), open: bool(req.body, 'open') === true})};
       }),
   },
   {
@@ -40,7 +58,7 @@ export const proposalRoutes: Route[] = [
       allow: ['learner'],
       what: `${action === 'approve' ? 'approving' : action === 'decline' ? 'declining' : 'deferring'} proposals`,
       handler: (ctx, req) =>
-        ctx.write(() => withComments(ctx, decide(ctx, proposal(ctx, req), action, {note: str(req.body, 'note'), priority: str(req.body, 'priority'), acknowledge: bool(req.body, 'protected') === true}))),
+        ctx.write(() => withComments(ctx, decide(ctx, proposal(ctx, req), action, {note: str(req.body, 'note'), priority: str(req.body, 'priority')}))),
     }),
   ),
   {
@@ -78,6 +96,13 @@ export const proposalRoutes: Route[] = [
     allow: ['learner'],
     what: 'requesting changes',
     handler: (ctx, req) => ctx.write(() => withComments(ctx, requestChanges(ctx, proposal(ctx, req), str(req.body, 'note')))),
+  },
+  {
+    method: 'POST',
+    path: '/api/proposals/:ref/review',
+    allow: ['tutor'],
+    what: 'checking shipped changes it proposed',
+    handler: (ctx, req) => ctx.write(() => withComments(ctx, reviewBuild(ctx, proposal(ctx, req), {verdict: str(req.body, 'verdict'), note: str(req.body, 'note')}))),
   },
   {
     method: 'POST',

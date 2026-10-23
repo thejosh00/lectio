@@ -8,7 +8,7 @@
  */
 import {APPROACHES, BLOCK_TYPES, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
 import {PLANNED_QUESTION_TYPES, QUESTION_TYPES} from '../questions/index.ts';
-import {AREAS, OUTCOMES, PROTECTED_AREAS} from './proposals.ts';
+import {AREAS, OUTCOMES} from './proposals.ts';
 import {AIMS, ITEM_ROLES} from './types.ts';
 
 export interface ContractOptions {
@@ -261,7 +261,15 @@ export function tutorExamples(options: ContractOptions): Example[] {
     {section: 'bank', line: 'lectio question retire <stale-question> --json'},
     {section: 'reflect', line: 'lectio proposal add --file proposal.json --run <run> --json', file: {name: 'proposal.json', content: PROPOSAL}},
     {section: 'reflect', line: 'lectio proposal support <proposal> --evidence \'[{"kind":"lesson","id":"<new-lesson>","note":"verbs as a table again"}]\' --note "Hit it again with irregular verbs." --run <run> --json'},
-    {section: 'reflect', line: 'lectio proposal outcome <shipped-proposal> helped --note "Definition retention 52% to 74% over 23 reviews since it shipped." --json'},
+    {
+      section: 'review',
+      line: 'lectio proposal review <shipped-change> accept --note "Does what I asked: a wrong numeric answer can carry a misconception tag, and the contract shows the shape. I will tag the uint8 questions next." --json',
+    },
+    {
+      section: 'review',
+      line: 'lectio proposal review <broken-change> changes --note "The card reveals on tap with no recall step first, and recall before reveal was the problem. Ask for an answer before showing the back." --json',
+    },
+    {section: 'outcome', line: 'lectio proposal outcome <shipped-proposal> helped --note "Definition retention 52% to 74% over 23 reviews since it shipped." --json'},
     {
       section: 'finish',
       line: 'lectio run finish <run> --outcome ok --made \'{"fixes":2,"replies":1,"grades":1}\' --summary "Fixed a wrong block and widened a short answer. Moves introduced with a worked trace, since traces have retained better; music intervals planned and placed." --json',
@@ -279,7 +287,7 @@ export function builderExamples(): Example[] {
       section: 'build',
       as: 'agent:builder',
       line: 'lectio proposal submit <approved-proposal> --branch <branch> --commit <sha> --note-file handback.md --as agent:builder --json',
-      file: {name: 'handback.md', content: '## What changed\nA `flashcard` block type.\n\n## How to try it\nSubmit the lesson in the contract.\n\n## Tests\nAdded tests/unit/flashcard.test.ts.\n\n## Protected paths touched\nnone\n\n## Left undone\nnothing\n'},
+      file: {name: 'handback.md', content: '## What changed\nA `flashcard` block type.\n\n## For the tutor\n`{"type": "flashcard", "body": {"front": "…", "back": "…"}}` in a lesson.\n\n## How to try it\nSubmit the lesson in the contract.\n\n## Tests\nAdded tests/unit/flashcard.test.ts.\n\n## Left undone\nnothing\n'},
     },
   ];
 }
@@ -376,6 +384,8 @@ export function agentsDocument(options: ContractOptions): string {
     '   `due` says which subjects need you and why: `needs_fix` (a flag or widget error), `needs_reply`',
     "   (an ask), `needs_plan` (no syllabus yet), `ready` (it may have today's lesson). `waiting` says why",
     '   the others may not: `unfinished_lesson`, `not_scheduled_today`, `before_ready_hour`, `done_today`.',
+    '   `reviews` lists changes you proposed that have shipped and wait for you to check them (step 9); they',
+    '   make a run due too.',
     '2. **Start** a run. One open run at a time; starting again within 12 hours resumes it (`"resumed": true`).',
     ...shown('start'),
     '3. **Fix first: wrong is worse than nothing.** For each unresolved `wrong` or `broken` block, each',
@@ -408,9 +418,17 @@ export function agentsDocument(options: ContractOptions): string {
     ...shown('bank'),
     '9. **Reflect** on lectio itself: did the app get in the way of teaching today — something you',
     "   couldn't express, couldn't see, or had to work around? Support the open proposal that matches, or",
-    '   file one (see "Improving lectio"). Most runs have none. Then record an outcome for each proposal in',
-    '   `awaiting_outcome` you have used enough to judge — `no_difference` and `got_in_the_way` included.',
+    '   file one (see "Improving lectio"). Most runs have none.',
     ...shown('reflect'),
+    '   **See what shipped for you.** Each proposal in `to_review` is one of yours that is now running, and',
+    '   this document has changed with it: read it again, and the `handback` for what the builder did.',
+    '   Try it where today calls for it. If it solves the `problem` you described, accept it; if it',
+    "   doesn't work, ask for another change, saying the one thing that keeps it from solving the problem.",
+    '   Ask only for what the proposal asked for: anything more is a new proposal.',
+    ...shown('review'),
+    '   Then record an outcome for each proposal in `awaiting_outcome` you have used enough to judge —',
+    '   `no_difference` and `got_in_the_way` included.',
+    ...shown('outcome'),
     '   When `retro_due`, also look back over the week and ask: *what one change to lectio would most',
     '   improve how well this person learns?* File it if it beats every open proposal, else support the',
     '   one it matches, and finish the run with `--retro`.',
@@ -505,7 +523,7 @@ export function agentsDocument(options: ContractOptions): string {
     'the approaches that taught them, confidence, hints, seconds, misconception, `gap_hours`), `measures`,',
     '`widget_errors` and `budget`. Then `regrade`, `feedback_since_last_run`, `unresolved_flags`,',
     '`unanswered_asks`, `recent_runs`, `contract_version`, and for improving lectio: `open_proposals`,',
-    '`shipped_since_last_run`, `awaiting_outcome` and `retro_due`.',
+    '`to_review` (with each build\'s `handback`), `shipped_since_last_run`, `awaiting_outcome` and `retro_due`.',
     '',
     '## What the measures mean',
     '',
@@ -545,14 +563,14 @@ export function agentsDocument(options: ContractOptions): string {
     '## Improving lectio',
     '',
     'You are lectio\'s most demanding user. When it gets in the way of teaching, propose a change. The',
-    'learner decides, a second agent (the builder) builds it on a branch, the learner ships it, and you',
-    'say whether it helped.',
+    'learner decides, a second agent (the builder) builds it on a branch, the learner ships it, you check it',
+    'works, and later you say whether it helped.',
     '',
     ...table(
       ['Field', ''],
       [
         ['`title`', 'one change, small enough to review in one sitting'],
-        ['`area`', `${AREAS.map(a => `\`${a}\``).join(' · ')}; protected: ${PROTECTED_AREAS.map(a => `\`${a}\``).join(' · ')}`],
+        ['`area`', AREAS.map(a => `\`${a}\``).join(' · ')],
         ['`problem`', 'what got in the way of teaching, in your own words'],
         ['`change`', 'the smallest change that would fix it'],
         ['`success`', 'how we will know it helped: a measure that should move, or something you could then do'],
@@ -560,16 +578,18 @@ export function agentsDocument(options: ContractOptions): string {
       ],
     ),
     '',
-    '`open` → `approved` (by the learner) → `building` → `in_review` → `shipped` (running, not merged) → your',
-    `outcome: ${OUTCOMES.map(o => `\`${o}\``).join(', ')}. The learner may decline or defer instead; the reason is in the context`,
+    '`open` → `approved` (by the learner) → `building` → `in_review` → `shipped` (running, not merged) → you',
+    `check it (\`to_review\`) → later, your outcome: ${OUTCOMES.map(o => `\`${o}\``).join(', ')}. Asking for another change`,
+    'makes it `changes_requested` and the builder takes it up again; the learner may send a build back before',
+    "shipping too. The learner may decline or defer a proposal instead; the reason is in the context",
     "(`declined_proposals`) so you don't propose it again. The builder may ask a question (`needs_info`).",
     '',
     `- **Caps:** ${options.limits['proposals_per_run']} new proposals per run (support doesn't count), and at most ${options.limits['proposals_open_max']} open, deferred or`,
     '  waiting on a question at once. Past it, support or withdraw.',
     '- **Don\'t duplicate:** `open_proposals` lists what is filed; hitting a known problem again is `support`.',
     '- **Good proposals come from evidence**, by id — never quote the learner\'s content. "Add gamification" is not one.',
-    '- **Protected areas** change the scoreboard, permissions, caps, the sandbox or this loop. They are about',
-    '  making the learner learn better, never about making your numbers look better or your job easier.',
+    '- **Changes to the measures, permissions, caps, the sandbox or this loop** are about making the learner',
+    '  learn better, never about making your numbers look better or your job easier.',
     '',
     '### The builder',
     '',

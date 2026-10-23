@@ -30,6 +30,8 @@ lectio due --json
   `lectio login --url http://127.0.0.1:7780 --token <it> --default`. Never use their `you` token.
 - `"due": false`: **stop without starting a run.** Most hourly wakes find nothing; that is normal and
   shouldn't clutter the log. Say "nothing due" and why, from `waiting`.
+- `reviews` lists changes you proposed that have shipped and wait for you to check them (step 9).
+  They make a run due on their own, even when no subject is: then the run is just that check.
 
 Otherwise read everything in one call, and the contract when this session hasn't, or when
 `contract_version` differs from what you last read (a change to lectio has shipped):
@@ -151,6 +153,19 @@ refusal that didn't say what to do instead)? If so, `support` the open proposal 
 one — `lectio proposal add --file p.json --run <run>`, shape and examples in the contract. Most runs
 have none. Never re-propose something in `declined_proposals`.
 
+**See what shipped for you.** Each proposal in `to_review` is one of yours that is now running.
+Read `lectio agents` again (the contract changed with it) and the `handback` for what the builder
+did, and use it where today's lesson calls for it. If it lets you do what you couldn't (the `problem`
+you described), accept it; if it doesn't work, ask for another change:
+
+```bash
+lectio proposal review <n> accept --note "<what you checked, and how you'll use it>"
+lectio proposal review <n> changes --note "<the one thing that keeps it from solving the problem>"
+```
+
+Ask only for what the proposal asked for; anything beyond it is a new proposal. Accepting doesn't
+mean it helped — that is the outcome, once you have used it for a while.
+
 Then, for each proposal in `awaiting_outcome` you have now used enough to judge (or that is
 `overdue`), record its outcome: `lectio proposal outcome <n> helped|no_difference|got_in_the_way|unused
 --note "<evidence>"`. Be honest; `no_difference` is useful.
@@ -164,8 +179,9 @@ beats every open proposal, else support the one it matches. Finish the run with 
 ## 10. Finish, always
 
 ```bash
-lectio run finish <run> --outcome ok|partial|failed --made '{"fixes":1,"replies":2,"grades":1}' --summary "…" [--retro] --json
+lectio run finish <run> --outcome ok|partial|failed --made '{"fixes":1,"replies":2,"grades":1,"reviews":1}' --summary "…" [--retro] --json
 ```
 
 `partial` if something failed part way. The summary is 2–3 sentences for the learner: what you saw,
-what you changed, and why. Mention any evidence that disagrees with their own notes.
+what you changed, and why. Mention any evidence that disagrees with their own notes, and any shipped
+change you accepted or asked to change (by number).

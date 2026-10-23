@@ -1,5 +1,5 @@
 /**
- * The §7 measures on a fixed history. These definitions are protected: if one of these
+ * The §7 measures on a fixed history. These definitions are fixed: if one of these
  * numbers changes, a measure has changed meaning, and the before-and-after comparisons
  * the learner relies on are broken.
  */

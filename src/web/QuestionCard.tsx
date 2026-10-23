@@ -166,7 +166,7 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
                 aria-label={`blank ${blank}`}
                 autoCapitalize="off"
                 autoComplete="off"
-                style={result === undefined ? undefined : {borderColor: result ? 'var(--ok)' : 'var(--danger)'}}
+                style={result === undefined ? undefined : {borderColor: result ? 'var(--ok)' : 'var(--wrong)'}}
               />
             );
           })}
@@ -185,7 +185,7 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
       return (
         <div className="options">
           {current.map((id, i) => (
-            <div key={id} className="order-item" style={outcome?.detail?.[id] === undefined ? undefined : {borderColor: outcome.detail[id] ? 'var(--ok)' : 'var(--danger)'}}>
+            <div key={id} className="order-item" style={outcome?.detail?.[id] === undefined ? undefined : {borderColor: outcome.detail[id] ? 'var(--ok)' : 'var(--wrong)'}}>
               <span className="muted">{i + 1}</span>
               <Markdown text={items.find(it => it.id === id)!.md} />
               {!locked && (
@@ -214,7 +214,7 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
                 value={values[l.id] ?? ''}
                 disabled={locked}
                 onChange={e => setDraft({...values, [l.id]: e.target.value})}
-                style={outcome?.detail?.[l.id] === undefined ? undefined : {borderColor: outcome.detail[l.id] ? 'var(--ok)' : 'var(--danger)'}}
+                style={outcome?.detail?.[l.id] === undefined ? undefined : {borderColor: outcome.detail[l.id] ? 'var(--ok)' : 'var(--wrong)'}}
               >
                 <option value="">Choose…</option>
                 {parts('right').map(r => (
@@ -367,13 +367,13 @@ export function QuestionCard({question, answered, where, kicker, onAnswered}: Pr
               )}
             </div>
             <div className="buttons">
-              <button type="button" disabled={busy || !ready(question, draft)} onClick={() => void submit('sure')}>
+              <button type="button" className="sure" disabled={busy || !ready(question, draft)} onClick={() => void submit('sure')}>
                 Sure
               </button>
-              <button type="button" disabled={busy || !ready(question, draft)} onClick={() => void submit('think')}>
+              <button type="button" className="think" disabled={busy || !ready(question, draft)} onClick={() => void submit('think')}>
                 Think so
               </button>
-              <button type="button" disabled={busy || !ready(question, draft)} onClick={() => void submit('guess')}>
+              <button type="button" className="guess" disabled={busy || !ready(question, draft)} onClick={() => void submit('guess')}>
                 Guessing
               </button>
             </div>

@@ -1,19 +1,15 @@
 /**
  * Proposals: changes to lectio itself — proposed by the tutor (or you, or the builder),
- * approved by you, built by the builder, shipped by you, and judged by the tutor.
+ * approved by you, built by the builder, shipped by you like any other change, then
+ * checked and judged by the tutor.
  *
  * The rules of the lifecycle are here, pure; who may move a proposal along each edge is
- * enforced by the server by actor. This module is protected (§11): the loop can't
- * loosen its own checks.
+ * enforced by the server by actor.
  */
 import {Node, type Issue} from './validate.ts';
 
-export const AREAS = ['block_type', 'question_type', 'measure', 'context', 'contract', 'learner_ui', 'scheduling', 'tutor_skill', 'other'] as const;
-/** Areas where approving needs an explicit acknowledgement. */
-export const PROTECTED_AREAS = ['limits', 'permissions', 'sandbox', 'improvement_loop'] as const;
-export const ALL_AREAS = [...AREAS, ...PROTECTED_AREAS] as const;
-export type Area = (typeof ALL_AREAS)[number];
-export const isProtectedArea = (area: string) => (PROTECTED_AREAS as readonly string[]).includes(area);
+export const AREAS = ['block_type', 'question_type', 'measure', 'context', 'contract', 'learner_ui', 'scheduling', 'tutor_skill', 'limits', 'permissions', 'sandbox', 'improvement_loop', 'other'] as const;
+export type Area = (typeof AREAS)[number];
 
 export const PROPOSAL_STATUSES = ['open', 'approved', 'building', 'needs_info', 'in_review', 'changes_requested', 'shipped', 'declined', 'deferred', 'withdrawn'] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
@@ -34,7 +30,7 @@ export type Outcome = (typeof OUTCOMES)[number];
 export const EVIDENCE_KINDS = ['lesson', 'block', 'question', 'run', 'measure', 'feedback'] as const;
 export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
 
-export const COMMENT_KINDS = ['comment', 'decision', 'support', 'question', 'answer', 'handback', 'review', 'outcome'] as const;
+export const COMMENT_KINDS = ['comment', 'decision', 'support', 'question', 'answer', 'handback', 'review', 'accept', 'outcome'] as const;
 export type CommentKind = (typeof COMMENT_KINDS)[number];
 
 export interface Evidence {
@@ -63,12 +59,28 @@ export const TRANSITIONS = {
   answer: {from: ['needs_info'], to: 'approved'},
   submit: {from: ['building'], to: 'in_review'},
   request_changes: {from: ['in_review'], to: 'changes_requested'},
+  /** The tutor's review of a shipped build it asked for: another change on top. */
+  send_back: {from: ['shipped'], to: 'changes_requested'},
   shipped: {from: ['in_review'], to: 'shipped'},
 } as const satisfies Record<string, {from: readonly ProposalStatus[]; to: ProposalStatus}>;
 export type Action = keyof typeof TRANSITIONS;
 
 export function canMove(action: Action, status: ProposalStatus): boolean {
   return (TRANSITIONS[action].from as readonly ProposalStatus[]).includes(status);
+}
+
+/** The tutor's verdict on a build of its own proposal. */
+export const REVIEW_VERDICTS = ['accept', 'changes'] as const;
+export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];
+
+type Stage = {proposed_by: string; status: string; accepted_at: string | null; outcome: string | null};
+
+/**
+ * A shipped change the tutor asked for, waiting for it to see: running, and not yet
+ * accepted or sent back. Yours and the builder's are yours to judge.
+ */
+export function awaitsTutorReview(p: Stage): boolean {
+  return p.proposed_by === 'agent:tutor' && p.status === 'shipped' && p.accepted_at === null && p.outcome === null;
 }
 
 export function readEvidence(node: Node): Evidence[] {
@@ -90,7 +102,7 @@ export function readProposal(value: unknown): {value?: ProposalInput; issues: Is
   const o = node.object(['title', 'area', 'problem', 'change', 'success', 'evidence']);
   if (o === undefined) return {issues: node.issues};
   const title = node.get('title').string({max: 120});
-  const area = node.get('area').oneOf(ALL_AREAS);
+  const area = node.get('area').oneOf(AREAS);
   const problem = node.get('problem').string({max: 4000});
   const change = node.get('change').string({max: 4000});
   const success = node.get('success').string({max: 2000});

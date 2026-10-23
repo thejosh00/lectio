@@ -7,8 +7,8 @@
  * difficulty dial. The rest tell the tutor what works for this person; they report n and
  * never declare a winner.
  *
- * These definitions are protected (§11): new measures are added beside them, never in
- * place of them, so before-and-after comparisons survive.
+ * New measures are added beside these, never in place of them, so before-and-after
+ * comparisons survive (tests/guard/measures.test.ts pins them).
  */
 
 /** One attempt, with what the measures need joined in. */

@@ -48,9 +48,11 @@ export const tutorCommands: CommandDef[] = [
     human: body => {
       const subjects = body['subjects'] as Array<{title: string; reasons: string[]}>;
       const waiting = body['waiting'] as Array<{title: string; message: string}>;
+      const reviews = (body['reviews'] as Array<{number: number; title: string; status: string}> | undefined) ?? [];
       return [
         body['due'] === true ? 'due:' : 'nothing due',
         ...subjects.map(s => `  ${s.title}: ${s.reasons.join(', ')}`),
+        ...reviews.map(r => `  #${r.number} ${r.title}: built${r.status === 'shipped' ? ' and shipped' : ''}, waiting for your review`),
         ...(waiting.length === 0 ? [] : ['waiting:', ...waiting.map(w => `  ${w.title}: ${w.message}`)]),
       ];
     },

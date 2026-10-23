@@ -2,13 +2,15 @@
  * `lectio due`: whether the tutor has anything to do, and for which subjects.
  *
  * The otto check script runs this every hour and wakes the model only when it says yes:
- * a subject became ready for a lesson, a new subject needs a plan, or a flag or ask is
- * waiting. Most hours it says no, and that costs nothing.
+ * a subject became ready for a lesson, a new subject needs a plan, a flag or ask is
+ * waiting, or a build of one of its proposals is waiting for it to check. Most hours it
+ * says no, and that costs nothing.
  */
 import type {Feedback, Subject} from '../core/types.ts';
 import type {Ctx} from './context.ts';
 import {unansweredAsks, unresolvedFlags} from './feedback.ts';
 import {lessonForDay, readinessOf} from './lessons.ts';
+import {tutorReviews} from './proposals.ts';
 import {activeSubjects} from './subjects.ts';
 
 export type DueWhy = 'needs_fix' | 'needs_reply' | 'needs_plan' | 'ready';
@@ -18,6 +20,8 @@ export interface DueReport {
   due: boolean;
   subjects: Array<{id: string; title: string; why: DueWhy; reasons: DueWhy[]}>;
   waiting: Array<{id: string; title: string; why: WaitWhy; message: string}>;
+  /** Builds of the tutor's proposals waiting for it to accept or send back. */
+  reviews: Array<{number: number; title: string; status: string}>;
 }
 
 /** The subject a piece of feedback is ultimately about. */
@@ -69,7 +73,7 @@ export function dueReport(ctx: Ctx): DueReport {
   const needsReply = bySubject(unansweredAsks(ctx));
   const today = ctx.today();
 
-  const report: DueReport = {due: false, subjects: [], waiting: []};
+  const report: DueReport = {due: false, subjects: [], waiting: [], reviews: tutorReviews(ctx).map(p => ({number: p.number, title: p.title, status: p.status}))};
   for (const subject of activeSubjects(ctx)) {
     const reasons: DueWhy[] = [];
     if (needsFix.has(subject.id)) reasons.push('needs_fix');
@@ -91,6 +95,6 @@ export function dueReport(ctx: Ctx): DueReport {
     }
     if (reasons.length > 0) report.subjects.push({id: subject.id, title: subject.title, why: reasons[0]!, reasons});
   }
-  report.due = report.subjects.length > 0;
+  report.due = report.subjects.length > 0 || report.reviews.length > 0;
   return report;
 }

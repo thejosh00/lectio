@@ -36,7 +36,7 @@ describe('the lifecycle', () => {
     const run = await startRun(lc);
     const filed = await file(TUTOR, flashcards(), ['--run', run]);
     expect(filed.code).toBe(0);
-    expect(filed.json.proposal).toMatchObject({number: 1, status: 'open', proposed_by: 'agent:tutor', run_id: run, protected: false, support: 1});
+    expect(filed.json.proposal).toMatchObject({number: 1, status: 'open', proposed_by: 'agent:tutor', run_id: run, support: 1});
     expect(filed.json.caps).toEqual({this_run_left: 1, open_left: 7});
     expect((await lc.j(['today'])).json.improvements).toBe(1);
 
@@ -107,6 +107,72 @@ describe('the lifecycle', () => {
   });
 });
 
+describe('the tutor sees what shipped for it', () => {
+  const handback = () => lc.file('handback.md', '## What changed\nA flashcard block.\n\n## For the tutor\n`{"type": "flashcard", …}`\n');
+  async function shipped(commit = 'abc1234def'): Promise<void> {
+    await lc.j(['proposal', 'claim', '1'], BUILDER);
+    await lc.j(['proposal', 'submit', '1', '--branch', 'lectio/p1-flashcard-block', '--commit', commit, '--note-file', handback()], BUILDER);
+    await lc.j(['proposal', 'shipped', '1']);
+  }
+  async function filed(): Promise<void> {
+    const run = await startRun(lc);
+    await file(TUTOR, flashcards(), ['--run', run]);
+    await lc.j(['run', 'finish', run, '--outcome', 'ok', '--summary', 'x'], TUTOR);
+    await lc.j(['proposal', 'approve', '1']);
+  }
+
+  test('a build in review is yours to ship; once it runs, it wakes the tutor to check it', async () => {
+    await filed();
+    await lc.j(['proposal', 'claim', '1'], BUILDER);
+    await lc.j(['proposal', 'submit', '1', '--branch', 'lectio/p1-flashcard-block', '--commit', 'abc1234def', '--note-file', handback()], BUILDER);
+    expect((await lc.j(['due'], TUTOR)).json).toMatchObject({due: false, reviews: []});
+    expect((await lc.j(['today'])).json.improvements).toBe(1);
+    expect((await lc.cli(['proposals'])).stdout).toContain('ready to ship');
+    expect((await lc.j(['proposal', 'review', '1', 'accept', '--note', 'x'], TUTOR)).json).toMatchObject({code: 1, error: expect.stringContaining("hasn't shipped yet")});
+
+    await lc.j(['proposal', 'shipped', '1']);
+    expect((await lc.j(['due'], TUTOR)).json).toMatchObject({due: true, subjects: [], reviews: [{number: 1, status: 'shipped'}]});
+    const context = (await lc.j(['context'], TUTOR)).json;
+    expect(context.to_review).toEqual([expect.objectContaining({number: 1, status: 'shipped', success: flashcards().success, branch: 'lectio/p1-flashcard-block', handback: expect.stringContaining('For the tutor')})]);
+    expect((await lc.j(['today'])).json.improvements).toBe(0);
+    expect((await lc.cli(['proposals'])).stdout).toContain('shipped, tutor checking');
+
+    expect((await lc.j(['proposal', 'review', '1', 'accept'], TUTOR)).code).toBe(2);
+    const accepted = await lc.j(['proposal', 'review', '1', 'accept', '--note', 'Recall before reveal, as asked.'], TUTOR);
+    expect(accepted.json.proposal).toMatchObject({status: 'shipped', accepted_at: lc.clock.now});
+    expect(accepted.json.proposal.comments.at(-1)).toMatchObject({kind: 'accept', actor: 'agent:tutor', body: 'Recall before reveal, as asked.'});
+    expect((await lc.j(['due'], TUTOR)).json).toMatchObject({due: false, reviews: []});
+    expect((await lc.j(['context'], TUTOR)).json.to_review).toEqual([]);
+    expect((await lc.j(['proposal', 'review', '1', 'accept', '--note', 'again'], TUTOR)).json).toMatchObject({code: 1, error: expect.stringContaining('accepted it already')});
+    // Its outcome is still the tutor's to give, once it has used it.
+    expect((await lc.j(['context'], TUTOR)).json.awaiting_outcome.map((p: {number: number}) => p.number)).toEqual([1]);
+  });
+
+  test("if it doesn't work, the tutor asks for another change, and checks the next one when it ships", async () => {
+    await filed();
+    await shipped();
+    const again = await lc.j(['proposal', 'review', '1', 'changes', '--note', 'It reveals on tap: no recall step first.'], TUTOR);
+    expect(again.json.proposal.status).toBe('changes_requested');
+    expect(again.json.proposal.comments.at(-1)).toMatchObject({kind: 'review', actor: 'agent:tutor'});
+    expect((await lc.j(['proposals', 'due'], BUILDER)).json).toMatchObject({due: true, why: ['changes_requested'], next: 1});
+    expect((await lc.j(['due'], TUTOR)).json.due).toBe(false);
+    await shipped('abc1234eeee');
+    expect((await lc.j(['due'], TUTOR)).json.reviews).toEqual([{number: 1, title: flashcards().title, status: 'shipped'}]);
+    expect((await lc.j(['proposal', 'review', '1', 'accept', '--note', 'Asks first now.'], TUTOR)).json.proposal).toMatchObject({status: 'shipped', accepted_at: lc.clock.now});
+    await lc.j(['proposal', 'outcome', '1', 'helped', '--note', 'x'], TUTOR);
+    expect((await lc.j(['proposal', 'review', '1', 'changes', '--note', 'x'], TUTOR)).code).toBe(1);
+  });
+
+  test("yours and the builder's are yours to judge; the tutor checks only its own", async () => {
+    await file({}, flashcards());
+    await shipped();
+    expect((await lc.j(['due'], TUTOR)).json.reviews).toEqual([]);
+    const refused = await lc.j(['proposal', 'review', '1', 'accept', '--note', 'x'], TUTOR);
+    expect(refused.json).toMatchObject({code: 2, refused: true, error: expect.stringContaining("its proposer's (you)")});
+    for (const as of [{}, BUILDER]) expect((await lc.j(['proposal', 'review', '1', 'accept', '--note', 'x'], as)).json.refused).toBe(true);
+  });
+});
+
 describe('who may do what', () => {
   test('only you approve, decline, defer, request changes, answer, or mark shipped', async () => {
     await file({}, flashcards(), ['--open']);
@@ -135,19 +201,6 @@ describe('who may do what', () => {
     }
     expect((await lc.j(['proposal', 'outcome', '1', 'helped', '--note', 'x'], BUILDER)).json.refused).toBe(true);
     expect((await lc.j(['proposal', 'outcome', '1', 'helped', '--note', 'x'])).json.refused).toBe(true);
-  });
-
-  test('a protected proposal can\'t be approved without acknowledgement', async () => {
-    const run = await startRun(lc);
-    const filed = await file(TUTOR, flashcards({title: 'Let the tutor raise its own caps', area: 'limits'}), ['--run', run]);
-    expect(filed.json.proposal.protected).toBe(true);
-    const refused = await lc.j(['proposal', 'approve', '1']);
-    expect(refused.code).toBe(2);
-    expect(refused.json.error).toContain('--protected');
-    const approved = await lc.j(['proposal', 'approve', '1', '--protected']);
-    expect(approved.json.proposal).toMatchObject({status: 'approved', acknowledged: true});
-    expect((await file({}, flashcards({title: 'Mine, protected', area: 'permissions'}))).code).toBe(2);
-    expect((await file({}, flashcards({title: 'Mine, protected', area: 'permissions'}), ['--protected'])).json.proposal).toMatchObject({status: 'approved', acknowledged: true});
   });
 });
 

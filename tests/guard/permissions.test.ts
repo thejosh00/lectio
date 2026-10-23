@@ -1,7 +1,6 @@
 /**
- * Guard (§11): what an agent token can never do, whatever else changes. These tests are
- * protected — the builder never edits them, and a branch that does won't ship without
- * the learner's acknowledgement.
+ * Guard (§11): what an agent token can never do, whatever else changes. A change that
+ * needs one of these to move is a change to who may do what: say so in the hand-back.
  */
 import {afterEach, beforeEach, expect, test} from 'bun:test';
 import {allRoutes} from '../../src/server/api.ts';
@@ -55,10 +54,13 @@ test('the builder writes only proposals', async () => {
   expect(writes.every(r => r.path.startsWith('/api/proposals'))).toBe(true);
 });
 
-test('only the builder claims and submits; only the tutor judges outcomes', async () => {
+test('only the builder claims and submits; only the tutor reviews builds and judges outcomes', async () => {
   for (const actor of ['you', 'agent:tutor']) {
     expect((await call('/api/proposals/1/claim', actor)).status).toBe(403);
     expect((await call('/api/proposals/1/submit', actor)).status).toBe(403);
   }
-  for (const actor of ['you', 'agent:builder']) expect((await call('/api/proposals/1/outcome', actor)).status).toBe(403);
+  for (const actor of ['you', 'agent:builder']) {
+    expect((await call('/api/proposals/1/review', actor)).status).toBe(403);
+    expect((await call('/api/proposals/1/outcome', actor)).status).toBe(403);
+  }
 });

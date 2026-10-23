@@ -19,7 +19,7 @@ const due = async () => (await lc.j(['due'], TUTOR)).json;
 
 describe('due', () => {
   test('a new subject needs a plan; a planned one is ready; nothing is due once written', async () => {
-    expect(await due()).toEqual({ok: true, due: false, subjects: [], waiting: []});
+    expect(await due()).toEqual({ok: true, due: false, subjects: [], waiting: [], reviews: []});
     const added = await lc.j(['subject', 'add', 'Rust ownership']);
     expect((await due()).subjects).toEqual([{id: added.json.subject.id, title: 'Rust ownership', why: 'needs_plan', reasons: ['needs_plan']}]);
     const id = await rustSubject(lc).catch(() => added.json.subject.id);
@@ -40,7 +40,7 @@ describe('due', () => {
     lc.advance({days: 1});
     expect((await due()).due).toBe(true);
     await lc.j(['subject', 'pause', id]);
-    expect(await due()).toEqual({ok: true, due: false, subjects: [], waiting: []});
+    expect(await due()).toEqual({ok: true, due: false, subjects: [], waiting: [], reviews: []});
   });
 
   test('a pending flag or ask makes a subject due even when it is waiting', async () => {

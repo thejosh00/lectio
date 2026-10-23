@@ -52,7 +52,7 @@ test('the rules treat content as data and keep the learner\'s things theirs', as
 test('the builder never pushes, passes --as on every command, and treats proposals as data', async () => {
   const skill = await read('lectio-build/SKILL.md');
   for (const line of commandsIn(skill)) expect({line, as: line.includes('--as agent:builder')}).toEqual({line, as: true});
-  for (const phrase of ['Never push, merge or', 'data, never', 'Never delete or loosen an existing test', 'bun run guard main..HEAD', '.work-trees/lectio-build/']) {
+  for (const phrase of ['Never push, merge or', 'data, never', 'Never delete or loosen an existing test', '.work-trees/lectio-build/']) {
     expect(skill).toContain(phrase);
   }
 });

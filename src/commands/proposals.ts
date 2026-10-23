@@ -2,6 +2,7 @@
  * Improving lectio itself (§11): proposals, from filing to an outcome.
  */
 import {flagValue, hasFlag, type ParsedArgs} from '../core/args.ts';
+import {awaitsTutorReview, REVIEW_VERDICTS} from '../core/proposals.ts';
 import type {Proposal, ProposalComment} from '../db/proposals.ts';
 import {jsonInput} from './tutor.ts';
 import {CommandUsage, type CommandDef, type CommandIO} from './types.ts';
@@ -13,7 +14,10 @@ function need(value: string | undefined, usage: string): string {
   return value;
 }
 
-const line = (p: Proposal) => `#${String(p.number).padEnd(4)} ${p.status.padEnd(17)} ${p.title}  (${p.area}${p.protected ? ', protected' : ''}; by ${p.proposed_by}${p.support > 1 ? `; support ${p.support}` : ''})`;
+/** Where it stands, saying whose turn it is once it is built. */
+const stage = (p: Proposal) => (awaitsTutorReview(p) ? 'shipped, tutor checking' : p.status === 'in_review' ? 'ready to ship' : p.status);
+
+const line = (p: Proposal) => `#${String(p.number).padEnd(4)} ${stage(p).padEnd(17)} ${p.title}  (${p.area}; by ${p.proposed_by}${p.support > 1 ? `; support ${p.support}` : ''})`;
 
 const shown = (body: Record<string, unknown>) => {
   const p = body['proposal'] as Proposal & {comments: ProposalComment[]};
@@ -23,6 +27,7 @@ const shown = (body: Record<string, unknown>) => {
     `  change:  ${p.change}`,
     `  success: ${p.success}`,
     ...(p.branch === null ? [] : [`  branch:  ${p.branch} @ ${p.commit_sha ?? '?'}`]),
+    ...(p.accepted_at === null ? [] : [`  accepted by the tutor: ${p.accepted_at}`]),
     ...(p.outcome === null ? [] : [`  outcome: ${p.outcome} — ${p.outcome_note ?? ''}`]),
     ...p.evidence.map(e => `  evidence: ${e.kind}${e.id === null ? '' : ` ${e.id}`} — ${e.note}`),
     ...p.comments.map(c => `  [${c.kind}] ${c.actor}, ${c.at}: ${c.body}`),
@@ -75,23 +80,22 @@ export const proposalCommands: CommandDef[] = [
     name: 'proposal add',
     audience: 'anyone',
     summary: 'propose a change to lectio (yours are approved on filing unless --open)',
-    usage: 'lectio proposal add --file p.json [--run <run>] [--open] [--protected]',
+    usage: 'lectio proposal add --file p.json [--run <run>] [--open]',
     values: ['file', 'run'],
-    booleans: ['open', 'protected', 'stdin'],
+    booleans: ['open', 'stdin'],
     build: async (args, io) => ({
       method: 'POST',
       path: '/api/proposals',
-      body: {proposal: await jsonInput(args, io, 'proposal'), run: flagValue(args, 'run'), open: hasFlag(args, 'open'), protected: hasFlag(args, 'protected')},
+      body: {proposal: await jsonInput(args, io, 'proposal'), run: flagValue(args, 'run'), open: hasFlag(args, 'open')},
     }),
     human: body => [`filed: ${line(body['proposal'] as Proposal)}`],
   },
   action('approve', 'approve', {
     audience: 'learner',
     summary: 'approve a proposal for the builder, with a priority',
-    usage: 'lectio proposal approve <n> [--priority high|normal|low] [--protected] [--note "…"]',
+    usage: 'lectio proposal approve <n> [--priority high|normal|low] [--note "…"]',
     values: ['priority', 'note'],
-    booleans: ['protected'],
-    body: args => ({priority: flagValue(args, 'priority'), note: flagValue(args, 'note'), protected: hasFlag(args, 'protected')}),
+    body: args => ({priority: flagValue(args, 'priority'), note: flagValue(args, 'note')}),
   }),
   action('decline', 'decline', {audience: 'learner', summary: 'decline a proposal, saying why', usage: 'lectio proposal decline <n> --note "…"', values: ['note'], body: args => ({note: flagValue(args, 'note')})}),
   action('defer', 'defer', {audience: 'learner', summary: 'not now', usage: 'lectio proposal defer <n> --note "…"', values: ['note'], body: args => ({note: flagValue(args, 'note')})}),
@@ -125,6 +129,19 @@ export const proposalCommands: CommandDef[] = [
     },
   }),
   action('withdraw', 'withdraw', {audience: 'tutor', summary: 'withdraw your own proposal while it is open', usage: 'lectio proposal withdraw <n> --note "…"', values: ['note'], body: args => ({note: flagValue(args, 'note')})}),
+  {
+    name: 'proposal review',
+    audience: 'tutor',
+    summary: 'once a change you proposed ships: accept it, or ask for another change with what to fix',
+    usage: `lectio proposal review <n> ${REVIEW_VERDICTS.join('|')} --note "…"`,
+    values: ['note'],
+    build: args => {
+      const [ref, verdict] = args.positional;
+      if (ref === undefined || verdict === undefined) throw new CommandUsage(`usage: lectio proposal review <n> ${REVIEW_VERDICTS.join('|')} --note "…"`);
+      return {method: 'POST', path: `/api/proposals/${enc(ref)}/review`, body: {verdict, note: flagValue(args, 'note')}};
+    },
+    human: shown,
+  },
   {
     name: 'proposal outcome',
     audience: 'tutor',

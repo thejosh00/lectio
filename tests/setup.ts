@@ -6,7 +6,7 @@ import {mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
-process.env['LECTIO_DIR'] = mkdtempSync(join(tmpdir(), 'lectio-guard-'));
+process.env['LECTIO_DIR'] = mkdtempSync(join(tmpdir(), 'lectio-test-'));
 delete process.env['LECTIO_TOKEN'];
 delete process.env['LECTIO_URL'];
 // Days are local. Not-UTC is what proves it.

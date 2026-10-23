@@ -2,7 +2,7 @@
  * Every setting an instance has, its default, and how to check a new value.
  *
  * Settings live in the instance's database. Only the learner changes them; the caps
- * here are what keep the tutor from piling up work, so they are protected (§11).
+ * here are what keep the tutor from piling up work.
  */
 import {isTimeZone} from './time.ts';
 

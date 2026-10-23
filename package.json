@@ -12,8 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun run typecheck && bun test",
     "test:unit": "bun test tests/unit",
-    "build": "bun build --compile --minify src/cli.ts --outfile dist/lectio",
-    "guard": "bun scripts/guard.ts"
+    "build": "bun build --compile --minify src/cli.ts --outfile dist/lectio"
   },
   "dependencies": {
     "highlight.js": "^11.12.0",

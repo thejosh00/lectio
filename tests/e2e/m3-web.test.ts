@@ -37,6 +37,20 @@ test('the page and its script are served, without KaTeX fonts in the bundle', as
   expect(styles).not.toContain('KaTeX_Main');
 });
 
+test('the typefaces are served beside the bundle, and only they', async () => {
+  const css = await fetch(`${lc.url}/fonts/fonts.css`);
+  expect(css.headers.get('content-type')).toContain('text/css');
+  const files = [...(await css.text()).matchAll(/url\('\/fonts\/([^']+)'\)/g)].map(m => m[1]!);
+  expect(files.length).toBe(4);
+  for (const file of files) {
+    const font = await fetch(`${lc.url}/fonts/${file}`);
+    expect(font.headers.get('content-type')).toBe('font/woff2');
+    expect((await font.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
+  }
+  expect((await fetch(`${lc.url}/fonts/..%2Fstyles.css`)).status).toBe(404);
+  expect((await fetch(`${lc.url}/fonts/LICENSES.txt`)).status).toBe(404);
+});
+
 test('KaTeX loads on demand from the installed package, and nothing outside it is served', async () => {
   const css = await fetch(`${lc.url}/katex/katex.min.css`);
   expect(css.status).toBe(200);

@@ -67,19 +67,26 @@ export function TodayView() {
 
   return (
     <div>
-      <h2 className="page">{new Date(`${data.day}T12:00:00Z`).toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC'})}</h2>
+      <div className="kicker-line">
+        {new Date(`${data.day}T12:00:00Z`).toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC'}).replace(/,(?=[^,]*$)/, ' ·')}
+      </div>
+      <h2 className="page">Today</h2>
+      {data.subjects.length > 0 && (
+        <p className="page-sub">
+          {data.subjects.length} subject{data.subjects.length === 1 ? '' : 's'} · about {data.subjects.reduce((sum, s) => sum + s.subject.minutes_per_day, 0)} minutes
+        </p>
+      )}
       {(data.improvements ?? 0) > 0 && (
-        <a className="card row" href="#/improvements" style={{textDecoration: 'none', display: 'flex'}}>
-          <span className="pill tutor">{data.improvements}</span>
-          <span>Improvements to lectio need you</span>
-          <span className="spacer" />
-          <span className="muted">→</span>
+        <a className="banner" href="#/improvements">
+          <span className="count">{data.improvements}</span>
+          <span className="spacer">Improvement{data.improvements === 1 ? '' : 's'} to lectio need{data.improvements === 1 ? 's' : ''} you</span>
+          <span aria-hidden>›</span>
         </a>
       )}
       {data.replies.length > 0 && (
-        <div className="card">
+        <div className="card from-tutor">
           <div className="row">
-            <h3>From your tutor</h3>
+            <div className="card-kicker">From your tutor</div>
             <span className="spacer" />
             <button type="button" className="small ghost" onClick={() => void post('/api/replies/seen')}>
               Got it

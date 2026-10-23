@@ -20,8 +20,8 @@ const TUTOR = {as: 'agent:tutor'};
 
 /**
  * A day of history for the examples to work on: a lesson with a hypothesis, a quiz with a
- * free response, a disputed short answer, a block flagged wrong, an ask, and a new subject.
- * Then the clock moves to the next morning.
+ * free response, a disputed short answer, a block flagged wrong, an ask, a new subject, and
+ * proposals at every stage the examples act on. Then the clock moves to the next morning.
  */
 async function seed(instance: Instance): Promise<Record<string, string>> {
   const subject = await rustSubject(instance);
@@ -31,7 +31,20 @@ async function seed(instance: Instance): Promise<Record<string, string>> {
   const inline = lesson.json.question_ids.q1 as string;
   const quiz = await submitQuiz(instance, subject, run, ownershipQuiz(lessonId, inline));
   const [shortText, mc, free] = quiz.json.question_ids as [string, string, string];
+  const proposal = (title: string) => instance.file('p.json', {title, area: 'question_type', problem: 'p', change: 'c', success: 's', evidence: []});
+  // Two of the tutor's proposals, shipped and waiting for it to check them.
+  await instance.j(['proposal', 'add', '--file', proposal('Misconception tags on wrong numeric answers'), '--run', run], TUTOR);
+  await instance.j(['proposal', 'add', '--file', proposal('A flashcard block for vocabulary'), '--run', run], TUTOR);
   await instance.j(['run', 'finish', run, '--outcome', 'ok', '--summary', 'Seeded.'], TUTOR);
+  const build = async (n: string) => {
+    await instance.j(['proposal', 'approve', n]);
+    await instance.j(['proposal', 'claim', n], {as: 'agent:builder'});
+    await instance.j(['proposal', 'submit', n, '--branch', `lectio/p${n}-x`, '--commit', 'abc1234', '--note-file', instance.file('h.md', 'x')], {as: 'agent:builder'});
+  };
+  for (const n of ['1', '2']) {
+    await build(n);
+    await instance.j(['proposal', 'shipped', n]);
+  }
 
   await answerQ(instance, {question: inline, lesson: lessonId, answer: 'b'});
   await instance.j(['finish', lessonId]);
@@ -46,20 +59,21 @@ async function seed(instance: Instance): Promise<Record<string, string>> {
   const disputeRow = instance.db.query("SELECT id FROM feedback WHERE kind = 'dispute'").get() as {id: string};
 
   // Two proposals of the learner's: one shipped, waiting for an outcome; one approved, for the builder.
-  const proposal = (title: string) => instance.file('p.json', {title, area: 'question_type', problem: 'p', change: 'c', success: 's', evidence: []});
   await instance.j(['proposal', 'add', '--file', proposal('Cloze questions for definitions')]);
-  await instance.j(['proposal', 'claim', '1'], {as: 'agent:builder'});
-  await instance.j(['proposal', 'submit', '1', '--branch', 'lectio/p1-cloze', '--commit', 'abc1234', '--note-file', instance.file('h.md', 'x')], {as: 'agent:builder'});
-  await instance.j(['proposal', 'shipped', '1']);
+  await instance.j(['proposal', 'claim', '3'], {as: 'agent:builder'});
+  await instance.j(['proposal', 'submit', '3', '--branch', 'lectio/p3-cloze', '--commit', 'abc1234', '--note-file', instance.file('h.md', 'x')], {as: 'agent:builder'});
+  await instance.j(['proposal', 'shipped', '3']);
   await instance.j(['proposal', 'add', '--file', proposal('Show recall on the Today page')]);
   // The builder's examples name their token with --as, so it must be in client.json.
   await instance.cli(['login', '--url', instance.url, '--token', instance.token('agent:builder')]);
 
   instance.advance({days: 1});
   return {
-    '<shipped-proposal>': '1',
-    '<approved-proposal>': '2',
-    '<branch>': 'lectio/p2-show-recall-on-the-today',
+    '<shipped-change>': '1',
+    '<broken-change>': '2',
+    '<shipped-proposal>': '3',
+    '<approved-proposal>': '4',
+    '<branch>': 'lectio/p4-show-recall-on-the-today',
     '<sha>': 'abc1234def5678',
     '<subject>': subject,
     '<new-subject>': music.json.subject.id,
@@ -104,15 +118,22 @@ async function runExamples(instance: Instance, examples: Example[], values: Reco
 }
 
 test('every example in the contract runs as documented', async () => {
-  lc = await startInstance();
+  // Room for the change sent back and the builder's example at once.
+  lc = await startInstance({settings: {build_wip_max: '2'}});
   const values = await seed(lc);
   const due = await lc.j(['due'], TUTOR);
   expect(due.json.subjects.map((s: {why: string}) => s.why)).toEqual(['needs_fix', 'needs_plan']);
+  expect(due.json.reviews.map((r: {number: number; status: string}) => [r.number, r.status])).toEqual([
+    [1, 'shipped'],
+    [2, 'shipped'],
+  ]);
   await runExamples(lc, tutorExamples(contractOptions(lc.ctx('agent:tutor'))), values);
   await runExamples(lc, builderExamples(), values);
-  expect((await lc.j(['proposal', 'show', '2'])).json.proposal).toMatchObject({status: 'in_review', branch: 'lectio/p2-show-recall-on-the-today'});
-  expect((await lc.j(['proposal', 'show', '3'])).json.proposal).toMatchObject({support: 2, proposed_by: 'agent:tutor'});
-  expect((await lc.j(['proposal', 'show', '1'])).json.proposal.outcome).toBe('helped');
+  expect((await lc.j(['proposal', 'show', '1'])).json.proposal).toMatchObject({status: 'shipped', accepted_at: expect.any(String)});
+  expect((await lc.j(['proposal', 'show', '2'])).json.proposal).toMatchObject({status: 'changes_requested', accepted_at: null});
+  expect((await lc.j(['proposal', 'show', '4'])).json.proposal).toMatchObject({status: 'in_review', branch: 'lectio/p4-show-recall-on-the-today'});
+  expect((await lc.j(['proposal', 'show', '5'])).json.proposal).toMatchObject({support: 2, proposed_by: 'agent:tutor'});
+  expect((await lc.j(['proposal', 'show', '3'])).json.proposal.outcome).toBe('helped');
 
   // What the examples did, as the learner sees it.
   expect((await lc.j(['due'], TUTOR)).json).toMatchObject({due: false});

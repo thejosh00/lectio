@@ -253,8 +253,8 @@ const MIGRATIONS: string[] = [
     outcome_note  TEXT,
     added         TEXT NOT NULL,
     changed       TEXT NOT NULL,
-    -- Beyond the plan's schema: whether the learner acknowledged, on approval, that it may
-    -- touch protected paths. A protected-area proposal can't be approved without it.
+    -- Beyond the plan's schema, and no longer used: whether an approval acknowledged
+    -- protected paths. Migrations are never edited, so the columns stay.
     acknowledged  INTEGER NOT NULL DEFAULT 0
   );
 
@@ -280,6 +280,11 @@ const MIGRATIONS: string[] = [
   -- Beyond the plan's schema: small facts the app keeps about itself, such as when the
   -- learner last looked at the tutor's replies and which commit the server runs.
   CREATE TABLE marks (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  `,
+  `
+  -- When the tutor accepted the current build of a proposal it filed. Cleared by each new
+  -- hand-back, so every build is checked by the one who asked for it.
+  ALTER TABLE proposals ADD COLUMN accepted_at TEXT;
   `,
 ];
 

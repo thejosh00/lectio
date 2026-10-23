@@ -2,20 +2,20 @@
  * Proposals and their conversation, stored. Who may move a proposal is checked here by
  * role as well as at the route, because the lifecycle is the loop's own guardrail (§11):
  * only you approve, decline, defer, request changes or mark shipped; only the builder
- * claims, asks and submits; the tutor files, supports, withdraws its own and judges.
- *
- * Protected (§11): changing this file needs the learner's explicit acknowledgement.
+ * claims, asks and submits; the tutor files, supports, withdraws its own, checks its own
+ * once they ship, and judges.
  */
 import {AppError, EXIT_USAGE, failed, notFound, refused, usageError} from '../core/errors.ts';
 import {
+  awaitsTutorReview,
   canMove,
   IN_FLIGHT,
-  isProtectedArea,
   OPEN_STATUSES,
   OUTCOMES,
   PRIORITIES,
   readEvidence,
   readProposal,
+  REVIEW_VERDICTS,
   SUPPORTABLE,
   TRANSITIONS,
   type Action,
@@ -42,8 +42,6 @@ export interface Proposal {
   success: string;
   evidence: Evidence[];
   support: number;
-  protected: boolean;
-  acknowledged: boolean;
   priority: string;
   status: ProposalStatus;
   proposed_by: string;
@@ -51,6 +49,8 @@ export interface Proposal {
   branch: string | null;
   commit_sha: string | null;
   shipped_at: string | null;
+  /** When the tutor accepted the current build of a proposal it filed. */
+  accepted_at: string | null;
   outcome: string | null;
   outcome_note: string | null;
   added: string;
@@ -66,13 +66,14 @@ export interface ProposalComment {
   at: string;
 }
 
-interface ProposalRow extends Omit<Proposal, 'evidence' | 'protected' | 'acknowledged'> {
+interface ProposalRow extends Omit<Proposal, 'evidence'> {
   evidence: string;
-  protected: number;
-  acknowledged: number;
+  /** Unused columns from when approvals acknowledged protected paths. */
+  protected?: number;
+  acknowledged?: number;
 }
 
-const fromRow = (row: ProposalRow): Proposal => ({...row, evidence: parseJson<Evidence[]>(row.evidence, []), protected: row.protected === 1, acknowledged: row.acknowledged === 1});
+const fromRow = ({protected: _p, acknowledged: _a, ...row}: ProposalRow): Proposal => ({...row, evidence: parseJson<Evidence[]>(row.evidence, [])});
 
 export function getProposal(ctx: Ctx, id: string): Proposal | undefined {
   const row = ctx.db.query('SELECT * FROM proposals WHERE id = ?').get(id) as ProposalRow | null;
@@ -149,14 +150,13 @@ function checkEvidence(ctx: Ctx, evidence: Evidence[]): Evidence[] {
   });
 }
 
-export function addProposal(ctx: Ctx, input: {proposal: unknown; run: string | undefined; open: boolean; acknowledge: boolean}): {proposal: Proposal; caps: {this_run_left: number | null; open_left: number | null}} {
+export function addProposal(ctx: Ctx, input: {proposal: unknown; run: string | undefined; open: boolean}): {proposal: Proposal; caps: {this_run_left: number | null; open_left: number | null}} {
   const read = readProposal(input.proposal);
   if (read.value === undefined) {
     throw new AppError(`the proposal has ${read.issues.length === 1 ? 'a problem' : `${read.issues.length} problems`}: ${read.issues.map(formatIssue).join('; ')}`, EXIT_USAGE, {errors: read.issues});
   }
   const p = read.value;
   const evidence = checkEvidence(ctx, p.evidence);
-  const isProtected = isProtectedArea(p.area);
   let run: Run | undefined;
   if (ctx.role === 'tutor') {
     run = requireOpenRun(ctx, input.run);
@@ -172,20 +172,17 @@ export function addProposal(ctx: Ctx, input: {proposal: unknown; run: string | u
   const same = listProposals(ctx, {status: [...SUPPORTABLE, 'in_review']}).find(o => o.title.toLowerCase() === p.title.toLowerCase());
   if (same !== undefined) throw failed(`#${same.number} already proposes "${same.title}"; support it instead`, {number: same.number});
 
-  // Yours are approved on filing (unless --open); in a protected area, only with the acknowledgement.
+  // Yours are approved on filing (unless --open).
   const approveNow = ctx.role === 'learner' && !input.open;
-  if (approveNow && isProtected && !input.acknowledge) {
-    throw new AppError(`"${p.area}" is a protected area: filing it approved needs --protected (or file it --open and approve later)`, EXIT_USAGE, {protected: true});
-  }
   const number = ((ctx.db.query('SELECT MAX(number) AS n FROM proposals').get() as {n: number | null}).n ?? 0) + 1;
   const id = ctx.newId();
   const now = ctx.now();
   ctx.db
     .query(
-      `INSERT INTO proposals (id, number, title, area, problem, change, success, evidence, support, protected, acknowledged, priority, status, proposed_by, run_id, added, changed)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'normal', ?, ?, ?, ?, ?)`,
+      `INSERT INTO proposals (id, number, title, area, problem, change, success, evidence, support, priority, status, proposed_by, run_id, added, changed)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'normal', ?, ?, ?, ?, ?)`,
     )
-    .run(id, number, p.title, p.area, p.problem, p.change, p.success, JSON.stringify(evidence), isProtected ? 1 : 0, approveNow && input.acknowledge ? 1 : 0, approveNow ? 'approved' : 'open', ctx.actor, run?.id ?? null, now, now);
+    .run(id, number, p.title, p.area, p.problem, p.change, p.success, JSON.stringify(evidence), approveNow ? 'approved' : 'open', ctx.actor, run?.id ?? null, now, now);
   ctx.event('proposal', id, {kind: 'added', number, area: p.area, status: approveNow ? 'approved' : 'open'});
   return {proposal: getProposal(ctx, id)!, caps: capsLeft(ctx, run)};
 }
@@ -220,17 +217,14 @@ export function decide(
   ctx: Ctx,
   proposal: Proposal,
   action: 'approve' | 'decline' | 'defer',
-  input: {note: string | undefined; priority?: string | undefined; acknowledge?: boolean},
+  input: {note: string | undefined; priority?: string | undefined},
 ): Proposal {
   only(ctx, ['learner'], `${action === 'approve' ? 'Approving' : action === 'decline' ? 'Declining' : 'Deferring'} a proposal`);
   const note = input.note?.trim() ?? '';
   if (action !== 'approve' && note === '') throw usageError(`say why, so the tutor learns from it: --note "…"`);
   if (action === 'approve') {
     if (input.priority !== undefined && !(PRIORITIES as readonly string[]).includes(input.priority)) throw usageError(`--priority must be one of ${PRIORITIES.join(', ')}`);
-    if (proposal.protected && input.acknowledge !== true) {
-      throw new AppError(`#${proposal.number} is in a protected area (${proposal.area}); approving it needs --protected, to say you know it may change the loop's own rules`, EXIT_USAGE, {protected: true});
-    }
-    const moved = move(ctx, proposal, 'approve', {priority: input.priority ?? proposal.priority, acknowledged: input.acknowledge === true ? 1 : 0});
+    const moved = move(ctx, proposal, 'approve', {priority: input.priority ?? proposal.priority});
     comment(ctx, moved, 'decision', note === '' ? `approved (${moved.priority})` : note);
     return moved;
   }
@@ -285,7 +279,8 @@ export function submit(ctx: Ctx, proposal: Proposal, input: {branch: string | un
   if (!/^lectio\/p\d+-[a-z0-9-]+$/.test(branch) || !branch.startsWith(`lectio/p${proposal.number}-`)) throw usageError(`--branch must be lectio/p${proposal.number}-<slug>`);
   if (!/^[0-9a-f]{7,40}$/.test(sha)) throw usageError('--commit must be the branch head (a git sha)');
   if ((input.note?.trim() ?? '') === '') throw usageError('the hand-back note is required: --note-file handback.md');
-  const moved = move(ctx, proposal, 'submit', {branch, commit_sha: sha});
+  // A new build is checked afresh once it ships.
+  const moved = move(ctx, proposal, 'submit', {branch, commit_sha: sha, accepted_at: null});
   comment(ctx, moved, 'handback', input.note!);
   return moved;
 }
@@ -296,6 +291,38 @@ export function requestChanges(ctx: Ctx, proposal: Proposal, note: string | unde
   const moved = move(ctx, proposal, 'request_changes');
   comment(ctx, moved, 'review', note!);
   return moved;
+}
+
+/**
+ * The tutor checks a change it asked for once it is running: it accepts it, or asks for
+ * another change on top, which goes back to the builder.
+ */
+export function reviewBuild(ctx: Ctx, proposal: Proposal, input: {verdict: string | undefined; note: string | undefined}): Proposal {
+  only(ctx, ['tutor'], 'Reviewing a build for its proposer');
+  if (proposal.proposed_by !== ctx.actor) throw refused(`Reviewing the build of #${proposal.number}`, `its proposer's (${proposal.proposed_by})`);
+  if (input.verdict === undefined || !(REVIEW_VERDICTS as readonly string[]).includes(input.verdict)) throw usageError(`the verdict is one of ${REVIEW_VERDICTS.join(', ')}`);
+  if (!awaitsTutorReview(proposal)) {
+    const why = proposal.accepted_at !== null ? 'you accepted it already' : proposal.outcome !== null ? 'it has an outcome; propose a new change instead' : "it hasn't shipped yet";
+    throw failed(`#${proposal.number} is ${proposal.status}: ${why}`);
+  }
+  const note = input.note?.trim() ?? '';
+  if (note === '') throw usageError(input.verdict === 'accept' ? 'say what you checked: --note "…"' : 'say what to change: --note "…"');
+  if (input.verdict === 'changes') {
+    const moved = move(ctx, proposal, 'send_back');
+    comment(ctx, moved, 'review', note);
+    return moved;
+  }
+  ctx.db.query('UPDATE proposals SET accepted_at = ?, changed = ? WHERE id = ?').run(ctx.now(), ctx.now(), proposal.id);
+  comment(ctx, proposal, 'accept', note);
+  ctx.event('proposal', proposal.id, {kind: 'accept', number: proposal.number, status: proposal.status});
+  return getProposal(ctx, proposal.id)!;
+}
+
+/** Shipped changes the tutor asked for that it hasn't checked yet, oldest first. */
+export function tutorReviews(ctx: Ctx): Proposal[] {
+  return listProposals(ctx, {status: ['shipped'], proposedBy: 'agent:tutor'})
+    .filter(awaitsTutorReview)
+    .reverse();
 }
 
 export function markShipped(ctx: Ctx, proposal: Proposal, commit: string | undefined): Proposal {
@@ -372,6 +399,15 @@ export function proposalsContext(ctx: Ctx, lastRun: Run | undefined) {
   return {
     open_proposals: open.map(brief),
     declined_proposals: declined.map(p => ({number: p.number, title: p.title, area: p.area, why: commentsOf(ctx, p.id).filter(c => c.kind === 'decision').at(-1)?.body ?? ''})),
+    to_review: tutorReviews(ctx).map(p => ({
+      ...brief(p),
+      problem: p.problem,
+      change: p.change,
+      success: p.success,
+      branch: p.branch,
+      shipped_at: p.shipped_at,
+      handback: commentsOf(ctx, p.id).filter(c => c.kind === 'handback').at(-1)?.body ?? '',
+    })),
     shipped_since_last_run: shipped.filter(p => p.shipped_at !== null && p.shipped_at >= since).map(p => ({...brief(p), shipped_at: p.shipped_at, success: p.success})),
     awaiting_outcome: shipped
       .filter(p => p.outcome === null)
