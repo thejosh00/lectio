@@ -26,13 +26,23 @@ async function mermaidFor(dark: boolean): Promise<Mermaid> {
   return mermaid;
 }
 
+/**
+ * Mermaid's SVG says `width="100%"`, which in an `<img>` blows a small diagram up to the
+ * column. Its viewBox is its natural size: give it that, and CSS only ever scales it down.
+ */
+function naturalSize(svg: string): string {
+  const box = /viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg);
+  if (box === null) return svg;
+  return svg.replace(/^<svg([^>]*?) width="100%"/, `<svg$1 width="${box[1]}" height="${box[2]}"`);
+}
+
 /** Draws one source to an SVG data URL; mermaid renders one diagram at a time. */
 let queue: Promise<unknown> = Promise.resolve();
 function draw(source: string, dark: boolean): Promise<string> {
   const run = queue.then(async () => {
     const mermaid = await mermaidFor(dark);
     const {svg} = await mermaid.render(`lectio-diagram-${++counter}`, source);
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(naturalSize(svg))}`;
   });
   queue = run.catch(() => undefined);
   return run;
