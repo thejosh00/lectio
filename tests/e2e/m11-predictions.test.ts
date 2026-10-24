@@ -74,10 +74,14 @@ test('the learner sees a prediction only once the answer is graded: after the re
 test('progress scores the tutor against the formula, and a confident miss is a surprise with its question', async () => {
   const {subject, lessonId, quizId, inline, shortText, mc, free} = await dayOne();
   await lc.j(['finish', lessonId]);
+  // A minute apart, as real answers are: the first of the day is the one memory counts.
   await answerQ(lc, {question: shortText, quiz: quizId, answer: 'owner'});
+  lc.advance({minutes: 1});
   await answerQ(lc, {question: mc, quiz: quizId, answer: 'gc'});
+  lc.advance({minutes: 1});
   const freeAttempt = await answerQ(lc, {question: free, quiz: quizId, answer: 'One owner.'});
   await selfGrade(freeAttempt.attempt.id, 'got_it');
+  lc.advance({minutes: 1});
   await answerQ(lc, {question: inline, quiz: quizId, answer: 'b'});
 
   let p = (await lc.j(['progress', '--subject', subject])).json.progress.predictions;
