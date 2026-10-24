@@ -25,6 +25,10 @@ export function contractOptions(ctx: Ctx): ContractOptions {
       build_wip_max: n('build_wip_max'),
       retro_days: n('retro_days'),
       outcome_days: n('outcome_days'),
+      exam_days: n('exam_days'),
+      exam_max_questions: n('exam_max_questions'),
+      exam_min_age_days: n('exam_min_age_days'),
+      exam_expire_days: n('exam_expire_days'),
     },
   };
 }

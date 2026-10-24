@@ -11,7 +11,8 @@ import {listConcepts} from './concepts.ts';
 import type {Ctx} from './context.ts';
 import {contractVersion} from './contract.ts';
 import {blocksWithErrors, dueReport, subjectOfFeedback} from './due.ts';
-import {listFeedback, unansweredAsks, unresolvedFlags} from './feedback.ts';
+import {listFeedback, tutorSees, unansweredAsks, unresolvedFlags} from './feedback.ts';
+import {examResults} from './exams.ts';
 import {improvementsContext} from './improvements.ts';
 import {lessonDetail, listLessons, readinessOf, unfinishedLessons} from './lessons.ts';
 import {attemptFacts, progressReport} from './measures.ts';
@@ -51,8 +52,9 @@ function aboutOf(ctx: Ctx, f: Feedback): Record<string, unknown> {
   }
 }
 
+/** Feedback the tutor may see (never a checkup's flags; asks about a finished one), with where it points. */
 function feedbackJson(ctx: Ctx, rows: Feedback[]) {
-  return rows.map(f => ({...f, subject_id: subjectOfFeedback(ctx, f) ?? null, about: aboutOf(ctx, f)}));
+  return rows.filter(f => ctx.seesExams || tutorSees(ctx, f)).map(f => ({...f, subject_id: subjectOfFeedback(ctx, f) ?? null, about: aboutOf(ctx, f)}));
 }
 
 function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince: string) {
@@ -140,6 +142,8 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
     }),
     attempts_since_last_run: attempts,
     measures: progressReport(ctx, subject.id),
+    // Checkups the learner finished since the last run, now there is nothing left to give away (M12).
+    exams: examResults(ctx, subject.id, since),
     widget_errors: blocksWithErrors(ctx, subject.id),
     budget: {
       minutes_per_day: subject.minutes_per_day,

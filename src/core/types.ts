@@ -13,6 +13,7 @@ export type Actor = string;
 export const USER_ACTOR = 'you';
 export const TUTOR_ACTOR = 'agent:tutor';
 export const BUILDER_ACTOR = 'agent:builder';
+export const EXAMINER_ACTOR = 'agent:examiner';
 const ACTOR_PATTERN = /^(you|agent:[a-z0-9][a-z0-9_-]{0,39})$/;
 export const isActor = (value: string): boolean => ACTOR_PATTERN.test(value);
 export const isAgent = (actor: Actor): boolean => actor.startsWith('agent:');
@@ -43,14 +44,17 @@ export const CONCEPT_ROLES = ['new', 'review', 'deepen'] as const;
 export type ConceptRole = (typeof CONCEPT_ROLES)[number];
 export const isConceptRole = oneOf(CONCEPT_ROLES);
 
-export const QUIZ_KINDS = ['daily', 'placement', 'practice'] as const;
+/** `exam`: a checkup written by the examiner, not the tutor (M12). */
+export const QUIZ_KINDS = ['daily', 'placement', 'practice', 'exam'] as const;
 export type QuizKind = (typeof QUIZ_KINDS)[number];
 export const isQuizKind = oneOf(QUIZ_KINDS);
 
 export const QUIZ_STATES = ['ready', 'open', 'finished', 'superseded', 'skipped'] as const;
 export type QuizState = (typeof QUIZ_STATES)[number];
 
-export const ITEM_ROLES = ['new', 'review', 'retry', 'probe'] as const;
+export const ITEM_ROLES = ['new', 'review', 'retry', 'probe', 'exam'] as const;
+/** The roles the tutor gives items in a daily quiz. */
+export const DAILY_ROLES = ['new', 'review', 'retry'] as const;
 export type ItemRole = (typeof ITEM_ROLES)[number];
 export const isItemRole = oneOf(ITEM_ROLES);
 
@@ -62,7 +66,7 @@ export const CONFIDENCES = ['sure', 'think', 'guess'] as const;
 export type Confidence = (typeof CONFIDENCES)[number];
 export const isConfidence = oneOf(CONFIDENCES);
 
-export const ATTEMPT_CONTEXTS = ['lesson', 'quiz', 'practice'] as const;
+export const ATTEMPT_CONTEXTS = ['lesson', 'quiz', 'practice', 'exam'] as const;
 export type AttemptContext = (typeof ATTEMPT_CONTEXTS)[number];
 export const isAttemptContext = oneOf(ATTEMPT_CONTEXTS);
 
@@ -171,7 +175,8 @@ export interface Question {
   variant_of: string | null;
   run_id: string | null;
   added_by: Actor;
-  status: 'active' | 'retired';
+  /** `exam`: written by the examiner for a checkup; never reused, and hidden from the tutor. */
+  status: 'active' | 'retired' | 'exam';
   version: number;
   added: string;
   changed: string;

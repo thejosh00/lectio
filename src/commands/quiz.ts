@@ -194,7 +194,7 @@ class QuizError extends Error {
 async function takeQuiz(io: CommandIO, id: string): Promise<void> {
   const quiz = (await call<{quiz: QuizView}>(io, {method: 'POST', path: `/api/quizzes/${encodeURIComponent(id)}/open`})).quiz;
   const pending = quiz.items.filter(i => i.answered === null || i.answered.needs_self_grade);
-  io.out(`── ${quiz.subject.title}: ${quiz.kind} quiz, ${quiz.items.length} question${quiz.items.length === 1 ? '' : 's'} ──`);
+  io.out(`── ${quiz.subject.title}: ${quiz.kind === 'exam' ? 'checkup from the examiner' : `${quiz.kind} quiz`}, ${quiz.items.length} question${quiz.items.length === 1 ? '' : 's'} ──`);
   for (const item of pending) {
     const q = item.question;
     io.out('');

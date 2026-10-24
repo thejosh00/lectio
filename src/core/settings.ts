@@ -51,6 +51,10 @@ export const SETTINGS: Record<string, SettingSpec> = {
   build_wip_max: {default: '1', summary: 'proposals building or in review at once', validate: integer(1)},
   retro_days: {default: '7', summary: "days between the tutor's retrospectives", validate: integer(1)},
   outcome_days: {default: '14', summary: 'days after shipping before a proposal without an outcome is overdue for one', validate: integer(1)},
+  exam_days: {default: '7', summary: "days between a subject's checkups from the examiner", validate: integer(1)},
+  exam_max_questions: {default: '8', summary: 'questions (and concepts) in one checkup', validate: integer(1)},
+  exam_min_age_days: {default: '3', summary: 'days since a concept was introduced before a checkup may ask about it', validate: integer(0)},
+  exam_expire_days: {default: '3', summary: "days a checkup waits to be finished before it's skipped", validate: integer(1)},
 };
 
 export function settingSpec(key: string): SettingSpec | undefined {

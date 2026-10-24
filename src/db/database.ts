@@ -292,6 +292,22 @@ const MIGRATIONS: string[] = [
   -- gave none, as on every quiz written before predictions.
   ALTER TABLE quiz_items ADD COLUMN predicted REAL;
   `,
+  `
+  -- M12: the examiner's checkups. The app draws which concepts a checkup asks about and
+  -- keeps the draw here, so nobody can choose or recompute it; quiz_id is the checkup
+  -- the examiner then wrote for it.
+  CREATE TABLE exam_plans (
+    id          TEXT PRIMARY KEY,
+    subject_id  TEXT NOT NULL REFERENCES subjects(id),
+    day         TEXT NOT NULL,
+    concepts    TEXT NOT NULL,
+    quiz_id     TEXT REFERENCES quizzes(id),
+    run_id      TEXT REFERENCES agent_runs(id),
+    created     TEXT NOT NULL,
+    UNIQUE (subject_id, day)
+  );
+  CREATE UNIQUE INDEX quizzes_one_exam ON quizzes(subject_id, day) WHERE kind = 'exam';
+  `,
 ];
 
 export interface OpenOptions {

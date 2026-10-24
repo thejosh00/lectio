@@ -8,7 +8,7 @@
  */
 import {APPROACH_PATTERN, blockType, blockTypeNames, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
 import {questionType, questionTypeNames, PLANNED_QUESTION_TYPES} from '../questions/index.ts';
-import {AIMS, CONCEPT_ROLES, ITEM_ROLES, type Aim, type ConceptRole, type ConceptStatus, type ItemRole, type QuizKind} from './types.ts';
+import {AIMS, CONCEPT_ROLES, DAILY_ROLES, type Aim, type ConceptRole, type ConceptStatus, type ItemRole, type QuizKind} from './types.ts';
 import {Node, SLUG, byteLength, formatIssue, type Issue} from './validate.ts';
 
 export interface SubjectFacts {
@@ -259,7 +259,7 @@ export function readQuiz(value: unknown, facts: SubjectFacts, kind: QuizKind): Q
   const items: QuizItemInput[] = [];
   for (const item of itemNodes) {
     item.object(['role', 'question', 'existing', 'predict']);
-    const role = item.get('role').oneOf(kind === 'placement' ? (['probe'] as const) : ITEM_ROLES.filter(r => r !== 'probe'));
+    const role = item.get('role').oneOf(kind === 'placement' ? (['probe'] as const) : DAILY_ROLES);
     let predicted: number | null = null;
     if (kind === 'placement' && item.get('predict').present) item.get('predict').fail('probes are never scored, so there is nothing to predict');
     else predicted = item.get('predict').optionalNumber({min: 0, max: 1}) ?? null;
@@ -280,6 +280,54 @@ export function readQuiz(value: unknown, facts: SubjectFacts, kind: QuizKind): Q
   if (items.some(i => i.role === 'new') && (lesson === undefined || lesson.trim() === '')) node.get('lesson').fail('"new" items are on today\'s lesson: name it');
   if (node.issues.length > 0) throw new Invalid('quiz', node.issues);
   return {lesson: lesson?.trim() || null, rationale, items};
+}
+
+// --- checkups (M12) ------------------------------------------------------------------
+
+export interface ExamInput {
+  rationale: string;
+  questions: QuestionInput[];
+}
+
+/**
+ * What a checkup question can't be: graded by the learner (a checkup is measured by the
+ * app), helped by hints, or a variant of another question. Used for a submission and for
+ * the examiner's fixes alike.
+ */
+export function examQuestionProblems(question: QuestionInput, node: Node): void {
+  if (questionType(question.type)?.gradedBy !== 'app') node.get('type').fail('a checkup is graded by the app: free responses and widgets belong in the tutor\'s quizzes');
+  if (question.hints.length > 0) node.get('hints').fail('a checkup gives no hints');
+  if (question.variant_of !== null) node.get('variant_of').fail('checkup questions are new, never variants');
+}
+
+/**
+ * A checkup: `{rationale?, items: [{question}]}`. Every concept the app drew for it (`plan`,
+ * by key) is asked about, and nothing else.
+ */
+export function readExam(value: unknown, facts: SubjectFacts, plan: readonly string[], max: number): ExamInput {
+  const node = Node.root(value);
+  const o = node.object(['rationale', 'items']);
+  if (o === undefined) throw new Invalid('checkup', node.issues);
+  const rationale = node.get('rationale').optionalString({max: 2000}) ?? '';
+  const itemNodes = node.get('items').array({min: 1, max}) ?? [];
+  const questions: QuestionInput[] = [];
+  const covered = new Set<string>();
+  for (const item of itemNodes) {
+    if (item.object(['question']) === undefined) continue;
+    const q = item.get('question');
+    const question = readQuestion(q, facts, {needsRef: false});
+    if (question === undefined) continue;
+    examQuestionProblems(question, q);
+    for (const key of question.concepts) {
+      if (!plan.includes(key)) q.get('concepts').fail(`"${key}" isn't in this checkup; ask only about ${plan.join(', ')}`);
+      covered.add(key);
+    }
+    questions.push(question);
+  }
+  const missing = plan.filter(key => !covered.has(key));
+  if (itemNodes.length > 0 && missing.length > 0) node.get('items').fail(`nothing asks about ${missing.map(k => `"${k}"`).join(', ')}; every concept in the checkup needs a question`);
+  if (node.issues.length > 0) throw new Invalid('checkup', node.issues);
+  return {rationale, questions};
 }
 
 // --- concepts ----------------------------------------------------------------------

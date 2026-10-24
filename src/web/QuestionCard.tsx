@@ -24,6 +24,8 @@ interface Props {
   answered: Outcome | null;
   where: {lesson: string} | {quiz: string};
   kicker?: string;
+  /** A question in an unfinished checkup: the tutor can't see it yet, so there is no asking it. */
+  checkup?: boolean;
   onAnswered?: (result: Answered) => void;
 }
 
@@ -245,7 +247,7 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
   }
 }
 
-function QuestionReactions({question}: {question: LearnerQuestion}) {
+function QuestionReactions({question, checkup = false}: {question: LearnerQuestion; checkup?: boolean}) {
   const {toast} = useShared();
   const [asking, setAsking] = useState(false);
   const [text, setText] = useState('');
@@ -269,10 +271,13 @@ function QuestionReactions({question}: {question: LearnerQuestion}) {
               {FEEDBACK_LABELS[kind] ?? kind}
             </button>
           ))}
-        <button type="button" className="chip small" onClick={() => setAsking(a => !a)}>
-          Ask…
-        </button>
+        {!checkup && (
+          <button type="button" className="chip small" onClick={() => setAsking(a => !a)}>
+            Ask…
+          </button>
+        )}
       </div>
+      {checkup && <p className="small-text muted">A checkup from the examiner: your tutor sees it once you finish, and you can ask about it then.</p>}
       {asking && (
         <div className="row" style={{marginTop: 8}}>
           <input value={text} onChange={e => setText(e.target.value)} placeholder="Your question for the tutor" style={{flex: 1}} />
@@ -294,7 +299,7 @@ function QuestionReactions({question}: {question: LearnerQuestion}) {
   );
 }
 
-export function QuestionCard({question, answered, where, kicker, onAnswered}: Props) {
+export function QuestionCard({question, answered, where, kicker, checkup = false, onAnswered}: Props) {
   const {toast} = useShared();
   const order = useMemo(() => orderFor(question), [question.id]);
   const [draft, setDraft] = useState<unknown>(() => initialDraft(question, order));
@@ -437,7 +442,7 @@ export function QuestionCard({question, answered, where, kicker, onAnswered}: Pr
               )}
             </>
           )}
-          <QuestionReactions question={question} />
+          <QuestionReactions question={question} checkup={checkup} />
         </div>
       )}
     </div>

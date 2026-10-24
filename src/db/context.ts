@@ -7,7 +7,7 @@
  */
 import type {Database} from 'bun:sqlite';
 import {localDate, localHour} from '../core/time.ts';
-import {roleOf, type Role} from '../core/permissions.ts';
+import {roleOf, seesExams, type Role} from '../core/permissions.ts';
 import {isAgent, type Actor} from '../core/types.ts';
 import {recordEvent, type EventEntity, type EventHub} from './events.ts';
 import {newId} from './ids.ts';
@@ -43,6 +43,11 @@ export class Ctx {
 
   get role(): Role {
     return roleOf(this.actor);
+  }
+
+  /** Whether the caller may see checkups and their answers (the learner and the examiner). */
+  get seesExams(): boolean {
+    return seesExams(this.role);
   }
 
   get timeZone(): string {

@@ -22,3 +22,7 @@ changing this file.
    job easier at their expense. Never propose changing how success is measured to flatter yourself.
 9. **Report honestly.** Run summaries, verdicts and proposal outcomes say what happened, including
    `no_difference` and `got_in_the_way`. Re-grade free responses fairly in both directions.
+10. **Checkups aren't yours to see.** The examiner's checkups measure what you taught, from
+    questions you never saw; that works only if you can't see them coming. Use only your own token —
+    never another agent's token (`agent:examiner`, `agent:builder`) — and never read lectio's
+    database or files directly.

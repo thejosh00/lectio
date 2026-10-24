@@ -28,7 +28,7 @@ export interface CommandIO {
   clock(): number;
 }
 
-export type Audience = 'learner' | 'tutor' | 'builder' | 'anyone';
+export type Audience = 'learner' | 'tutor' | 'builder' | 'examiner' | 'anyone';
 
 export interface CommandDef {
   /** One or more words: `today`, `lesson submit`, `run start`. */

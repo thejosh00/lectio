@@ -6,6 +6,7 @@
 import {
   approachOutcomes,
   calibration,
+  examOutcomes,
   load,
   misconceptions,
   outcomesBy,
@@ -17,6 +18,7 @@ import {
   sameDayAccuracyByWeek,
   type AttemptFact,
   type BlockFact,
+  type ExamFact,
   type Introduction,
   type PredictionFact,
 } from '../core/measures.ts';
@@ -50,8 +52,12 @@ interface AttemptJoin {
   answer: string;
 }
 
-export function attemptFacts(ctx: Ctx, filter: {subjectId?: string; since?: string; questionIds?: string[]} = {}): AttemptFact[] {
-  const where: string[] = [];
+/**
+ * Attempts as measure facts. Checkup answers (M12) are left out unless asked for (`exams:
+ * 'only'`), so every measure that existed before checkups reads exactly the rows it did.
+ */
+export function attemptFacts(ctx: Ctx, filter: {subjectId?: string; since?: string; questionIds?: string[]; exams?: 'exclude' | 'only'} = {}): AttemptFact[] {
+  const where: string[] = [filter.exams === 'only' ? "a.context = 'exam'" : "a.context != 'exam'"];
   const params: string[] = [];
   if (filter.subjectId !== undefined) {
     where.push('q.subject_id = ?');
@@ -111,6 +117,26 @@ function recentAccuracy(ctx: Ctx, subjectId: string, before: string, target: num
 }
 
 /**
+ * What the memory model alone expects for some concepts on a day, knowing only the reviews
+ * counted before `before`: the lowest FSRS recall over them, or null if none has a memory.
+ */
+function memoryModel(ctx: Ctx, conceptIds: readonly string[]): (ids: readonly string[], before: string, day: string) => number | null {
+  const candidates = reviewCandidates(ctx, conceptIds);
+  const concepts = new Map(
+    conceptIds.length === 0
+      ? []
+      : (ctx.db.query(`SELECT id, status, introduced FROM concepts WHERE id IN (${conceptIds.map(() => '?').join(', ')})`).all(...conceptIds) as Array<ConceptFacts & {id: string}>).map(c => [c.id, c]),
+  );
+  const desired = numberSetting(ctx.db, 'desired_retention');
+  return (ids, before, day) =>
+    expectedRecall(
+      ids.map(id => reviewsOf(countedReviews((candidates.get(id) ?? []).filter(a => a.at < before), concepts.get(id) ?? {status: 'planned', introduced: null}))),
+      day,
+      desired,
+    );
+}
+
+/**
  * First tries at the quiz items the tutor predicted, each with what the formula expected
  * knowing only what the tutor knew when it wrote the quiz: FSRS recall that day, replayed
  * from the reviews counted before the quiz was added (the lowest over the question's
@@ -135,20 +161,34 @@ export function predictionFacts(ctx: Ctx, subjectId?: string): Array<PredictionF
   }>) {
     (conceptsOf.get(row.question_id) ?? conceptsOf.set(row.question_id, []).get(row.question_id)!).push(row.concept_id);
   }
-  const conceptIds = [...new Set([...conceptsOf.values()].flat())];
-  const candidates = reviewCandidates(ctx, conceptIds);
-  const concepts = new Map(
-    (ctx.db.query(`SELECT id, status, introduced FROM concepts WHERE id IN (${conceptIds.map(() => '?').join(', ')})`).all(...conceptIds) as Array<ConceptFacts & {id: string}>).map(c => [c.id, c]),
-  );
-  const desired = numberSetting(ctx.db, 'desired_retention');
+  const model = memoryModel(ctx, [...new Set([...conceptsOf.values()].flat())]);
   const target = numberSetting(ctx.db, 'target_accuracy');
   return rows.map(row => {
     const ids = conceptsOf.get(row.question_id) ?? [];
     const day = ctx.dayOf(row.at);
-    const histories = ids.map(id => reviewsOf(countedReviews((candidates.get(id) ?? []).filter(a => a.at < row.quiz_added), concepts.get(id) ?? {status: 'planned', introduced: null})));
-    const formula = expectedRecall(histories, day, desired) ?? recentAccuracy(ctx, row.subject_id, row.quiz_added, target);
+    const formula = model(ids, row.quiz_added, day) ?? recentAccuracy(ctx, row.subject_id, row.quiz_added, target);
     return {attempt_id: row.id, question_id: row.question_id, role: row.role, concepts: ids, day, predicted: row.predicted, formula, score: row.score, answer: parseJson<unknown>(row.answer, null)};
   });
+}
+
+/** Checkup answers, each with what the memory model expected for its concepts when the checkup was written (M12). */
+export function examFacts(ctx: Ctx, subjectId?: string): ExamFact[] {
+  const facts = attemptFacts(ctx, {subjectId, exams: 'only'});
+  if (facts.length === 0) return [];
+  const added = new Map(
+    (ctx.db.query("SELECT a.id, z.added FROM attempts a JOIN quizzes z ON z.id = a.quiz_id WHERE a.context = 'exam'").all() as Array<{id: string; added: string}>).map(r => [r.id, r.added]),
+  );
+  const model = memoryModel(ctx, [...new Set(facts.flatMap(f => f.concepts))]);
+  return facts.map(f => ({...f, expected: model(f.concepts, added.get(f.id) ?? f.at, f.day)}));
+}
+
+function examsReport(ctx: Ctx, subjectId?: string) {
+  const finished = (
+    subjectId === undefined
+      ? ctx.db.query("SELECT COUNT(*) AS n FROM quizzes WHERE kind = 'exam' AND state = 'finished'").get()
+      : ctx.db.query("SELECT COUNT(*) AS n FROM quizzes WHERE kind = 'exam' AND state = 'finished' AND subject_id = ?").get(subjectId)
+  ) as {n: number};
+  return {checkups: finished.n, ...examOutcomes(examFacts(ctx, subjectId), numberSetting(ctx.db, 'memory_gap_hours'))};
 }
 
 /** The predictions measure, with each surprise's question and answer for the tutor to read. */
@@ -230,6 +270,8 @@ export interface ProgressReport {
   concepts: {total: number; introduced: number; known: number; solid: number; due: number};
   /** How well the tutor's predictions matched what happened, beside the formula's (M11). */
   predictions: ReturnType<typeof predictionsReport>;
+  /** Checkups from the examiner: the score on questions the tutor never saw, beside what memory expected (M12). */
+  exams: ReturnType<typeof examsReport>;
 }
 
 function conceptKey(ctx: Ctx, id: string): string {
@@ -287,6 +329,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     load: loadReport,
     hypotheses: openHypotheses(ctx, subjectId),
     predictions: predictionsReport(ctx, subjectId),
+    exams: examsReport(ctx, subjectId),
     concepts: {
       total: conceptRows.filter(c => c.status !== 'retired').length,
       introduced: conceptRows.filter(c => c.status === 'introduced').length,
@@ -318,6 +361,8 @@ export function questionBank(ctx: Ctx, filter: {subjectId?: string; concept?: st
     where.push('q.status = ?');
     params.push(filter.status ?? 'active');
   }
+  // Checkup questions exist only for those who may see checkups (M12).
+  if (!ctx.seesExams) where.push("q.status != 'exam'");
   if (filter.concept !== undefined) {
     where.push('EXISTS (SELECT 1 FROM question_concepts qc JOIN concepts c ON c.id = qc.concept_id WHERE qc.question_id = q.id AND (c.key = ? OR c.id = ?))');
     params.push(filter.concept, filter.concept);

@@ -6,7 +6,7 @@
  */
 import type {Database} from 'bun:sqlite';
 
-export type EventEntity = 'subject' | 'concept' | 'lesson' | 'block' | 'quiz' | 'question' | 'attempt' | 'feedback' | 'note' | 'run' | 'proposal' | 'settings' | 'asset';
+export type EventEntity = 'subject' | 'concept' | 'lesson' | 'block' | 'quiz' | 'question' | 'attempt' | 'feedback' | 'note' | 'run' | 'proposal' | 'settings' | 'asset' | 'exam';
 
 export interface StoredEvent {
   seq: number;
@@ -66,6 +66,28 @@ const toEvent = (row: EventRow): StoredEvent => ({...row, change: JSON.parse(row
 
 export function eventsSince(db: Database, seq: number, limit = 500): StoredEvent[] {
   return (db.query('SELECT * FROM events WHERE seq > ? ORDER BY seq LIMIT ?').all(seq, limit) as EventRow[]).map(toEvent);
+}
+
+/**
+ * Whether an event would give away a checkup (M12): anything about a checkup's quiz,
+ * questions, answers or the feedback on them, and anything the examiner did. Those who
+ * can't see checkups never receive these.
+ */
+export function isExamEvent(db: Database, event: StoredEvent): boolean {
+  if (event.entity === 'exam' || event.actor === 'agent:examiner') return true;
+  const isExamRow = (target: string, id: string): boolean => {
+    const sql: Record<string, string> = {
+      quiz: "SELECT 1 AS x FROM quizzes WHERE id = ? AND kind = 'exam'",
+      question: "SELECT 1 AS x FROM questions WHERE id = ? AND status = 'exam'",
+      attempt: "SELECT 1 AS x FROM attempts WHERE id = ? AND context = 'exam'",
+    };
+    return sql[target] !== undefined && db.query(sql[target]!).get(id) !== null;
+  };
+  if (event.entity === 'feedback') {
+    const row = db.query('SELECT target, target_id FROM feedback WHERE id = ?').get(event.entity_id) as {target: string; target_id: string} | null;
+    return row !== null && isExamRow(row.target, row.target_id);
+  }
+  return isExamRow(event.entity, event.entity_id);
 }
 
 export function latestEventSeq(db: Database): number {

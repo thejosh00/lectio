@@ -23,7 +23,7 @@ test('every write names who may make it', () => {
 });
 
 test('no agent writes attempts, creates feedback, or approves, declines or ships a proposal', async () => {
-  for (const actor of ['agent:tutor', 'agent:builder', 'agent:anything']) {
+  for (const actor of ['agent:tutor', 'agent:builder', 'agent:examiner', 'agent:anything']) {
     for (const path of [
       '/api/attempts',
       '/api/attempts/x/self-grade',
@@ -47,6 +47,16 @@ test('no agent writes attempts, creates feedback, or approves, declines or ships
     const settings = await fetch(`${lc.url}/api/settings/quiz_max_questions`, {method: 'PUT', headers: {authorization: `Bearer ${lc.token(actor)}`, 'content-type': 'application/json'}, body: '{"value":"99"}'});
     expect(settings.status).toBe(403);
   }
+});
+
+test('the examiner writes only checkups, its runs, fixes to its own questions, and replies on its checkups', async () => {
+  const writes = allRoutes()
+    .filter(r => r.method !== 'GET' && r.allow?.includes('examiner'))
+    .map(r => `${r.method} ${r.path}`)
+    .sort();
+  expect(writes).toEqual(['POST /api/exams/start', 'POST /api/feedback/:ref/reply', 'POST /api/questions/:ref/fix', 'POST /api/runs', 'POST /api/runs/:ref/finish', 'POST /api/subjects/:ref/exams']);
+  const reads = allRoutes().filter(r => r.method === 'GET' && r.readers?.includes('examiner')).map(r => r.path).sort();
+  expect(reads).toEqual(['/api/agents', '/api/exams/due', '/api/whoami']);
 });
 
 test('the builder writes only proposals', async () => {

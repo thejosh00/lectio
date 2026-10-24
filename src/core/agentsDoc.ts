@@ -9,7 +9,7 @@
 import {APPROACHES, BLOCK_TYPES, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
 import {PLANNED_QUESTION_TYPES, QUESTION_TYPES} from '../questions/index.ts';
 import {AREAS, OUTCOMES} from './proposals.ts';
-import {AIMS, ITEM_ROLES} from './types.ts';
+import {AIMS, DAILY_ROLES} from './types.ts';
 
 export interface ContractOptions {
   version: string;
@@ -321,6 +321,69 @@ export function builderExamples(): Example[] {
   ];
 }
 
+/** A checkup on the three concepts the examiner's example draws: every drawn concept asked about, and no other. */
+const EXAM = {
+  rationale: 'A week in: stack and heap, ownership and moves.',
+  items: [
+    {
+      question: {
+        type: 'multiple_choice',
+        aim: 'apply',
+        difficulty: 3,
+        concepts: ['stack-vs-heap'],
+        prompt: 'A function returns a `Vec<u8>` it built. Where do the bytes live while the caller uses them?',
+        body: {
+          choices: [
+            {id: 'heap', md: 'On the heap; the caller now owns the buffer'},
+            {id: 'stack', md: "In the function's stack frame", misconception: 'returned-data-on-callee-stack', why: 'That frame is gone once the function returns.'},
+          ],
+          answer: 'heap',
+        },
+        explanation: 'A Vec keeps its elements on the heap; returning it moves ownership of that buffer to the caller.',
+      },
+    },
+    {
+      question: {
+        type: 'short_text',
+        aim: 'recall',
+        difficulty: 2,
+        concepts: ['ownership'],
+        prompt: 'How many owners can a value have at one time?',
+        body: {accept: ['one', '1', 'exactly one', 'a single owner', 'one owner']},
+        explanation: 'Exactly one, so exactly one place frees it.',
+      },
+    },
+    {
+      question: {
+        type: 'multiple_choice',
+        aim: 'transfer',
+        difficulty: 4,
+        concepts: ['moves'],
+        prompt: '`let a = vec![1]; let b = a; let c = a;` — what does the compiler say?',
+        body: {
+          choices: [
+            {id: 'moved', md: 'Error on `let c = a`: `a` was moved into `b`'},
+            {id: 'fine', md: 'It compiles; `b` and `c` share the buffer', misconception: 'move-is-shallow-copy', why: 'Two owners would mean a double free.'},
+          ],
+          answer: 'moved',
+        },
+        explanation: 'After the first move `a` has no value; using it again is a compile error.',
+      },
+    },
+  ],
+};
+
+/** What the examiner runs, with its own token. */
+export function examinerExamples(): Example[] {
+  return [
+    {section: 'exam', as: 'agent:examiner', line: 'lectio exam due --as agent:examiner --json'},
+    {section: 'exam', as: 'agent:examiner', line: 'lectio run start --as agent:examiner --json'},
+    {section: 'exam', as: 'agent:examiner', line: 'lectio exam start <subject> --run <run> --as agent:examiner --json'},
+    {section: 'exam', as: 'agent:examiner', line: 'lectio exam submit <subject> --run <run> --file exam.json --as agent:examiner --json', file: {name: 'exam.json', content: EXAM}},
+    {section: 'exam', as: 'agent:examiner', line: 'lectio run finish <run> --outcome ok --summary "Wrote the Rust checkup: three concepts, one transfer question." --as agent:examiner --json'},
+  ];
+}
+
 // --- rendering ---------------------------------------------------------------------
 
 const fence = (lang: string, lines: string[]) => [`\`\`\`${lang}`, ...lines, '```'];
@@ -540,7 +603,7 @@ export function agentsDocument(options: ContractOptions): string {
     '## The quiz',
     '',
     `\`{lesson?, rationale, items: [{role, question, predict} | {role, existing, predict}]}\`, at most ${L['quiz_max_questions']} items. Roles:`,
-    `${ITEM_ROLES.map(r => `\`${r}\``).join(', ')}. \`new\` items are on today's lesson (name it): the quiz opens once the lesson is`,
+    `${[...DAILY_ROLES, 'probe'].map(r => `\`${r}\``).join(', ')}. \`new\` items are on today's lesson (name it): the quiz opens once the lesson is`,
     'finished. `review` brings back what is due — prefer a fresh variant (`variant_of`) over the same words.',
     '`retry` is for recent misses. `existing` is an active question id of the same subject.',
     '',
@@ -565,7 +628,8 @@ export function agentsDocument(options: ContractOptions): string {
     '`learner_lines`), and per active subject: `subject`, `readiness`, `plan`, `concepts` (status, `recall_now`,',
     '`due`), `open_lessons`, `recent_lessons`, `quizzes`, `attempts_since_last_run` (with the question, its concepts,',
     'the approaches that taught them, your `predicted`, confidence, hints, seconds, misconception, `gap_hours`), `measures`,',
-    '`widget_errors` and `budget`. Then `regrade`, `feedback_since_last_run`, `unresolved_flags`,',
+    '`exams` (checkups the learner finished since your last run, every question and answer), `widget_errors` and',
+    '`budget`. Then `regrade`, `feedback_since_last_run`, `unresolved_flags`,',
     '`unanswered_asks`, `recent_runs`, `contract_version`, and for improving lectio: `open_proposals`,',
     '`to_review` (with each build\'s `handback`), `shipped_since_last_run`, `awaiting_outcome` and `retro_due`.',
     '',
@@ -583,6 +647,10 @@ export function agentsDocument(options: ContractOptions): string {
     '  when you wrote the quiz: FSRS recall that day for an idea with a memory, the subject\'s recent same-day',
     '  accuracy otherwise. `skill` above 0 means you predict the learner better than the formula does.',
     '  Each surprise is something you believe about the learner that is wrong: read them first.',
+    '- **Checkups** (`exams`) — the share right (first try, not guessing) on the examiner\'s questions, which you',
+    '  never saw, delayed at least a day; beside it, the recall the memory model expected for those concepts that day,',
+    '  and the `gap` between them. Well below 0 means the learner holds less than your own reviews suggest: your',
+    '  questions may be easier, or closer to the lesson\'s words, than the idea is.',
     `- **Memory** — FSRS per concept (desired retention ${L['desired_retention']}). An attempt counts when it is a first try in a`,
     '  daily quiz or practice (not an inline check or a probe), not void, and the first on that concept that day.',
     '',
@@ -599,6 +667,7 @@ export function agentsDocument(options: ContractOptions): string {
         ['one asset', `${L['asset_max_bytes']} bytes`],
         ['notes and each plan', `${L['notes_max_bytes']} bytes`],
         ['detail in the context', `${L['context_days']} days`],
+        ['a checkup per subject', `every ${L['exam_days']} days, up to ${L['exam_max_questions']} concepts introduced at least ${L['exam_min_age_days']} days ago`],
       ],
     ),
     '',
@@ -649,6 +718,27 @@ export function agentsDocument(options: ContractOptions): string {
     'it back. It never pushes, merges or deploys:',
     '',
     ...renderExamples(builderExamples(), ''),
+    '',
+    '## Checkups: the examiner',
+    '',
+    `A third agent, the examiner (\`agent:examiner\`), writes a checkup for each subject every ${L['exam_days']} days. The app draws`,
+    `which concepts it asks about — at random, those never examined first, up to ${L['exam_max_questions']}, each introduced at least`,
+    `${L['exam_min_age_days']} days ago — and keeps the draw. The examiner sees each concept\'s title and summary and the objectives of`,
+    'the lesson that introduced it: no lesson text, no tutor questions, no notes, no memory. It writes from what the',
+    'learner should be able to do, not from how it was taught.',
+    '',
+    '- **To the tutor, a checkup doesn\'t exist until it is finished**: no route, the context, the event stream or a',
+    '  prefix shows its quiz, questions, answers, flags or the examiner\'s runs. Then `exams` in the context has',
+    '  every question and answer, and the checkup measure moves. Checkup answers never count for memory, and are',
+    '  left out of every other measure.',
+    '- **The checkup:** `{rationale?, items: [{question}]}` — new questions only, graded by the app (no free',
+    '  responses or widgets), no hints, every drawn concept asked about and no other. Idempotent by day.',
+    `- **Flags and disputes** on a checkup are the examiner\'s: \`exam due\` lists them, and it fixes them with`,
+    '  `question fix` (its own questions only) before writing anything new. The learner can\'t ask about a checkup',
+    '  question until the checkup is finished; then the ask is yours.',
+    `- **An unfinished checkup is skipped** after ${L['exam_expire_days']} days.`,
+    '',
+    ...renderExamples(examinerExamples(), ''),
   ];
   return `${out.filter((line, i, all) => !(line === '' && all[i - 1] === '')).join('\n')}\n`;
 }

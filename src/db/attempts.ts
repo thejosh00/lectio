@@ -18,7 +18,7 @@ import {addFeedback} from './feedback.ts';
 import {blocksOf, getLesson, openLesson, resolveLesson} from './lessons.ts';
 import {refreshMemory} from './memory.ts';
 import {getQuestion, resolveQuestion} from './questions.ts';
-import {maybeFinishQuiz, openQuiz, progressOf, quizItems, resolveQuiz, type QuizProgress} from './quizzes.ts';
+import {isExpired, maybeFinishQuiz, openQuiz, progressOf, quizItems, resolveQuiz, type QuizProgress} from './quizzes.ts';
 import {resolveId} from './refs.ts';
 
 export function resolveAttempt(ctx: Ctx, ref: string | undefined): Attempt {
@@ -42,7 +42,9 @@ function gapHours(ctx: Ctx, conceptIds: string[], now: string): number | null {
     )
     .get(...conceptIds, now) as {at: string | null};
   const attempt = ctx.db
-    .query(`SELECT MAX(a.at) AS at FROM attempts a JOIN question_concepts qc ON qc.question_id = a.question_id WHERE qc.concept_id IN (${marks}) AND a.at <= ?`)
+    // A checkup isn't the learner meeting the idea again for the tutor's purposes (M12): it
+    // must not make a later review look same-day.
+    .query(`SELECT MAX(a.at) AS at FROM attempts a JOIN question_concepts qc ON qc.question_id = a.question_id WHERE qc.concept_id IN (${marks}) AND a.at <= ? AND a.context != 'exam'`)
     .get(...conceptIds, now) as {at: string | null};
   const last = [lesson.at, attempt.at].filter((x): x is string => x !== null).sort().at(-1);
   return last === undefined ? null : Math.round(hoursBetween(last, now) * 100) / 100;
@@ -90,8 +92,9 @@ export function answer(ctx: Ctx, input: AnswerInput): AnswerResult {
     const item = quizItems(ctx, quiz.id).find(i => i.question_id === question.id);
     if (item === undefined) throw usageError(`question ${question.id} isn't in quiz ${quiz.id}`);
     if (quiz.state === 'finished') throw failed('this quiz is finished');
+    if (isExpired(ctx, quiz) || (quiz.kind === 'exam' && quiz.state === 'skipped')) throw failed('this checkup waited too long and was skipped');
     openQuiz(ctx, quiz);
-    context = quiz.kind === 'practice' ? 'practice' : 'quiz';
+    context = quiz.kind === 'practice' ? 'practice' : quiz.kind === 'exam' ? 'exam' : 'quiz';
     quizId = quiz.id;
     lessonId = quiz.lesson_id;
     role = item.role;
@@ -209,7 +212,7 @@ export function agentGrade(ctx: Ctx, attempt: Attempt, input: {score: number | u
 export function awaitingRegrade(ctx: Ctx): Attempt[] {
   return (
     ctx.db
-      .query("SELECT a.* FROM attempts a JOIN questions q ON q.id = a.question_id WHERE q.type = 'free_response' AND a.agent_score IS NULL AND a.void = 0 ORDER BY a.at")
+      .query("SELECT a.* FROM attempts a JOIN questions q ON q.id = a.question_id WHERE q.type = 'free_response' AND a.agent_score IS NULL AND a.void = 0 AND a.context != 'exam' ORDER BY a.at")
       .all() as AttemptRow[]
   ).map(attemptFromRow);
 }

@@ -1,8 +1,10 @@
 /**
- * What the server does on its own: take the daily backup. Returns a function that stops it.
+ * What the server does on its own: take the daily backup, and skip checkups that waited
+ * too long. Returns a function that stops it.
  */
 import {dailyBackup} from '../db/backup.ts';
-import type {AppDeps} from '../db/context.ts';
+import {Ctx, type AppDeps} from '../db/context.ts';
+import {expireExams} from '../db/exams.ts';
 import {timeZoneOf} from '../db/settings.ts';
 
 export interface BackgroundOptions {
@@ -22,7 +24,19 @@ export function startBackground(deps: AppDeps, options: BackgroundOptions): () =
       options.log(`${deps.now()} backup failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
-  backup();
-  const timer = setInterval(backup, BACKUP_CHECK_MS);
+  const expire = () => {
+    try {
+      const skipped = expireExams(new Ctx(deps, 'lectio'));
+      if (skipped.length > 0) options.log(`${deps.now()} skipped ${skipped.length} checkup(s) that waited too long`);
+    } catch (error) {
+      options.log(`${deps.now()} expiring checkups failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+  const tick = () => {
+    backup();
+    expire();
+  };
+  tick();
+  const timer = setInterval(tick, BACKUP_CHECK_MS);
   return () => clearInterval(timer);
 }

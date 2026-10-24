@@ -161,6 +161,32 @@ otto check <run> --script "$PWD/skills/lectio-teach/check.sh"
 - For a non-default instance, put `LECTIO_DIR` in a copy of `check.sh`: otto launchers don't set
   environment variables.
 
+## Checkups: an examiner the tutor doesn't control
+
+The tutor writes the lessons and the quizzes that retention is measured on, so its numbers are
+partly its own making. A third agent, the examiner, checks it: every week (`exam_days`) it writes
+each subject a short checkup on concepts the app draws at random, from the syllabus alone. It never
+sees a lesson, the tutor's questions, notes or memory, and the tutor sees nothing of a checkup until
+you've finished it; then it gets the results. Checkup answers never count for memory and stay out
+of every other measure. Progress shows how you did beside what the memory model expected, and the
+gap says whether the tutor's own reviews flatter you.
+
+The tutor can't see checkups because the server hides them from its token, not because it couldn't
+find a way (it runs on your machine). Its `rules.md` forbids another token or reading the database
+directly.
+
+```bash
+ln -s "$PWD/skills/lectio-examine" ~/.claude/skills/lectio-examine
+lectio token agent:examiner
+lectio login --url http://127.0.0.1:7780 --token <it>      # added to client.json; the tutor stays the default
+otto run --skill lectio-examine \
+  --goal "Write each of my lectio subjects an independent weekly checkup from the syllabus alone" \
+  --perpetual --period 6h
+otto check <run> --script "$PWD/skills/lectio-examine/check.sh"
+```
+
+For more independence, run the examiner on a different model from the tutor.
+
 ## Improving lectio itself
 
 The tutor is lectio's most demanding user. When the app gets in the way of teaching, it proposes a

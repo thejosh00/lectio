@@ -20,11 +20,13 @@ export interface Route {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   handler: Handler;
-  /**
-   * Who may call it. Every write names its roles; reads leave it out, because everyone —
-   * the builder included — may read everything.
-   */
+  /** Who may call it. Every write names its roles. */
   allow?: readonly Role[];
+  /**
+   * Who may read it. Reads that leave it out are for everyone but the examiner
+   * (`DEFAULT_READERS`): the examiner reads only its own routes and the contract (M12).
+   */
+  readers?: readonly Role[];
   /** What it does, for the refusal message: "finishing lessons". */
   what?: string;
 }

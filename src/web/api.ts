@@ -156,6 +156,16 @@ export interface Progress {
   hypotheses: Array<{id: string; day: string; title: string; hypothesis: string; ready_for_verdict: boolean}>;
   concepts: {total: number; introduced: number; known: number; solid: number; due: number};
   predictions: Predictions;
+  exams: Checkups;
+}
+
+/** The examiner's checkups: the score on questions the tutor never saw, beside what memory expected. */
+export interface Checkups {
+  checkups: number;
+  score: Rate;
+  expected: number | null;
+  score_where_expected: Rate;
+  gap: number | null;
 }
 
 export interface PredictionBin {

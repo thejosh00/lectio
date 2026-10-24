@@ -8,7 +8,7 @@
  */
 import type {Feedback, Subject} from '../core/types.ts';
 import type {Ctx} from './context.ts';
-import {unansweredAsks, unresolvedFlags} from './feedback.ts';
+import {tutorSees, unansweredAsks, unresolvedFlags} from './feedback.ts';
 import {lessonForDay, readinessOf} from './lessons.ts';
 import {tutorReviews} from './proposals.ts';
 import {activeSubjects} from './subjects.ts';
@@ -68,9 +68,10 @@ export function dueReport(ctx: Ctx): DueReport {
     }
     return out;
   };
-  const needsFix = bySubject(unresolvedFlags(ctx));
+  // A checkup's flags are the examiner's (lectio exam due), never a reason to wake the tutor.
+  const needsFix = bySubject(unresolvedFlags(ctx).filter(f => tutorSees(ctx, f)));
   for (const b of blocksWithErrors(ctx)) needsFix.add(b.subject_id);
-  const needsReply = bySubject(unansweredAsks(ctx));
+  const needsReply = bySubject(unansweredAsks(ctx).filter(f => tutorSees(ctx, f)));
   const today = ctx.today();
 
   const report: DueReport = {due: false, subjects: [], waiting: [], reviews: tutorReviews(ctx).map(p => ({number: p.number, title: p.title, status: p.status}))};

@@ -107,7 +107,7 @@ export function rewriteQuestion(ctx: Ctx, question: Question, input: QuestionInp
   if (JSON.stringify(before) === JSON.stringify(after)) return {question, changed: false};
   ctx.db
     .query('UPDATE questions SET type = ?, aim = ?, prompt = ?, body = ?, explanation = ?, hints = ?, difficulty = ?, version = version + 1, changed = ?, status = ? WHERE id = ?')
-    .run(input.type, input.aim, input.prompt, JSON.stringify(input.body), input.explanation, JSON.stringify(input.hints), input.difficulty, ctx.now(), 'active', question.id);
+    .run(input.type, input.aim, input.prompt, JSON.stringify(input.body), input.explanation, JSON.stringify(input.hints), input.difficulty, ctx.now(), question.status === 'exam' ? 'exam' : 'active', question.id);
   linkConcepts(ctx, question.id, input.concepts, conceptIds);
   ctx.event('question', question.id, {kind: 'rewritten', version: question.version + 1, before});
   return {question: getQuestion(ctx, question.id)!, changed: true};

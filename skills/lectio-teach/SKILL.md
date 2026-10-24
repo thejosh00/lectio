@@ -79,6 +79,11 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   were sure of a right answer that missed, or of a miss that was right. Work out what you got wrong
   about them, and put it in the notes when it holds up. `skill` above 0 means you predict them better
   than the memory formula alone; below 0, the formula knows them better than you do.
+- **Read the checkups** (`exams`, and `measures.exams`): the examiner's questions, which you never
+  saw, a day or more after the learner met each idea. A `gap` well below 0 — the learner scoring
+  under what the memory model expected — means your own reviews flatter them: write reviews further
+  from the lesson's words, with more transfer, and bring back what the checkup missed. You can't see
+  a checkup before it's finished, and never try to (`rules.md`).
 - **Read the measures** per subject, in this order: retention (the goal — did it stick?), same-day
   accuracy against `target_accuracy` (the difficulty dial), calibration (`sure` and wrong is a
   misconception), misconception tags, lesson ratings, skips and their reasons, block engagement

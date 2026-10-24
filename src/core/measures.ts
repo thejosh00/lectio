@@ -19,7 +19,8 @@ export interface AttemptFact {
   aim: string;
   /** The question's concepts, as concept ids. */
   concepts: string[];
-  context: 'lesson' | 'quiz' | 'practice';
+  /** `exam`: a checkup answer (M12), only ever in the checkup measure. */
+  context: 'lesson' | 'quiz' | 'practice' | 'exam';
   role: string | null;
   attempt_no: number;
   score: number | null;
@@ -358,6 +359,54 @@ export function predictions(facts: readonly PredictionFact[]): Predictions {
       .filter(isSurprise)
       .sort((a, b) => b.day.localeCompare(a.day) || Math.abs(b.predicted - b.score) - Math.abs(a.predicted - a.score))
       .slice(0, 10),
+  };
+}
+
+// --- checkups (M12) ------------------------------------------------------------------
+
+/** A checkup answer, with what the memory model expected for its concepts that day. */
+export interface ExamFact extends AttemptFact {
+  /** FSRS recall that day from the reviews counted before the checkup was written (the lowest over its concepts); null without a memory. */
+  expected: number | null;
+}
+
+export interface ExamOutcomes {
+  /** Delayed first tries (at least `gapHours` after last meeting the idea): the share right, unhinted, not guessing. */
+  score: Rate;
+  /** On the answers the memory model had a memory for: its mean expected recall, and the score on those same answers. */
+  expected: number | null;
+  score_where_expected: Rate;
+  /** score_where_expected − expected. Well below 0: the learner holds less than the tutor's own reviews suggest. */
+  gap: number | null;
+  by_aim: Array<{aim: string} & Rate>;
+  by_week: Array<{week: string; expected: number | null} & Rate>;
+}
+
+const mean = (xs: readonly number[]): number | null => (xs.length === 0 ? null : round3(xs.reduce((a, b) => a + b, 0) / xs.length));
+
+/** How the learner did on checkups the tutor never saw, beside what the memory model expected. */
+export function examOutcomes(facts: readonly ExamFact[], gapHours: number): ExamOutcomes {
+  const counted = facts.filter(f => f.attempt_no === 1 && !f.void && f.score !== null && f.gap_hours !== null && f.gap_hours >= gapHours);
+  const known = counted.filter(f => f.expected !== null);
+  const score = rate(counted.filter(retained).length, counted.length);
+  const scoreWhereExpected = rate(known.filter(retained).length, known.length);
+  const expected = mean(known.map(f => f.expected!));
+  const groups = <K extends string>(key: (f: ExamFact) => K) => {
+    const out = new Map<K, ExamFact[]>();
+    for (const f of counted) (out.get(key(f)) ?? out.set(key(f), []).get(key(f))!).push(f);
+    return [...out].sort(([a], [b]) => a.localeCompare(b));
+  };
+  return {
+    score,
+    expected,
+    score_where_expected: scoreWhereExpected,
+    gap: expected === null || scoreWhereExpected.rate === null ? null : round3(scoreWhereExpected.rate - expected),
+    by_aim: groups(f => f.aim).map(([aim, list]) => ({aim, ...rate(list.filter(retained).length, list.length)})),
+    by_week: groups(f => weekOf(f.day)).map(([week, list]) => ({
+      week,
+      ...rate(list.filter(retained).length, list.length),
+      expected: mean(list.filter(f => f.expected !== null).map(f => f.expected!)),
+    })),
   };
 }
 

@@ -4,7 +4,7 @@
  * fails before the tutor does.
  */
 import {afterEach, expect, test} from 'bun:test';
-import {builderExamples, tutorExamples, type Example} from '../../src/core/agentsDoc.ts';
+import {builderExamples, examinerExamples, tutorExamples, type Example} from '../../src/core/agentsDoc.ts';
 import {contractOptions} from '../../src/db/contract.ts';
 import {answerQ, ownershipLesson, ownershipQuiz, rustSubject, startRun, submitLesson, submitQuiz} from '../helpers/fixtures.ts';
 import {startInstance, type Instance} from '../helpers/instance.ts';
@@ -157,12 +157,28 @@ test('every example in the contract runs as documented', async () => {
   expect(counted.outcome.why).toContain('four steps');
 });
 
+test("the examiner's examples run as documented", async () => {
+  lc = await startInstance({settings: {exam_min_age_days: '1'}});
+  // Three concepts introduced a day ago: all three are drawn, in some order.
+  const subject = await rustSubject(lc);
+  const run = await startRun(lc);
+  const keys = ['stack-vs-heap', 'ownership', 'moves'];
+  const lesson = await submitLesson(lc, subject, run, ownershipLesson({concepts: keys.map(key => ({key, role: 'new'})), blocks: [{type: 'markdown', approach: 'explanation', concepts: keys, body: {md: 'x'}}], questions: []}));
+  await lc.j(['finish', lesson.json.lesson.id]);
+  await lc.cli(['login', '--url', lc.url, '--token', lc.token('agent:examiner')]);
+  lc.advance({days: 1});
+  await runExamples(lc, examinerExamples(), {'<subject>': subject});
+  const today = (await lc.j(['today'])).json;
+  expect(today.subjects[0].quizzes.map((q: {kind: string; progress: {total: number}}) => [q.kind, q.progress.total])).toEqual([['exam', 3]]);
+  expect((await lc.j(['exam', 'due'], {as: 'agent:examiner'})).json.waiting[0].why).toBe('waiting_for_learner');
+});
+
 test('the document shows exactly those examples, the registries and the limits', async () => {
   lc = await startInstance({settings: {quiz_max_questions: '9'}});
   const result = await lc.j(['agents'], TUTOR);
   expect(result.code).toBe(0);
   const doc: string = result.json.document;
-  for (const example of [...tutorExamples(contractOptions(lc.ctx('agent:tutor'))), ...builderExamples()]) expect(doc).toContain(example.line);
+  for (const example of [...tutorExamples(contractOptions(lc.ctx('agent:tutor'))), ...builderExamples(), ...examinerExamples()]) expect(doc).toContain(example.line);
   for (const area of ['`block_type`', '`limits`', '`improvement_loop`']) expect(doc).toContain(area);
   for (const type of ['`markdown`', '`callout`', '`code`', '`question`', '`image`', '`multiple_choice`', '`cloze`', '`free_response`']) expect(doc).toContain(`| ${type} |`);
   expect(doc).toContain('| questions per quiz | 9 |');

@@ -7,12 +7,14 @@
  * each route's `allow` — never by a handler remembering to check.
  */
 import {AppError, EXIT_ERROR, describe, refused} from '../core/errors.ts';
+import {DEFAULT_READERS} from '../core/permissions.ts';
 import type {Ctx} from '../db/context.ts';
 import {contractDocument, contractVersion} from '../db/contract.ts';
 import {VERSION} from '../version.ts';
 import {compile, errorResponse, json, readBody, whose, type CompiledRoute, type Route} from './http.ts';
 import {assetRoutes} from './routes/assets.ts';
 import {attemptRoutes} from './routes/attempts.ts';
+import {examRoutes} from './routes/exams.ts';
 import {feedbackRoutes} from './routes/feedback.ts';
 import {lessonRoutes} from './routes/lessons.ts';
 import {noteRoutes} from './routes/notes.ts';
@@ -24,8 +26,8 @@ import {subjectRoutes} from './routes/subjects.ts';
 import {tutorRoutes} from './routes/tutor.ts';
 
 const ROUTES: Route[] = [
-  {method: 'GET', path: '/api/whoami', handler: ctx => ({actor: ctx.actor, role: ctx.role, version: VERSION, today: ctx.today(), timezone: ctx.timeZone})},
-  {method: 'GET', path: '/api/agents', handler: ctx => ({document: contractDocument(ctx), contract_version: contractVersion(ctx)})},
+  {method: 'GET', path: '/api/whoami', readers: ['learner', 'tutor', 'builder', 'examiner'], handler: ctx => ({actor: ctx.actor, role: ctx.role, version: VERSION, today: ctx.today(), timezone: ctx.timeZone})},
+  {method: 'GET', path: '/api/agents', readers: ['learner', 'tutor', 'builder', 'examiner'], handler: ctx => ({document: contractDocument(ctx), contract_version: contractVersion(ctx)})},
   ...subjectRoutes,
   ...lessonRoutes,
   ...quizRoutes,
@@ -36,6 +38,7 @@ const ROUTES: Route[] = [
   ...assetRoutes,
   ...proposalRoutes,
   ...tutorRoutes,
+  ...examRoutes,
   ...settingsRoutes,
 ];
 
@@ -65,6 +68,8 @@ export async function handleApi(ctx: Ctx, request: Request, url: URL, log: (line
       if (route.method !== 'GET' && (route.allow === undefined || !route.allow.includes(ctx.role))) {
         throw refused(capitalise(route.what ?? `${route.method} ${route.path}`), route.allow === undefined ? 'nobody\'s' : whose(route.allow));
       }
+      const readers = route.readers ?? DEFAULT_READERS;
+      if (route.method === 'GET' && !readers.includes(ctx.role)) throw refused(`Reading ${route.path}`, whose(readers));
       const body = await readBody(request);
       const result = await route.handler(ctx, {params, query: url.searchParams, body, request});
       return json({ok: true, ...result});

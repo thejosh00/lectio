@@ -33,6 +33,17 @@ test('the tutor check wakes only when something is due', async () => {
   expect(await check('lectio-teach', env, '#!/bin/sh\nexit 3\n')).toBe(2);
 });
 
+test('the examiner check wakes only when a subject is due a checkup', async () => {
+  await lc.cli(['login', '--url', lc.url, '--token', lc.token('agent:examiner')]);
+  const env = {LECTIO_URL: lc.url, LECTIO_TOKEN: ''};
+  expect(await check('lectio-examine', env)).toBe(0);
+  const subject = (await lc.j(['subject', 'add', 'Rust'])).json.subject.id;
+  const concepts = ['a', 'b', 'c'].map((key, position) => ({key, title: key, position}));
+  await lc.j(['concepts', 'upsert', subject, '--file', lc.file('c.json', concepts)], {as: 'agent:tutor'});
+  lc.db.query("UPDATE concepts SET status = 'introduced', introduced = '2026-09-01T00:00:00Z'").run();
+  expect(await check('lectio-examine', env)).toBe(1);
+});
+
 test('the builder check wakes only for an approved proposal', async () => {
   await lc.cli(['login', '--url', lc.url, '--token', lc.token('agent:builder')]);
   const env = {LECTIO_URL: lc.url, LECTIO_TOKEN: ''};

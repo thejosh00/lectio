@@ -30,7 +30,7 @@ import {VERSION} from './version.ts';
 const LOCAL_COMMANDS: Array<[string, string]> = [
   ['serve', 'start the server and the web app  [--host H] [--port N] [--dev]'],
   ['service', 'keep the server running in the background (macOS): install|start|stop|restart|status|logs|uninstall'],
-  ['token', 'issue a token for an actor: lectio token you | agent:tutor | agent:builder'],
+  ['token', 'issue a token for an actor: lectio token you | agent:tutor | agent:builder | agent:examiner'],
   ['login', 'remember the server and a token: lectio login --url … --token … [--default]'],
   ['backup', 'copy the database now: lectio backup [--label …] | lectio backup restore <file> (server stopped)'],
 ];
@@ -40,6 +40,7 @@ const GROUPS: Array<[Audience, string]> = [
   ['anyone', 'for anyone:'],
   ['tutor', 'for the tutor (agent:tutor):'],
   ['builder', 'for the builder (agent:builder):'],
+  ['examiner', 'for the examiner (agent:examiner):'],
 ];
 
 export function usage(): string {
@@ -61,7 +62,7 @@ export function usage(): string {
     '',
     'options:',
     '  --json         machine-readable output (for agents)',
-    '  --as <actor>   which token in client.json to use (agent:tutor, agent:builder, you)',
+    '  --as <actor>   which token in client.json to use (agent:tutor, agent:builder, agent:examiner, you)',
     '  --dir <path>   the data directory (or LECTIO_DIR; default ~/.lectio)',
     '  -h, --help     help; "lectio <command> --help" for one command',
     '  -v, --version  the version',

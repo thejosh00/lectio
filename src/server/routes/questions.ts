@@ -1,4 +1,5 @@
-import {usageError} from '../../core/errors.ts';
+import {AppError, EXIT_USAGE, usageError} from '../../core/errors.ts';
+import {EXAMINER_ACTOR} from '../../core/types.ts';
 import {fixQuestion} from '../../db/fixes.ts';
 import {questionBank} from '../../db/measures.ts';
 import {resolveQuestion, retireQuestion} from '../../db/questions.ts';
@@ -25,13 +26,16 @@ export const questionRoutes: Route[] = [
   {
     method: 'POST',
     path: '/api/questions/:ref/fix',
-    allow: ['tutor'],
+    allow: ['tutor', 'examiner'],
     what: 'fixing questions',
     handler: (ctx, req) =>
       ctx.write(() => {
         if (req.body['question'] === undefined) throw usageError('send the question JSON: --file q.json');
+        const question = resolveQuestion(ctx, req.params['ref']);
+        // The examiner fixes its own checkup questions and nothing else (the tutor can't even see them).
+        if (ctx.role === 'examiner' && question.added_by !== EXAMINER_ACTOR) throw new AppError(`question ${question.id} is the tutor's; the examiner fixes only its own checkup questions`, EXIT_USAGE, {refused: true}, 403);
         return {
-          ...fixQuestion(ctx, resolveQuestion(ctx, req.params['ref']), {
+          ...fixQuestion(ctx, question, {
             question: req.body['question'],
             voidAttempts: bool(req.body, 'void_attempts') === true,
             resolve: strList(req.body, 'resolve'),

@@ -7,7 +7,7 @@ import {enc, post, type QuizDetail} from './api.ts';
 import {QuestionCard} from './QuestionCard.tsx';
 import {pct, useLoad, useShared} from './state.ts';
 
-const ROLE_LABEL: Record<string, string> = {new: "Today's lesson", review: 'Review', retry: 'Another try', probe: 'Finding your level'};
+const ROLE_LABEL: Record<string, string> = {new: "Today's lesson", review: 'Review', retry: 'Another try', probe: 'Finding your level', exam: 'Checkup'};
 
 function Summary({quiz}: {quiz: QuizDetail}) {
   const roles = Object.entries(quiz.progress.by_role);
@@ -94,6 +94,7 @@ export function QuizView({id}: {id: string}) {
         answered={item.answered}
         where={{quiz: quiz.id}}
         kicker={ROLE_LABEL[item.role] ?? item.role}
+        checkup={quiz.kind === 'exam' && quiz.state !== 'finished'}
         onAnswered={result => {
           if (!result.outcome.needs_self_grade) setAnsweredHere(s => new Set(s).add(item.question.id));
           if (result.quiz?.state === 'finished') toast('Quiz finished.');

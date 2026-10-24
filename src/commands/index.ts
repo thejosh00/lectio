@@ -1,10 +1,11 @@
+import {examCommands} from './exams.ts';
 import {learnerCommands} from './learner.ts';
 import {proposalCommands} from './proposals.ts';
 import {quizCommands} from './quiz.ts';
 import {tutorCommands} from './tutor.ts';
 import type {CommandDef} from './types.ts';
 
-export const COMMANDS: CommandDef[] = [...learnerCommands, ...quizCommands, ...tutorCommands, ...proposalCommands];
+export const COMMANDS: CommandDef[] = [...learnerCommands, ...quizCommands, ...tutorCommands, ...proposalCommands, ...examCommands];
 
 /** The command named by the leading words of argv, longest name first. */
 export function matchCommand(argv: readonly string[]): {command: CommandDef; rest: string[]} | undefined {

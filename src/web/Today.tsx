@@ -15,10 +15,10 @@ export function aboutLine(kind: string, note: string): string {
   return `You marked it “${(FEEDBACK_LABELS[kind] ?? kind).toLowerCase()}”${quoted}`;
 }
 
-const QUIZ_LABEL: Record<string, string> = {daily: 'Quiz', placement: 'Placement quiz', practice: 'Practice'};
+const QUIZ_LABEL: Record<string, string> = {daily: 'Quiz', placement: 'Placement quiz', practice: 'Practice', exam: 'Checkup'};
 
 function quizLine(q: TodayQuiz): string {
-  const parts = Object.entries(q.counts).map(([role, n]) => `${n} ${role === 'probe' ? 'questions' : role}`);
+  const parts = Object.entries(q.counts).map(([role, n]) => `${n} ${role === 'probe' || role === 'exam' ? 'questions' : role}`);
   return `${parts.join(' · ')} · ~${q.estimate_minutes} min`;
 }
 

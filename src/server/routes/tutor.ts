@@ -5,6 +5,7 @@ import {progressReport} from '../../db/measures.ts';
 import {finishRun, listRuns, startRun} from '../../db/runs.ts';
 import {resolveSubject} from '../../db/subjects.ts';
 import {resolveId} from '../../db/refs.ts';
+import {EXAMINER_ACTOR} from '../../core/types.ts';
 import {bool, int, object, q, str, type Route} from '../http.ts';
 
 export const tutorRoutes: Route[] = [
@@ -25,18 +26,23 @@ export const tutorRoutes: Route[] = [
       return {progress: progressReport(ctx, subject === undefined ? undefined : resolveSubject(ctx, subject).id)};
     },
   },
-  {method: 'GET', path: '/api/runs', handler: (ctx, req) => ({runs: listRuns(ctx, int({limit: q(req, 'limit')}, 'limit', 1) ?? 30)})},
+  {
+    method: 'GET',
+    path: '/api/runs',
+    // The examiner's runs are its own business while the tutor can't see checkups.
+    handler: (ctx, req) => ({runs: listRuns(ctx, int({limit: q(req, 'limit')}, 'limit', 1) ?? 30, undefined, ctx.seesExams ? undefined : EXAMINER_ACTOR)}),
+  },
   {
     method: 'POST',
     path: '/api/runs',
-    allow: ['tutor'],
+    allow: ['tutor', 'examiner'],
     what: 'starting a tutor run',
     handler: ctx => ctx.write(() => ({...startRun(ctx, contractVersion(ctx))})),
   },
   {
     method: 'POST',
     path: '/api/runs/:ref/finish',
-    allow: ['tutor'],
+    allow: ['tutor', 'examiner'],
     what: 'finishing a tutor run',
     handler: (ctx, req) =>
       ctx.write(() => ({

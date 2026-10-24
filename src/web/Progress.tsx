@@ -4,7 +4,7 @@
  * always with n. No streaks, no points: an honest page is the motivation.
  */
 import {useState} from 'react';
-import {enc, type Predictions, type Progress, type Rate, type Subject} from './api.ts';
+import {enc, type Checkups, type Predictions, type Progress, type Rate, type Subject} from './api.ts';
 import {Chart, ShareBars} from './Charts.tsx';
 import {pct, useLoad} from './state.ts';
 
@@ -44,6 +44,28 @@ function OutcomeTable({title, note, rows}: {title: string; note: string; rows: A
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Checkups: retention measured by someone who didn't teach it, beside what your reviews predicted. */
+function CheckupsCard({e}: {e: Checkups}) {
+  const gap = e.gap === null ? '—' : `${e.gap > 0 ? '+' : ''}${Math.round(e.gap * 100)}`;
+  return (
+    <div className="card">
+      <h3 style={{fontSize: 15}}>Checkups</h3>
+      <p className="sub small-text muted" style={{margin: '2px 0 8px'}}>
+        Each week a second agent, which never sees your lessons, asks about what you've learned. Your tutor sees those questions only after you've answered them.
+      </p>
+      {e.score.n === 0 ? (
+        <p className="muted small-text">Your first checkup comes once a few ideas are some days old.</p>
+      ) : (
+        <div className="stat-row">
+          <Stat label="Checkups" value={pct(e.score.rate)} sub={`right of ${e.score.n} · ${e.checkups} checkup${e.checkups === 1 ? '' : 's'}`} />
+          <Stat label="Expected" value={pct(e.expected)} sub="from your reviews" />
+          <Stat label="Gap" value={gap} sub={e.gap === null ? 'needs a memory to compare' : e.gap < -0.1 ? 'points under your reviews' : 'points, in line'} />
+        </div>
+      )}
     </div>
   );
 }
@@ -136,6 +158,8 @@ export function ProgressView({ships = []}: {ships?: Array<{week: string; label: 
               />
             )}
           </div>
+
+          <CheckupsCard e={p.exams} />
 
           <div className="card chart-card">
             <h3>Same-day accuracy by week</h3>

@@ -10,7 +10,8 @@ import {AppError, EXIT_NOT_FOUND, EXIT_USAGE} from '../core/errors.ts';
 import {nowIso} from '../core/time.ts';
 import {callerForSession, callerForToken, createSession, endSession, type Caller} from '../db/auth.ts';
 import {Ctx, type AppDeps} from '../db/context.ts';
-import {EventHub, eventsSince, latestEventSeq} from '../db/events.ts';
+import {EventHub, eventsSince, isExamEvent, latestEventSeq, type StoredEvent} from '../db/events.ts';
+import {seesExams, roleOf} from '../core/permissions.ts';
 import {assetFile} from '../db/assets.ts';
 import {getSetting} from '../db/settings.ts';
 import {handleApi} from './api.ts';
@@ -114,8 +115,10 @@ async function signIn(db: Database, request: Request, now: () => string): Promis
   return json({ok: true, actor: 'you'}, 200, {'set-cookie': sessionCookie(session, 60 * 60 * 24 * 365)});
 }
 
-function eventStream(db: Database, hub: EventHub, request: Request): Response {
+function eventStream(db: Database, hub: EventHub, request: Request, caller: Caller): Response {
   const encoder = new TextEncoder();
+  // The tutor and the builder never hear about a checkup (M12).
+  const hidden = seesExams(roleOf(caller.actor)) ? () => false : (event: StoredEvent) => isExamEvent(db, event);
   const lastSeen = Number(request.headers.get('last-event-id') ?? new URL(request.url).searchParams.get('since') ?? NaN);
   let cleanup = () => {};
 
@@ -130,9 +133,11 @@ function eventStream(db: Database, hub: EventHub, request: Request): Response {
       };
       send(`retry: 2000\nevent: hello\ndata: ${JSON.stringify({seq: latestEventSeq(db)})}\n\n`);
       if (Number.isInteger(lastSeen)) {
-        for (const event of eventsSince(db, lastSeen)) send(`id: ${event.seq}\nevent: change\ndata: ${JSON.stringify(event)}\n\n`);
+        for (const event of eventsSince(db, lastSeen)) if (!hidden(event)) send(`id: ${event.seq}\nevent: change\ndata: ${JSON.stringify(event)}\n\n`);
       }
-      const unsubscribe = hub.subscribe(event => send(`id: ${event.seq}\nevent: change\ndata: ${JSON.stringify(event)}\n\n`));
+      const unsubscribe = hub.subscribe(event => {
+        if (!hidden(event)) send(`id: ${event.seq}\nevent: change\ndata: ${JSON.stringify(event)}\n\n`);
+      });
       const keepalive = setInterval(() => send(': keepalive\n\n'), KEEPALIVE_MS);
       cleanup = () => {
         unsubscribe();
@@ -189,9 +194,10 @@ export function startServer(options: ServeOptions): RunningServer {
       },
       '/assets/:id': guard(request => serveAsset(deps, request)),
       '/api/events': guard(request => {
-        if (callerOf(db, request) === undefined) return unauthorized();
+        const caller = callerOf(db, request);
+        if (caller === undefined) return unauthorized();
         server.timeout(request, 0);
-        return eventStream(db, hub, request);
+        return eventStream(db, hub, request, caller);
       }),
       '/api/*': guard(async request => {
         const caller = callerOf(db, request);

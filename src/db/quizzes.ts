@@ -8,7 +8,7 @@
  */
 import {AppError, EXIT_USAGE, failed, notFound, usageError} from '../core/errors.ts';
 import {Invalid, readQuiz, type QuizItemInput} from '../core/submission.ts';
-import {isDay} from '../core/time.ts';
+import {daysBetween, isDay} from '../core/time.ts';
 import {isQuizKind, type ItemRole, type Lesson, type Question, type Quiz, type QuizKind, type Subject} from '../core/types.ts';
 import {SECONDS_PER_QUESTION} from '../blocks/question.ts';
 import {attemptFromRow, outcomeOf, type AttemptRow, type Outcome} from './attemptRows.ts';
@@ -50,9 +50,15 @@ function firstAttempts(ctx: Ctx, quizId: string): Map<string, AttemptRow> {
   return new Map(rows.map(r => [r.question_id, r]));
 }
 
+/** A checkup that has waited `exam_expire_days` without being finished: it is skipped (M12). */
+export function isExpired(ctx: Ctx, quiz: Quiz): boolean {
+  return quiz.kind === 'exam' && (quiz.state === 'ready' || quiz.state === 'open') && daysBetween(quiz.day, ctx.today()) >= numberSetting(ctx.db, 'exam_expire_days');
+}
+
 /** Why a quiz can't be opened yet, or undefined if it can. */
 export function openBlocker(ctx: Ctx, quiz: Quiz): string | undefined {
   if (quiz.state === 'superseded') return 'A newer quiz replaced this one.';
+  if (quiz.kind === 'exam' && (quiz.state === 'skipped' || isExpired(ctx, quiz))) return 'This checkup waited too long and was skipped.';
   if (quiz.state === 'skipped') return 'It was skipped with its lesson.';
   if (quiz.lesson_id === null || quiz.kind !== 'daily') return undefined;
   const hasNew = quizItems(ctx, quiz.id).some(i => i.role === 'new');
@@ -196,7 +202,7 @@ function predictionWarnings(items: readonly QuizItemInput[], kind: QuizKind, tar
 export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; kind: string | undefined; quiz: unknown}): QuizSubmitResult {
   const runId = runFor(ctx, input.run);
   const kind = (input.kind ?? 'daily') as QuizKind;
-  if (!isQuizKind(kind) || kind === 'practice') throw usageError('--kind must be daily or placement (practice quizzes are assembled by the app)');
+  if (!isQuizKind(kind) || kind === 'practice' || kind === 'exam') throw usageError('--kind must be daily or placement (practice quizzes are assembled by the app; checkups are the examiner\'s)');
   const day = input.day ?? ctx.today();
   if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
   const existing = ctx.db.query("SELECT * FROM quizzes WHERE subject_id = ? AND day = ? AND kind IN ('daily', 'placement')").get(subject.id, day) as Quiz | null;
@@ -319,17 +325,19 @@ export function assemblePractice(ctx: Ctx, subject: Subject, max?: number): {qui
   return {quiz: getQuiz(ctx, id)!, existing: false, due: due.length};
 }
 
-/** Quizzes the learner should see for a subject: unfinished ones, and today's. */
+/** Quizzes the learner should see for a subject: unfinished ones, and today's. Checkups only for those who may see them. */
 export function visibleQuizzes(ctx: Ctx, subjectId: string): Quiz[] {
-  return ctx.db
-    .query("SELECT * FROM quizzes WHERE subject_id = ? AND (state IN ('ready', 'open') OR day = ?) AND state != 'superseded' ORDER BY day, added")
+  const quizzes = ctx.db
+    .query(`SELECT * FROM quizzes WHERE subject_id = ? AND (state IN ('ready', 'open') OR day = ?) AND state != 'superseded' ${ctx.seesExams ? '' : "AND kind != 'exam'"} ORDER BY day, added`)
     .all(subjectId, ctx.today()) as Quiz[];
+  return quizzes.filter(q => !isExpired(ctx, q));
 }
 
 export function listQuizzes(ctx: Ctx, filter: {subjectId?: string; limit?: number}): Quiz[] {
+  const hidden = ctx.seesExams ? '' : "kind != 'exam'";
   return (
     filter.subjectId === undefined
-      ? ctx.db.query('SELECT * FROM quizzes ORDER BY day DESC, added DESC LIMIT ?').all(filter.limit ?? 100)
-      : ctx.db.query('SELECT * FROM quizzes WHERE subject_id = ? ORDER BY day DESC, added DESC LIMIT ?').all(filter.subjectId, filter.limit ?? 100)
+      ? ctx.db.query(`SELECT * FROM quizzes ${hidden === '' ? '' : `WHERE ${hidden}`} ORDER BY day DESC, added DESC LIMIT ?`).all(filter.limit ?? 100)
+      : ctx.db.query(`SELECT * FROM quizzes WHERE subject_id = ? ${hidden === '' ? '' : `AND ${hidden}`} ORDER BY day DESC, added DESC LIMIT ?`).all(filter.subjectId, filter.limit ?? 100)
   ) as Quiz[];
 }

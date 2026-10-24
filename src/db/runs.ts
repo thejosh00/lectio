@@ -90,9 +90,9 @@ export function finishRun(ctx: Ctx, id: string, input: {outcome: string | undefi
   return finished;
 }
 
-export function listRuns(ctx: Ctx, limit = 30, actor?: string): Run[] {
+export function listRuns(ctx: Ctx, limit = 30, actor?: string, exceptActor?: string): Run[] {
   const rows = actor === undefined
-    ? (ctx.db.query('SELECT * FROM agent_runs ORDER BY started DESC LIMIT ?').all(limit) as RunRow[])
+    ? (ctx.db.query('SELECT * FROM agent_runs WHERE actor != ? ORDER BY started DESC LIMIT ?').all(exceptActor ?? '', limit) as RunRow[])
     : (ctx.db.query('SELECT * FROM agent_runs WHERE actor = ? ORDER BY started DESC LIMIT ?').all(actor, limit) as RunRow[]);
   return rows.map(runFromRow);
 }

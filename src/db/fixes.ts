@@ -4,7 +4,7 @@
  * graded are voided, leaving stats and memory as if it had never been asked.
  */
 import {usageError} from '../core/errors.ts';
-import {Invalid, readQuestion} from '../core/submission.ts';
+import {examQuestionProblems, Invalid, readQuestion} from '../core/submission.ts';
 import type {Question} from '../core/types.ts';
 import {Node} from '../core/validate.ts';
 import {voidAttempts} from './attempts.ts';
@@ -23,6 +23,8 @@ export function fixQuestion(
   if (input.resolve.length > 0 && reply === '') throw usageError('say what changed: --reply "…"');
   const node = Node.root(input.question);
   const read = readQuestion(node, subjectFacts(ctx, question.subject_id), {needsRef: false});
+  // A checkup question stays one: graded by the app, no hints, not a variant.
+  if (read !== undefined && question.status === 'exam') examQuestionProblems(read, node);
   if (read === undefined || node.issues.length > 0) throw invalid(new Invalid('question', node.issues));
   const voided = input.voidAttempts ? voidAttempts(ctx, question) : 0;
   const {question: fixed, changed} = rewriteQuestion(ctx, question, read, conceptIds(ctx, question.subject_id));
