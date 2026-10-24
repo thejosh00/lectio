@@ -286,6 +286,7 @@ export async function run(options: RunOptions): Promise<number> {
     env,
     readStdin: options.readStdin ?? (() => Bun.stdin.text()),
     readFile: path => Bun.file(path).text(),
+    readBytes: path => Bun.file(path).bytes(),
     call: request => callApi(config, request, options.fetch),
     edit: text => editInEditor(text, env),
     readLine: options.readLine ?? stdinLines(),

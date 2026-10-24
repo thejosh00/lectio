@@ -112,6 +112,7 @@ async function runExamples(instance: Instance, examples: Example[], values: Reco
       expect(result.stderr).toBe('');
     }
     if (argv[1] === 'run' && argv[2] === 'start') values['<run>'] = result.json.run.id;
+    if (argv[1] === 'asset' && argv[2] === 'put') values['<asset>'] = result.json.asset.id;
     if (argv[1] === 'proposal' && argv[2] === 'add') values['<proposal>'] = String(result.json.proposal.number);
     if (argv[1] === 'lesson' && argv[2] === 'submit' && argv[3] === values['<subject>']) values['<new-lesson>'] = result.json.lesson.id;
   }
@@ -142,6 +143,13 @@ test('every example in the contract runs as documented', async () => {
   const today = (await lc.j(['today'])).json;
   expect(today.subjects.map((s: {lesson: {title: string}}) => s.lesson.title)).toEqual(['Moves: handing ownership over', 'Intervals: a map of the road ahead']);
   expect(today.replies).toHaveLength(3);
+  // The lesson's image block shows the SVG the example stored.
+  const moves = (await lc.j(['lesson', 'show', values['<new-lesson>']!])).json.lesson;
+  const image = moves.blocks.find((b: {type: string}) => b.type === 'image');
+  expect(image.body).toMatchObject({asset: values['<asset>'], caption: 'After the move: one owner, one buffer'});
+  const served = await fetch(`${lc.url}/assets/${values['<asset>']}`, {headers: {authorization: `Bearer ${lc.token('you')}`}});
+  expect(served.headers.get('content-type')).toBe('image/svg+xml');
+  expect(await served.text()).toContain('"hi" (heap)');
   // The placement probe's anticipated wrong answer records its tag.
   const probe = lc.db.query("SELECT i.quiz_id, i.question_id FROM quiz_items i JOIN questions q ON q.id = i.question_id WHERE q.type = 'numeric'").get() as {quiz_id: string; question_id: string};
   const counted = await answerQ(lc, {question: probe.question_id, quiz: probe.quiz_id, answer: 5});
@@ -156,7 +164,7 @@ test('the document shows exactly those examples, the registries and the limits',
   const doc: string = result.json.document;
   for (const example of [...tutorExamples(contractOptions(lc.ctx('agent:tutor'))), ...builderExamples()]) expect(doc).toContain(example.line);
   for (const area of ['`block_type`', '`limits`', '`improvement_loop`']) expect(doc).toContain(area);
-  for (const type of ['`markdown`', '`callout`', '`code`', '`question`', '`multiple_choice`', '`cloze`', '`free_response`']) expect(doc).toContain(`| ${type} |`);
+  for (const type of ['`markdown`', '`callout`', '`code`', '`question`', '`image`', '`multiple_choice`', '`cloze`', '`free_response`']) expect(doc).toContain(`| ${type} |`);
   expect(doc).toContain('| questions per quiz | 9 |');
   expect(doc).toContain('`worked_example`');
   expect(result.json.contract_version).toMatch(/^[0-9a-f]{12}$/);

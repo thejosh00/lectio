@@ -56,6 +56,15 @@ const FIXED_QUESTION = {
   hints: ['It "owns" the value.'],
 };
 
+/** A picture for the lesson's image block: drawn as SVG, stored with `asset put`. */
+const MOVE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" width="320" height="120" font-family="sans-serif" font-size="14">\n' +
+  '  <rect x="10" y="20" width="60" height="30" fill="none" stroke="#999"/><text x="22" y="40" fill="#999">s1</text>\n' +
+  '  <rect x="10" y="70" width="60" height="30" fill="none" stroke="#c60"/><text x="22" y="90" fill="#c60">s2</text>\n' +
+  '  <rect x="200" y="45" width="110" height="30" fill="none" stroke="#c60"/><text x="212" y="65" fill="#c60">"hi" (heap)</text>\n' +
+  '  <line x1="70" y1="85" x2="200" y2="60" stroke="#c60" stroke-width="2"/>\n' +
+  '</svg>\n';
+
 const LESSON = {
   title: 'Moves: handing ownership over',
   objectives: ['Predict which variable owns a value after an assignment', 'Spot a use after move before the compiler does'],
@@ -74,6 +83,12 @@ const LESSON = {
       approach: 'worked_example',
       concepts: ['moves'],
       body: {lang: 'rust', source: 'let s1 = String::from("hi");\nlet s2 = s1;      // ownership moves to s2\nprintln!("{s2}"); // fine\n// println!("{s1}"); // error: s1 was moved', caption: 'Follow the owner line by line', output: 'hi'},
+    },
+    {
+      type: 'image',
+      approach: 'visual',
+      concepts: ['moves'],
+      body: {asset: '<asset>', alt: 's1 greyed out with no arrow; s2 points to the "hi" buffer on the heap', caption: 'After the move: one owner, one buffer'},
     },
     {type: 'question', approach: 'retrieval', concepts: ['moves'], body: {ref: 'q1'}},
     {type: 'callout', approach: 'misconception', concepts: ['moves'], body: {kind: 'pitfall', md: '`let s2 = s1` is not a copy. The heap buffer stays put; only ownership moves.'}},
@@ -265,6 +280,7 @@ export function tutorExamples(options: ContractOptions): Example[] {
     },
     {section: 'plan', line: 'lectio lesson submit <new-subject> --day <today> --run <run> --file orientation.json --json', file: {name: 'orientation.json', content: ORIENTATION}},
     {section: 'plan', line: 'lectio quiz submit <new-subject> --day <today> --run <run> --kind placement --file placement.json --json', file: {name: 'placement.json', content: PLACEMENT}},
+    {section: 'write', line: 'lectio asset put move.svg --json', file: {name: 'move.svg', content: MOVE_SVG}},
     {section: 'write', line: 'lectio lesson submit <subject> --day <today> --run <run> --file lesson.json --json', file: {name: 'lesson.json', content: LESSON}},
     {section: 'write', line: 'lectio quiz submit <subject> --day <today> --run <run> --file quiz.json --json', file: {name: 'quiz.json', content: QUIZ}},
     {section: 'bank', line: 'lectio questions --subject <subject> --json'},
@@ -332,7 +348,8 @@ function renderExamples(examples: readonly Example[], indent: string): string[] 
     flush();
     if (example.file !== undefined) {
       const content = example.file.content;
-      out.push(`\`${example.file.name}\`:`, ...(typeof content === 'string' ? fence('markdown', content.replace(/\n$/, '').split('\n')) : fence('json', compactJson(content).split('\n'))));
+      const lang = example.file.name.endsWith('.svg') ? 'xml' : 'markdown';
+      out.push(`\`${example.file.name}\`:`, ...(typeof content === 'string' ? fence(lang, content.replace(/\n$/, '').split('\n')) : fence('json', compactJson(content).split('\n'))));
     }
     if (example.stdin !== undefined) out.push(...fence('bash', [`${example.line} <<'EOF'`, ...example.stdin.replace(/\n$/, '').split('\n'), 'EOF']));
     else out.push(...fence('bash', [example.line]));
@@ -422,6 +439,11 @@ export function agentsDocument(options: ContractOptions): string {
     '   subject is ready: no lesson today, every earlier one finished or skipped, scheduled today, and past',
     `   ${String(L['lesson_ready_hour']).padStart(2, '0')}:00. Submitting a day twice returns \`"existing": true\` and changes nothing.`,
     ...shown('write'),
+    '   An `image` block shows a picture you stored first with `asset put <file>`: put it, then use the',
+    '   `asset.id` it returns as the block\'s `asset`. The type is read from the bytes (SVG, PNG, JPEG, GIF,',
+    `   WebP), at most ${L['asset_max_bytes']} bytes; the same bytes give the same id, so putting twice is harmless.`,
+    '   Use a `diagram` block for flows and boxes-and-arrows; draw an SVG image where position matters (a',
+    '   labelled parts layout). Give every image an `alt` that says what it shows.',
     '7. **Check** every visual before submitting: read `steps` frames and SVG back once.',
     "8. **Keep the bank healthy.** `questions` gives each question's record: first-try share, picks per",
     '   choice, flags, and difficulty guessed vs observed. Retire what is broken, ambiguous or too easy.',
@@ -560,6 +582,7 @@ export function agentsDocument(options: ContractOptions): string {
         ['questions per quiz', String(L['quiz_max_questions'])],
         ['blocks per lesson', String(L['lesson_max_blocks'])],
         ['lesson size', `${L['lesson_max_bytes']} bytes`],
+        ['one asset', `${L['asset_max_bytes']} bytes`],
         ['notes and each plan', `${L['notes_max_bytes']} bytes`],
         ['detail in the context', `${L['context_days']} days`],
       ],

@@ -11,6 +11,7 @@ import {nowIso} from '../core/time.ts';
 import {callerForSession, callerForToken, createSession, endSession, type Caller} from '../db/auth.ts';
 import {Ctx, type AppDeps} from '../db/context.ts';
 import {EventHub, eventsSince, latestEventSeq} from '../db/events.ts';
+import {assetFile} from '../db/assets.ts';
 import {getSetting} from '../db/settings.ts';
 import {handleApi} from './api.ts';
 import {checkRequest, parseAllowedHosts} from './hostCheck.ts';
@@ -71,6 +72,29 @@ function callerOf(db: Database, request: Request): Caller | undefined {
 
 const unauthorized = () =>
   errorResponse(new AppError('not signed in: send "Authorization: Bearer <token>" (see "lectio token"), or sign in from a browser', EXIT_USAGE, {}, 401));
+
+/**
+ * An asset's bytes, for an `<img>` in the web app (which sends the session cookie). The type is
+ * the one sniffed when it was stored, the browser may not guess another, and the CSP keeps an
+ * SVG opened on its own from running anything. Content-addressed, so it can be cached forever.
+ */
+function serveAsset(deps: AppDeps, request: Request): Response {
+  const caller = callerOf(deps.db, request);
+  if (caller === undefined) return unauthorized();
+  try {
+    const {asset, path} = assetFile(new Ctx(deps, caller.actor), decodeURIComponent(new URL(request.url).pathname.slice('/assets/'.length)));
+    return new Response(Bun.file(path), {
+      headers: {
+        'content-type': asset.mime,
+        'x-content-type-options': 'nosniff',
+        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+        'cache-control': 'private, max-age=31536000, immutable',
+      },
+    });
+  } catch (error) {
+    return errorResponse(error instanceof AppError ? error : new AppError(String(error), EXIT_NOT_FOUND, {}, 404));
+  }
+}
 
 const sessionCookie = (value: string, maxAge: number) =>
   `${SESSION_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
@@ -163,6 +187,7 @@ export function startServer(options: ServeOptions): RunningServer {
           return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
         }),
       },
+      '/assets/:id': guard(request => serveAsset(deps, request)),
       '/api/events': guard(request => {
         if (callerOf(db, request) === undefined) return unauthorized();
         server.timeout(request, 0);

@@ -11,6 +11,7 @@ import type {Ctx} from '../db/context.ts';
 import {contractDocument, contractVersion} from '../db/contract.ts';
 import {VERSION} from '../version.ts';
 import {compile, errorResponse, json, readBody, whose, type CompiledRoute, type Route} from './http.ts';
+import {assetRoutes} from './routes/assets.ts';
 import {attemptRoutes} from './routes/attempts.ts';
 import {feedbackRoutes} from './routes/feedback.ts';
 import {lessonRoutes} from './routes/lessons.ts';
@@ -32,6 +33,7 @@ const ROUTES: Route[] = [
   ...feedbackRoutes,
   ...questionRoutes,
   ...noteRoutes,
+  ...assetRoutes,
   ...proposalRoutes,
   ...tutorRoutes,
   ...settingsRoutes,
