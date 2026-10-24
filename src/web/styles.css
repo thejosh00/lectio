@@ -988,6 +988,34 @@ h3 {
   line-height: 1.6;
 }
 
+/* A diagram is an <img> of mermaid's SVG: it scales down to the column, never past its own size. */
+.diagram-block {
+  margin: 0;
+}
+
+.diagram-block img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.diagram-block .caption {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
+.diagram-block .diagram-alt,
+.diagram-block .diagram-loading {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  font-size: 14px;
+}
+
 .code-block .output {
   margin-top: 4px;
   font-size: 13px;

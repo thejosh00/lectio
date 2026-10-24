@@ -7,16 +7,16 @@
  */
 import {calloutBlock} from './callout.ts';
 import {codeBlock} from './code.ts';
+import {diagramBlock} from './diagram.ts';
 import {markdownBlock} from './markdown.ts';
 import {questionBlock} from './question.ts';
 import type {BlockType} from './types.ts';
 
-export const BLOCK_TYPES: ReadonlyArray<BlockType<any>> = [markdownBlock, calloutBlock, codeBlock, questionBlock];
+export const BLOCK_TYPES: ReadonlyArray<BlockType<any>> = [markdownBlock, calloutBlock, codeBlock, questionBlock, diagramBlock];
 
 /** Types the plan names that haven't shipped yet, so a refusal can say when they will. */
 export const PLANNED_BLOCK_TYPES: Readonly<Record<string, string>> = {
   image: 'M8',
-  diagram: 'M8',
   steps: 'M8',
   widget: 'M9',
   video: 'M10',

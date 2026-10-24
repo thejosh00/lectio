@@ -8,6 +8,7 @@ import {CALLOUT_LABELS, type CalloutKind} from '../../blocks/callout.ts';
 import type {BlockView} from '../api.ts';
 import {highlight, Markdown} from '../markdown.tsx';
 import {QuestionCard, type Answered} from '../QuestionCard.tsx';
+import {DiagramBlock} from './Diagram.tsx';
 
 export interface BlockProps {
   block: BlockView;
@@ -59,6 +60,7 @@ export const BLOCK_RENDERERS: Record<string, ComponentType<BlockProps>> = {
   callout: CalloutBlock,
   code: CodeBlock,
   question: QuestionBlock,
+  diagram: DiagramBlock,
 };
 
 export function Block(props: BlockProps) {

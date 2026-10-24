@@ -5,6 +5,7 @@ import {addFeedback} from '../../db/feedback.ts';
 import {getQuestion} from '../../db/questions.ts';
 import {resolveId} from '../../db/refs.ts';
 import {markRepliesSeen, todayView} from '../../db/today.ts';
+import {diagramVerdicts} from '../diagrams.ts';
 import {int, q, str, strList, type Route} from '../http.ts';
 
 const LEARNER = ['learner'] as const;
@@ -59,23 +60,27 @@ export const lessonRoutes: Route[] = [
     path: '/api/subjects/:ref/lessons',
     allow: ['learner', 'tutor'],
     what: 'writing lessons',
-    handler: (ctx, req) =>
-      ctx.write(() => {
+    handler: async (ctx, req) => {
+      const diagrams = await diagramVerdicts(req.body['lesson']);
+      return ctx.write(() => {
         if (req.body['lesson'] === undefined) throw usageError('send the lesson JSON: --file lesson.json or --stdin');
-        const result = submitLesson(ctx, resolveSubject(ctx, req.params['ref']), {day: str(req.body, 'day'), run: str(req.body, 'run'), lesson: req.body['lesson']});
+        const result = submitLesson(ctx, resolveSubject(ctx, req.params['ref']), {day: str(req.body, 'day'), run: str(req.body, 'run'), lesson: req.body['lesson'], diagrams});
         return {...result};
-      }),
+      });
+    },
   },
   {
     method: 'PUT',
     path: '/api/lessons/:ref',
     allow: ['learner', 'tutor'],
     what: 'revising lessons',
-    handler: (ctx, req) =>
-      ctx.write(() => {
+    handler: async (ctx, req) => {
+      const diagrams = await diagramVerdicts(req.body['lesson']);
+      return ctx.write(() => {
         if (req.body['lesson'] === undefined) throw usageError('send the lesson JSON: --file lesson.json or --stdin');
-        return {...reviseLesson(ctx, resolveLesson(ctx, req.params['ref']), {lesson: req.body['lesson']})};
-      }),
+        return {...reviseLesson(ctx, resolveLesson(ctx, req.params['ref']), {lesson: req.body['lesson'], diagrams})};
+      });
+    },
   },
   {
     method: 'POST',
@@ -149,10 +154,12 @@ export const lessonRoutes: Route[] = [
     path: '/api/blocks/:ref/fix',
     allow: TUTOR,
     what: 'fixing blocks',
-    handler: (ctx, req) =>
-      ctx.write(() => {
+    handler: async (ctx, req) => {
+      const diagrams = await diagramVerdicts(req.body['block']);
+      return ctx.write(() => {
         if (req.body['block'] === undefined) throw usageError('send the block JSON: --file block.json');
-        return {...fixBlock(ctx, resolveBlock(ctx, req.params['ref']), {block: req.body['block'], resolve: strList(req.body, 'resolve'), reply: str(req.body, 'reply')})};
-      }),
+        return {...fixBlock(ctx, resolveBlock(ctx, req.params['ref']), {block: req.body['block'], resolve: strList(req.body, 'resolve'), reply: str(req.body, 'reply'), diagrams})};
+      });
+    },
   },
 ];

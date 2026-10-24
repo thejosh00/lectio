@@ -17,6 +17,8 @@ export interface ValidateCtx {
   assets: ReadonlySet<string>;
   /** Question refs defined in the same submission. */
   questionRefs: ReadonlySet<string>;
+  /** Mermaid sources the server checked: source → mermaid's error, or null when it parses. */
+  diagrams: ReadonlyMap<string, string | null>;
   limits: {widget_max_bytes: number};
 }
 

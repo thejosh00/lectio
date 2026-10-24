@@ -15,6 +15,8 @@ export interface SubjectFacts {
   /** key → status, for every concept in the subject. */
   concepts: ReadonlyMap<string, ConceptStatus>;
   assets: ReadonlySet<string>;
+  /** Mermaid sources checked before validation (`src/server/diagrams.ts`): source → error, or null. */
+  diagrams?: ReadonlyMap<string, string | null>;
   limits: {lesson_max_blocks: number; lesson_max_bytes: number; widget_max_bytes: number; quiz_max_questions: number};
 }
 
@@ -143,6 +145,7 @@ export function readBlock(node: Node, facts: SubjectFacts, questionRefs: Readonl
     conceptKeys: new Set(facts.concepts.keys()),
     assets: facts.assets,
     questionRefs,
+    diagrams: facts.diagrams ?? new Map(),
     limits: {widget_max_bytes: facts.limits.widget_max_bytes},
   });
   if (!checked.ok) {

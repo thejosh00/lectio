@@ -5,6 +5,11 @@
  * KaTeX's stylesheet carries sixty fonts; bundled, they would make every page load pay
  * for math most lessons don't have. So the page links `/katex/katex.min.css` only when a
  * lesson renders math, and the browser fetches just the fonts it uses.
+ *
+ * Mermaid is bigger still (megabytes), and Bun's HTML bundler would inline a dynamic import
+ * of it into the page's one script. So it is served the same way, from the installed
+ * package's own ES-module build under `/mermaid/`, and the diagram renderer imports it by
+ * URL: only a lesson with a diagram fetches it, and then only the parts its diagrams use.
  */
 import {existsSync} from 'node:fs';
 import instrumentSans from '../web/fonts/instrument-sans-latin-wght-normal.woff2' with {type: 'file'};
@@ -26,7 +31,21 @@ function katex(): string | undefined {
   return katexDir ?? undefined;
 }
 
+/** Where the installed mermaid's browser build lives; undefined in a compiled binary, where diagrams show their alt. */
+let mermaidDir: string | null | undefined;
+function mermaid(): string | undefined {
+  if (mermaidDir === undefined) {
+    try {
+      mermaidDir = dirname(Bun.resolveSync('mermaid/dist/mermaid.esm.min.mjs', import.meta.dir));
+    } catch {
+      mermaidDir = null;
+    }
+  }
+  return mermaidDir ?? undefined;
+}
+
 const TYPES: Record<string, string> = {
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
@@ -34,10 +53,10 @@ const TYPES: Record<string, string> = {
 };
 
 /** A file under `root` by its path relative to it, or a 404. Never outside `root`. */
-export function serveFrom(root: string, relative: string): Response {
+export function serveFrom(root: string, relative: string, only?: readonly string[]): Response {
   const path = normalize(join(root, relative));
   const extension = /\.[a-z0-9]+$/.exec(path)?.[0] ?? '';
-  if (!path.startsWith(root + sep) || TYPES[extension] === undefined || !existsSync(path)) return new Response('Not found', {status: 404});
+  if (!path.startsWith(root + sep) || TYPES[extension] === undefined || (only !== undefined && !only.includes(extension)) || !existsSync(path)) return new Response('Not found', {status: 404});
   return new Response(Bun.file(path), {
     headers: {'content-type': TYPES[extension]!, 'cache-control': 'public, max-age=604800, immutable', 'x-content-type-options': 'nosniff'},
   });
@@ -78,6 +97,10 @@ export const staticRoutes: Record<string, (request: Request) => Response> = {
   '/fonts/*': font,
   '/katex/*': request => {
     const root = katex();
-    return root === undefined ? new Response('Not found', {status: 404}) : serveFrom(root, decodeURIComponent(new URL(request.url).pathname.slice('/katex/'.length)));
+    return root === undefined ? new Response('Not found', {status: 404}) : serveFrom(root, decodeURIComponent(new URL(request.url).pathname.slice('/katex/'.length)), ['.css', '.woff2', '.woff', '.ttf']);
+  },
+  '/mermaid/*': request => {
+    const root = mermaid();
+    return root === undefined ? new Response('Not found', {status: 404}) : serveFrom(root, decodeURIComponent(new URL(request.url).pathname.slice('/mermaid/'.length)), ['.mjs']);
   },
 };

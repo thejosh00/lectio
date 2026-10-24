@@ -122,11 +122,12 @@ export function readinessOf(ctx: Ctx, subject: Subject): Readiness {
   });
 }
 
-export function subjectFacts(ctx: Ctx, subjectId: string): SubjectFacts {
+export function subjectFacts(ctx: Ctx, subjectId: string, diagrams: ReadonlyMap<string, string | null> = new Map()): SubjectFacts {
   const n = (key: string) => numberSetting(ctx.db, key);
   return {
     concepts: conceptStatuses(ctx, subjectId),
     assets: new Set((ctx.db.query('SELECT id FROM assets').all() as Array<{id: string}>).map(r => r.id)),
+    diagrams,
     limits: {lesson_max_blocks: n('lesson_max_blocks'), lesson_max_bytes: n('lesson_max_bytes'), widget_max_bytes: n('widget_max_bytes'), quiz_max_questions: n('quiz_max_questions')},
   };
 }
@@ -196,7 +197,8 @@ function questionIdsOf(ctx: Ctx, lessonId: string): Record<string, string> {
   return out;
 }
 
-export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; lesson: unknown; raw?: string}): SubmitResult {
+/** `diagrams`: the mermaid check's verdicts for the submission (`src/server/diagrams.ts`); a diagram without one is refused. */
+export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; lesson: unknown; raw?: string; diagrams?: ReadonlyMap<string, string | null>}): SubmitResult {
   const runId = runFor(ctx, input.run);
   const day = input.day ?? ctx.today();
   if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
@@ -209,7 +211,7 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   const readiness = readinessOf(ctx, subject);
   if (!readiness.ready) throw failed(`${subject.title} isn't ready for a lesson: ${readiness.message}`, {why: readiness.why});
 
-  const lessonInput = readLessonOrThrow(input.lesson, subjectFacts(ctx, subject.id), input.raw);
+  const lessonInput = readLessonOrThrow(input.lesson, subjectFacts(ctx, subject.id, input.diagrams), input.raw);
   const id = ctx.newId();
   ctx.db
     .query(
@@ -222,10 +224,10 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   return {lesson: getLesson(ctx, id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};
 }
 
-export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; raw?: string}): SubmitResult {
+export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; raw?: string; diagrams?: ReadonlyMap<string, string | null>}): SubmitResult {
   if (lesson.state !== 'ready') throw failed(`only a lesson that hasn't been opened can be revised; this one is ${lesson.state}. Fix single blocks with "lectio block fix".`);
   const subject = getSubject(ctx, lesson.subject_id)!;
-  const lessonInput = readLessonOrThrow(input.lesson, subjectFacts(ctx, subject.id), input.raw);
+  const lessonInput = readLessonOrThrow(input.lesson, subjectFacts(ctx, subject.id, input.diagrams), input.raw);
   const before = {title: lesson.title, blocks: blocksOf(ctx, lesson.id).map(b => ({type: b.type, approach: b.approach, concepts: b.concepts, body: b.body}))};
   const keep = new Map<string, Question>();
   for (const [ref, questionId] of Object.entries(questionIdsOf(ctx, lesson.id))) {
@@ -314,11 +316,11 @@ export function setVerdict(ctx: Ctx, lesson: Lesson, note: string | undefined): 
   return getLesson(ctx, lesson.id)!;
 }
 
-export function fixBlock(ctx: Ctx, block: Block, input: {block: unknown; resolve: string[]; reply: string | undefined}): {block: Block; resolved: string[]} {
+export function fixBlock(ctx: Ctx, block: Block, input: {block: unknown; resolve: string[]; reply: string | undefined; diagrams?: ReadonlyMap<string, string | null>}): {block: Block; resolved: string[]} {
   if (block.type === 'question') throw usageError(`this block is an inline check; fix its question instead: lectio question fix ${String(block.body['question_id'] ?? '')}`);
   const lesson = getLesson(ctx, block.lesson_id)!;
   const node = Node.root(input.block);
-  const read = readBlock(node, subjectFacts(ctx, lesson.subject_id), new Set());
+  const read = readBlock(node, subjectFacts(ctx, lesson.subject_id, input.diagrams), new Set());
   if (read === undefined || node.issues.length > 0) throw invalid(new Invalid('block', node.issues));
   if (read.type === 'question') throw usageError("a block can't become an inline check in a fix; revise the lesson while it's ready instead");
   const reply = input.reply?.trim() ?? '';

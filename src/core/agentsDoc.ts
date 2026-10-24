@@ -77,6 +77,16 @@ const LESSON = {
     },
     {type: 'question', approach: 'retrieval', concepts: ['moves'], body: {ref: 'q1'}},
     {type: 'callout', approach: 'misconception', concepts: ['moves'], body: {kind: 'pitfall', md: '`let s2 = s1` is not a copy. The heap buffer stays put; only ownership moves.'}},
+    {
+      type: 'diagram',
+      approach: 'visual',
+      concepts: ['moves'],
+      body: {
+        mermaid: 'flowchart TD\n  s1["s1 owns the buffer"] -->|let s2 = s1| s2["s2 owns the buffer"]\n  s2 -->|closing brace| drop["buffer freed, once"]',
+        alt: 'A flow from top to bottom: s1 owns the buffer; after let s2 = s1, s2 owns it; at the closing brace the buffer is freed, once.',
+        caption: 'One owner at a time',
+      },
+    },
   ],
   questions: [
     {
@@ -464,6 +474,10 @@ export function agentsDocument(options: ContractOptions): string {
     ),
     '',
     `Coming later: ${Object.entries(PLANNED_BLOCK_TYPES).map(([t, m]) => `\`${t}\` (${m})`).join(', ')}. Every visual block will carry an \`alt\`.`,
+    '',
+    'A `diagram` is mermaid source, run through mermaid\'s own parser when the lesson is written: one that',
+    "doesn't parse is refused at `blocks[i].body.mermaid`, never shown broken. Prefer `flowchart TD` so it",
+    'reads at phone width, and make `alt` say in words what it shows: it is what the terminal prints.',
     '',
     "Markdown never renders raw HTML. Math is `$…$` and `$$…$$`. Every block's `concepts` must exist in the",
     'subject ("upsert it first").',
