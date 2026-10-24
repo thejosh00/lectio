@@ -9,8 +9,9 @@
  * Append to the list; never edit an entry that has shipped.
  */
 import {Database} from 'bun:sqlite';
-import {mkdirSync} from 'node:fs';
+import {mkdirSync, writeFileSync} from 'node:fs';
 import {dirname} from 'node:path';
+import {PRIVATE_DIR, PRIVATE_FILE, dbFiles, tighten} from './fileModes.ts';
 
 export const DB_FILE = 'lectio.db';
 
@@ -294,9 +295,16 @@ export interface OpenOptions {
 
 /** Open (creating if need be) and bring the schema up to date. `:memory:` works for tests. */
 export function openDatabase(path: string, options: OpenOptions = {}): Database {
-  if (path !== ':memory:') mkdirSync(dirname(path), {recursive: true});
+  if (path !== ':memory:') {
+    mkdirSync(dirname(path), {recursive: true, mode: PRIVATE_DIR});
+    // Create the file 0600 before SQLite does (it would use the umask); SQLite gives
+    // the -wal and -shm it creates the database file's mode.
+    writeFileSync(path, '', {flag: 'a', mode: PRIVATE_FILE});
+    tighten(path, PRIVATE_FILE);
+  }
   const db = new Database(path, {create: true, strict: true});
   db.exec('PRAGMA journal_mode = WAL');
+  if (path !== ':memory:') for (const file of dbFiles(path)) tighten(file, PRIVATE_FILE);
   db.exec(`PRAGMA busy_timeout = ${Math.max(0, Math.floor(options.busyTimeoutMs ?? 5000))}`);
   db.exec('PRAGMA foreign_keys = ON');
   migrate(db);

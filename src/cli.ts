@@ -16,13 +16,14 @@ import {join} from 'node:path';
 import {flagValue, hasFlag, parseArgs, type ParsedArgs} from './core/args.ts';
 import {AppError, EXIT_ERROR, EXIT_OK, EXIT_UNAVAILABLE, EXIT_USAGE, describe, failure} from './core/errors.ts';
 import {nowIso} from './core/time.ts';
-import {callApi, clientConfig, Unreachable, writeClientToken, type Fetch} from './client.ts';
+import {callApi, CLIENT_FILE, clientConfig, Unreachable, writeClientToken, type Fetch} from './client.ts';
 import {dataDirFrom, DEFAULT_PORT} from './config.ts';
 import {COMMANDS, matchCommand} from './commands/index.ts';
 import {CommandUsage, type Audience, type CommandDef, type CommandIO} from './commands/types.ts';
 import {createToken} from './db/auth.ts';
-import {isLabel, labelledBackup, restoreBackup} from './db/backup.ts';
+import {BACKUP_DIR, isLabel, labelledBackup, restoreBackup} from './db/backup.ts';
 import {DB_FILE, openDatabase} from './db/database.ts';
+import {dbFiles, secureDataDir} from './db/fileModes.ts';
 import {getSetting} from './db/settings.ts';
 import {VERSION} from './version.ts';
 
@@ -206,11 +207,13 @@ export async function run(options: RunOptions): Promise<number> {
     let host = flagValue(args, 'host') ?? env['LECTIO_HOST'];
     if (host === undefined) {
       const db = openDatabase(dbPath);
-      host = getSetting(db, 'listen_host') ?? '0.0.0.0';
+      host = getSetting(db, 'listen_host') ?? '127.0.0.1';
       db.close();
     }
     const port = Number(flagValue(args, 'port') ?? env['LECTIO_PORT'] ?? DEFAULT_PORT);
     if (!Number.isInteger(port)) return fail('--port must be a number', EXIT_USAGE);
+    // Tighten what an older version created world-readable (fileModes.ts).
+    secureDataDir({dataDir, files: [...dbFiles(DB_FILE), CLIENT_FILE], dirs: [BACKUP_DIR]});
     return (options.serve ?? serve)({dbPath, dataDir, hostname: host, port, development: args.booleans.has('dev'), out});
   }
 
@@ -420,6 +423,7 @@ async function serve(request: ServeRequest): Promise<number> {
   request.out(`  on this machine:  http://localhost:${running.server.port}`);
   if (request.hostname === '0.0.0.0') {
     for (const address of lanAddresses()) request.out(`  on your network:  http://${address}:${running.server.port}`);
+    request.out('  (other devices are refused until the name they use is in allowed_hosts: lectio settings set allowed_hosts <name>)');
   }
   await new Promise<void>(resolve => {
     process.once('SIGINT', () => resolve());

@@ -9,11 +9,12 @@
  * `VACUUM INTO` writes a consistent snapshot even while others write; the copy is only
  * renamed into place after it passes an integrity check.
  */
-import {copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync} from 'node:fs';
+import {chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync} from 'node:fs';
 import {basename, join} from 'node:path';
 import {Database} from 'bun:sqlite';
 import {localDate} from '../core/time.ts';
 import {DB_FILE} from './database.ts';
+import {PRIVATE_DIR, PRIVATE_FILE, dbFiles, tighten} from './fileModes.ts';
 
 export const BACKUP_DIR = 'backups';
 export const ASSETS_DIR = 'assets';
@@ -52,23 +53,25 @@ export function copyNewAssets(dataDir: string): number {
   const from = join(dataDir, ASSETS_DIR);
   if (!existsSync(from)) return 0;
   const to = join(backupDir(dataDir), ASSETS_DIR);
-  mkdirSync(to, {recursive: true});
+  mkdirSync(to, {recursive: true, mode: PRIVATE_DIR});
   let copied = 0;
   for (const name of readdirSync(from)) {
     if (name.startsWith('.') || existsSync(join(to, name))) continue;
     copyFileSync(join(from, name), join(to, name));
+    chmodSync(join(to, name), PRIVATE_FILE);
     copied++;
   }
   return copied;
 }
 
 export function takeBackup(db: Database, dir: string, name: string): string {
-  mkdirSync(dir, {recursive: true});
+  mkdirSync(dir, {recursive: true, mode: PRIVATE_DIR});
   const target = join(dir, name);
   const temp = join(dir, `.${name}.partial`);
   if (existsSync(temp)) unlinkSync(temp);
   try {
     db.query('VACUUM INTO ?').run(temp);
+    chmodSync(temp, PRIVATE_FILE);
     checkCopy(temp);
     renameSync(temp, target);
     return target;
@@ -119,7 +122,10 @@ export function restoreBackup(dataDir: string, file: string): {restored: string;
   for (const suffix of ['-wal', '-shm']) if (existsSync(target + suffix)) unlinkSync(target + suffix);
   const temp = `${target}.restoring`;
   copyFileSync(source, temp);
+  chmodSync(temp, PRIVATE_FILE);
   renameSync(temp, target);
+  if (previous !== undefined) tighten(previous, PRIVATE_FILE);
+  for (const file of dbFiles(target)) tighten(file, PRIVATE_FILE);
   const savedAssets = join(backupDir(dataDir), ASSETS_DIR);
   if (existsSync(savedAssets)) {
     const assets = join(dataDir, ASSETS_DIR);

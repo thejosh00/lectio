@@ -11,7 +11,9 @@ import {nowIso} from '../core/time.ts';
 import {callerForSession, callerForToken, createSession, endSession, type Caller} from '../db/auth.ts';
 import {Ctx, type AppDeps} from '../db/context.ts';
 import {EventHub, eventsSince, latestEventSeq} from '../db/events.ts';
+import {getSetting} from '../db/settings.ts';
 import {handleApi} from './api.ts';
+import {checkRequest, parseAllowedHosts} from './hostCheck.ts';
 import {staticRoutes} from './static.ts';
 import {errorResponse, json, readBody} from './http.ts';
 import {DEFAULT_PORT} from '../config.ts';
@@ -127,6 +129,18 @@ export function startServer(options: ServeOptions): RunningServer {
   const hub = new EventHub();
   const deps: AppDeps = {db, hub, now, ...(options.dataDir === undefined ? {} : {dataDir: options.dataDir})};
 
+  // Every request is checked before it is routed (see hostCheck.ts). allowed_hosts is
+  // read per request, so `lectio settings set allowed_hosts …` applies at once. The web
+  // app bundle at "/" and the packaged fonts, KaTeX and mermaid files are served by Bun
+  // directly and carry no data.
+  const guard =
+    (handler: (request: Request) => Response | Promise<Response>) =>
+    (request: Request): Response | Promise<Response> => {
+      const refused = checkRequest(request, server.port ?? 0, parseAllowedHosts(getSetting(db, 'allowed_hosts')));
+      return refused === undefined ? handler(request) : errorResponse(new AppError(refused, EXIT_USAGE, {}, 403));
+    };
+  const extraRoutes = Object.fromEntries(Object.entries(options.routes ?? {}).map(([path, handler]) => [path, guard(handler)]));
+
   const server = Bun.serve({
     port: options.port ?? DEFAULT_PORT,
     hostname: options.hostname ?? '127.0.0.1',
@@ -134,37 +148,35 @@ export function startServer(options: ServeOptions): RunningServer {
     routes: {
       '/': homepage,
       ...staticRoutes,
-      ...options.routes,
+      ...extraRoutes,
       // Unauthenticated, so a ship can wait for the new commit to come up.
-      '/api/health': () => json({ok: true, version: VERSION, ...options.health?.()}),
+      '/api/health': guard(() => json({ok: true, version: VERSION, ...options.health?.()})),
       '/api/session': {
-        GET: request => {
+        GET: guard(request => {
           const caller = callerOf(db, request);
           return caller === undefined ? unauthorized() : json({ok: true, actor: caller.actor});
-        },
-        POST: request => signIn(db, request, now),
-        DELETE: request => {
+        }),
+        POST: guard(request => signIn(db, request, now)),
+        DELETE: guard(request => {
           const session = cookie(request, SESSION_COOKIE);
           if (session !== undefined) endSession(db, session);
           return json({ok: true}, 200, {'set-cookie': sessionCookie('', 0)});
-        },
+        }),
       },
-      '/api/events': request => {
+      '/api/events': guard(request => {
         if (callerOf(db, request) === undefined) return unauthorized();
         server.timeout(request, 0);
         return eventStream(db, hub, request);
-      },
-      '/api/*': async request => {
+      }),
+      '/api/*': guard(async request => {
         const caller = callerOf(db, request);
         if (caller === undefined) return unauthorized();
         const url = new URL(request.url);
         const response = await handleApi(new Ctx(deps, caller.actor), request, url, options.log);
         return response ?? errorResponse(new AppError(`no such endpoint: ${request.method} ${url.pathname}`, EXIT_NOT_FOUND));
-      },
+      }),
     },
-    fetch() {
-      return new Response('Not found', {status: 404});
-    },
+    fetch: guard(() => new Response('Not found', {status: 404})),
   });
 
   const stopBackground = options.background?.(deps);

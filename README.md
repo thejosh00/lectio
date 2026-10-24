@@ -37,15 +37,30 @@ bun link            # puts `lectio` on your PATH (~/.bun/bin)
 ## Quick start
 
 ```bash
-lectio serve                                       # the server and web app, on :7780
+lectio serve                                       # the server and web app, on 127.0.0.1:7780
 lectio token you                                   # a token for you (in another terminal)
 lectio login --url http://127.0.0.1:7780 --token <it>
 lectio subject add "Rust" --goal "read and change our Rust services" --minutes 15
 ```
 
-Open `http://localhost:7780` and sign in with the same `you` token. To sign in a phone once,
-open `http://<your-mac>:7780/?token=<it>`; the token is traded for a cookie and removed from the
-address bar. The web app is made for a phone first; add it to your home screen.
+Open `http://localhost:7780` and sign in with the same `you` token.
+
+The server listens on this machine only (`127.0.0.1`) and answers only to `localhost`,
+`127.0.0.1` and `[::1]`; any other `Host`, and any write whose `Origin` is not one of those,
+gets a 403. That keeps web pages (DNS rebinding) and other devices out. To use it from a phone,
+open it to the network and name the host the phone will use:
+
+```bash
+lectio settings set listen_host 0.0.0.0
+lectio settings set allowed_hosts your-mac.local    # comma-separated; an IP works too
+```
+
+Restart the server for `listen_host`; `allowed_hosts` applies at once. Then, once, open
+`http://your-mac.local:7780/?token=<it>` on the phone; the token is traded for a cookie and
+removed from the address bar. The web app is made for a phone first; add it to your home screen.
+
+The data directory and its backups are `0700`, and the database, its `-wal`/`-shm`, the backups
+and `client.json` are `0600`; `lectio serve` tightens any it finds looser.
 
 To keep it running in the background (macOS), with a daily backup into `$LECTIO_DIR/backups`:
 
@@ -56,7 +71,8 @@ lectio service status | logs | restart | stop | uninstall
 
 `LECTIO_DIR` (default `~/.lectio`) holds an instance's database, its uploaded files, its
 `client.json` and its backups. Instances share nothing, so a second one is a second directory and
-port. `lectio settings` lists every setting; `listen_host 127.0.0.1` keeps it to this machine.
+port. `lectio settings` lists every setting; `listen_host 0.0.0.0` with `allowed_hosts` opens it to your
+network.
 
 ## A day with lectio
 

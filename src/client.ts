@@ -67,7 +67,7 @@ export function clientConfig(env: Record<string, string | undefined>, dataDir: s
 
 /** Add a token for an actor, keeping the others. The first token becomes the default. */
 export function writeClientToken(dataDir: string, input: {url: string; actor: string; token: string; makeDefault: boolean}): string {
-  mkdirSync(dataDir, {recursive: true});
+  mkdirSync(dataDir, {recursive: true, mode: 0o700});
   const file = readClientFile(dataDir);
   delete file.tokens['?'];
   file.tokens[input.actor] = input.token;

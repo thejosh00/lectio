@@ -4,6 +4,7 @@
  * Settings live in the instance's database. Only the learner changes them; the caps
  * here are what keep the tutor from piling up work.
  */
+import {allowedHostsProblem} from '../server/hostCheck.ts';
 import {isTimeZone} from './time.ts';
 
 export interface SettingSpec {
@@ -18,7 +19,15 @@ const integer = (min: number, max = Number.MAX_SAFE_INTEGER) => (value: string) 
 const fraction = (value: string) => (/^(0(\.\d+)?|1(\.0+)?)$/.test(value) && Number(value) > 0 ? undefined : 'must be a number between 0 and 1');
 
 export const SETTINGS: Record<string, SettingSpec> = {
-  listen_host: {default: '0.0.0.0', summary: 'where `lectio serve` listens: 0.0.0.0 (your network) or 127.0.0.1 (this machine)'},
+  listen_host: {
+    default: '127.0.0.1',
+    summary: 'where `lectio serve` listens: 127.0.0.1 (this machine only) or 0.0.0.0 (your network too; add names to allowed_hosts)',
+  },
+  allowed_hosts: {
+    default: undefined,
+    summary: "comma-separated host names the server answers to besides localhost, e.g. your Mac's name.local for the phone",
+    validate: allowedHostsProblem,
+  },
   timezone: {
     default: undefined,
     summary: 'the time zone "today" is in (default: the system\'s), e.g. Europe/London',
