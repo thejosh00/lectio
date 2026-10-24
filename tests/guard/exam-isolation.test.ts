@@ -35,6 +35,9 @@ async function openCheckup() {
   const answered = await answerQ(lc, {question: questions[0], quiz, answer: 'no'});
   await lc.j(['dispute', answered.attempt.id]);
   const flag = await lc.j(['rate', 'question', questions[1]!, 'ambiguous']);
+  // A flag the examiner has answered: its reply is the learner's to read, never the tutor's.
+  const answered2 = await lc.j(['rate', 'question', questions[2]!, 'wrong_key']);
+  await lc.j(['reply', answered2.json.feedback.id, '--body', `${MARKER} the key stands`, '--resolved', 'disagreed'], {as: 'agent:examiner'});
   return {subject, lesson: lesson.json.lesson.id as string, quiz, questions, attempt: answered.attempt.id as string, flag: flag.json.feedback.id as string, examRun: examRun as string};
 }
 

@@ -6,6 +6,7 @@ import {nextScheduledDay} from '../core/schedule.ts';
 import {addDays} from '../core/time.ts';
 import type {Feedback, Lesson, Quiz, Subject} from '../core/types.ts';
 import {getMark, setMark} from './database.ts';
+import {visibleFeedback} from './feedback.ts';
 import type {Ctx} from './context.ts';
 import {lessonForDay, readinessOf, unfinishedLessons} from './lessons.ts';
 import {dueConcepts} from './memory.ts';
@@ -105,7 +106,8 @@ export function todayView(ctx: Ctx): TodayView {
   });
   const seen = getMark(ctx.db, REPLIES_SEEN) ?? '';
   const replies = ctx.db.query("SELECT * FROM feedback WHERE reply IS NOT NULL AND replied_at > ? AND actor = 'you' ORDER BY replied_at DESC LIMIT 20").all(seen) as Feedback[];
-  return {day, subjects, replies, practice_due: subjects.reduce((sum, s) => sum + s.practice_due, 0), improvements: needsYou(ctx)};
+  // The examiner's replies on a checkup are the learner's to read, not the tutor's (M12).
+  return {day, subjects, replies: visibleFeedback(ctx, replies), practice_due: subjects.reduce((sum, s) => sum + s.practice_due, 0), improvements: needsYou(ctx)};
 }
 
 export function markRepliesSeen(ctx: Ctx): void {
