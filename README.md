@@ -30,9 +30,11 @@ skill.
 Needs [Bun](https://bun.sh) 1.4+.
 
 ```bash
-bun install
-bun link            # puts `lectio` on your PATH (~/.bun/bin)
+./install.sh        # bun install + bun link: puts `lectio` on your PATH (~/.bun/bin)
 ```
+
+To update: pull, `./install.sh`, then `lectio service restart` (once you've installed the
+service, below).
 
 ## Quick start
 
