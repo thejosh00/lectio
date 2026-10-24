@@ -98,16 +98,16 @@ function Page({parts}: {parts: string[]}) {
   }
 }
 
-/** How many proposals wait on you: a dot on the Tutor tab. */
-function useImprovementsBadge(tick: number, signedIn: boolean): number {
-  const [count, setCount] = useState(0);
+/** What waits on you: unseen replies from your tutor, and proposals (a dot on the Tutor tab). */
+function useWaiting(tick: number, signedIn: boolean): {replies: number; improvements: number} {
+  const [waiting, setWaiting] = useState({replies: 0, improvements: 0});
   useEffect(() => {
     if (!signedIn) return;
-    get<{improvements: number}>('/api/today')
-      .then(t => setCount(t.improvements))
+    get<{replies: unknown[]; improvements: number}>('/api/today')
+      .then(t => setWaiting({replies: t.replies.length, improvements: t.improvements}))
       .catch(() => undefined);
   }, [tick, signedIn]);
-  return count;
+  return waiting;
 }
 
 export function App() {
@@ -180,7 +180,13 @@ export function App() {
     [who, tick],
   );
 
-  const badge = useImprovementsBadge(tick, who !== undefined && who !== null);
+  const waiting = useWaiting(tick, who !== undefined && who !== null);
+  const badge = waiting.improvements;
+  // The browser tab shows how many messages wait, e.g. "(3) lectio".
+  const messages = who ? waiting.replies + waiting.improvements : 0;
+  useEffect(() => {
+    document.title = messages > 0 ? `(${messages}) lectio` : 'lectio';
+  }, [messages]);
   if (who === undefined) return <main className="loading">…</main>;
   if (who === null || shared === null) return <SignIn onSignedIn={() => void load()} />;
 
