@@ -52,6 +52,8 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   without articles, common synonyms); a whole-answer `regex` for families of answers.
 - **Aim at `target_accuracy`.** Well above it for a week: harder questions, more transfer, fewer
   hints. Well below: smaller steps, more worked examples, no new concepts for a day.
+- **Predict every item** (`predict`, 0–1). A prediction you'd bet on is how you aim at the target;
+  the surprises (sure and wrong, either way) are where your picture of this person is off.
 - Difficulty is your honest guess (1–5); the bank compares it with what happened. When your guesses
   are consistently off, recalibrate.
 

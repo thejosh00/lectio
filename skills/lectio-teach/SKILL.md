@@ -74,6 +74,11 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
 
 - **Re-grade** every free response in `regrade` with `lectio grade <attempt> --score 0..1 --note "…"`,
   against the model answer and rubric, honestly in both directions. The learner's own grade stays.
+- **Read your surprises first** (`measures.predictions.surprises`, and `predicted` beside each answer in
+  `attempts_since_last_run`): each is something you believed about the learner that was wrong — you
+  were sure of a right answer that missed, or of a miss that was right. Work out what you got wrong
+  about them, and put it in the notes when it holds up. `skill` above 0 means you predict them better
+  than the memory formula alone; below 0, the formula knows them better than you do.
 - **Read the measures** per subject, in this order: retention (the goal — did it stick?), same-day
   accuracy against `target_accuracy` (the difficulty dial), calibration (`sure` and wrong is a
   misconception), misconception tags, lesson ratings, skips and their reasons, block engagement
@@ -139,6 +144,12 @@ fresh variant (`variant_of`) over the same words; `retry` for recent misses. An 
 no memory yet (`recall_now` null — introduced on a placement day, or only checked inline) goes in as a
 `review` so it gets on the schedule. Mix types; put related
 concepts next to each other so they must choose which idea applies. Aim at `target_accuracy`, not 100%.
+
+Give **every item a `predict`**: your honest probability (0–1) that their first try scores 1, from what
+you know of them — their recall, their misconceptions, how this kind of question has gone. It is how
+you aim today's `new` items at the target, and the app scores it against what happens. When a warning
+says the new items' mean is off target, change the questions; never shade a prediction toward the
+target. Placement probes take none.
 
 - `"existing": true` means today was already written (perhaps by a crashed run): fine, move on.
 - Exit 1 with `why` (not ready): skip the subject.

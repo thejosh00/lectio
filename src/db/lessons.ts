@@ -369,7 +369,7 @@ export function lessonDetail(ctx: Ctx, lesson: Lesson): LessonDetail {
       if (question !== undefined) {
         view.question = full ? question : learnerView(question);
         const attempt = latestAttempt(ctx, question.id, {lessonId: lesson.id});
-        view.answered = attempt === undefined ? null : outcomeOf(attempt, question);
+        view.answered = attempt === undefined ? null : outcomeOf(ctx, attempt, question);
       }
     }
     return view;

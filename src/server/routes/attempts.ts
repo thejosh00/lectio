@@ -30,7 +30,7 @@ export const attemptRoutes: Route[] = [
     path: '/api/attempts/:ref',
     handler: (ctx, req) => {
       const attempt = resolveAttempt(ctx, req.params['ref']);
-      return {attempt, outcome: outcomeOf(attempt, getQuestion(ctx, attempt.question_id)!)};
+      return {attempt, outcome: outcomeOf(ctx, attempt, getQuestion(ctx, attempt.question_id)!)};
     },
   },
   {

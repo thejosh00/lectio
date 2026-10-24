@@ -4,7 +4,7 @@
  * always with n. No streaks, no points: an honest page is the motivation.
  */
 import {useState} from 'react';
-import {enc, type Progress, type Rate, type Subject} from './api.ts';
+import {enc, type Predictions, type Progress, type Rate, type Subject} from './api.ts';
 import {Chart, ShareBars} from './Charts.tsx';
 import {pct, useLoad} from './state.ts';
 
@@ -44,6 +44,48 @@ function OutcomeTable({title, note, rows}: {title: string; note: string; rows: A
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** The tutor's predictions against what happened: a tutor that predicts you well knows where you are. */
+function PredictionsCard({p}: {p: Predictions}) {
+  const bins = p.tutor.bins.filter(b => b.n > 0);
+  const brier = (x: number | null) => (x === null ? '—' : x.toFixed(2));
+  return (
+    <div className="card">
+      <h3 style={{fontSize: 15}}>How well your tutor knows you</h3>
+      <p className="sub small-text muted" style={{margin: '2px 0 8px'}}>
+        Before each quiz your tutor predicts how likely you are to get each question right. Its misses show it where its picture of you is wrong.
+      </p>
+      {p.n === 0 ? (
+        <p className="muted small-text">This fills in once you answer quizzes your tutor wrote predictions for.</p>
+      ) : (
+        <>
+          <div className="stat-row">
+            <Stat label="Your tutor" value={brier(p.tutor.brier)} sub="prediction error" />
+            <Stat label="A formula" value={brier(p.formula.brier)} sub="memory model alone" />
+            <Stat label="Predictions" value={`${p.n}`} sub={p.skill === null ? 'lower error is better' : p.skill > 0 ? 'your tutor is ahead' : 'the formula is ahead'} />
+          </div>
+          {bins.length > 0 && (
+            <>
+              <p className="small-text muted" style={{margin: '10px 0 4px'}}>
+                When it said…, you got this share right:
+              </p>
+              <ShareBars rows={bins.map(b => ({label: `${Math.round(b.from * 100)}–${Math.round(b.to * 100)}%`, rate: b.actual, n: b.n}))} />
+            </>
+          )}
+          {p.by_week.length >= 2 && (
+            <Chart
+              ariaLabel="your tutor's prediction error by week"
+              points={p.by_week.map(w => ({x: w.week, y: w.tutor_brier ?? 0, note: `${w.n} predictions`}))}
+              max={Math.max(0.3, ...p.by_week.map(w => w.tutor_brier ?? 0))}
+              format={y => y.toFixed(2)}
+              reference={p.formula.brier === null ? undefined : {y: p.formula.brier, label: `formula ${brier(p.formula.brier)}`}}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -148,6 +190,8 @@ export function ProgressView({ships = []}: {ships?: Array<{week: string; label: 
               )}
             </div>
           )}
+
+          <PredictionsCard p={p.predictions} />
 
           <div className="section">What's working</div>
           {p.approaches.length === 0 && p.question_types.length === 0 && <p className="muted">This builds up as your tutor tries different ways of teaching and you review what you learned.</p>}

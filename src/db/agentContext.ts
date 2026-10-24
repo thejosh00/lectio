@@ -82,6 +82,17 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
     .all(subject.id) as Array<{approach: string; concepts: string}>) {
     for (const key of JSON.parse(row.concepts) as string[]) (taughtBy.get(key) ?? taughtBy.set(key, new Set()).get(key)!).add(row.approach);
   }
+  // What the tutor predicted for each quiz first try, to read beside what happened.
+  const predictedFor = new Map(
+    (
+      ctx.db
+        .query(
+          `SELECT a.id, qi.predicted FROM attempts a JOIN quiz_items qi ON qi.quiz_id = a.quiz_id AND qi.question_id = a.question_id
+           JOIN questions q ON q.id = a.question_id WHERE q.subject_id = ? AND a.at >= ? AND qi.predicted IS NOT NULL`,
+        )
+        .all(subject.id, since) as Array<{id: string; predicted: number}>
+    ).map(r => [r.id, r.predicted]),
+  );
   const attempts = attemptFacts(ctx, {subjectId: subject.id, since})
     .slice(-300)
     .map(a => {
@@ -97,6 +108,7 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
         taught_by: Object.fromEntries(keys.map(k => [k, [...(taughtBy.get(k) ?? [])]])),
         answer: a.answer,
         score: a.score,
+        predicted: predictedFor.get(a.id) ?? null,
         confidence: a.confidence,
         hints_used: a.hints_used,
         seconds: a.seconds,

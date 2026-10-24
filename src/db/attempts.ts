@@ -153,7 +153,7 @@ export function answer(ctx: Ctx, input: AnswerInput): AnswerResult {
   ctx.event('attempt', id, {kind: 'answered', question_id: question.id, context, score: graded.score});
   if (quizId !== null) maybeFinishQuiz(ctx, quizId);
   const attempt = getAttempt(ctx, id)!;
-  return {attempt, outcome: outcomeOf(attempt, question), quiz: quizStatus(ctx, quizId)};
+  return {attempt, outcome: outcomeOf(ctx, attempt, question), quiz: quizStatus(ctx, quizId)};
 }
 
 function quizStatus(ctx: Ctx, quizId: string | null): AnswerResult['quiz'] {
@@ -173,7 +173,7 @@ export function selfGrade(ctx: Ctx, attempt: Attempt, grade: string | undefined)
   ctx.event('attempt', attempt.id, {kind: 'self_graded', score});
   if (attempt.quiz_id !== null) maybeFinishQuiz(ctx, attempt.quiz_id);
   const updated = getAttempt(ctx, attempt.id)!;
-  return {attempt: updated, outcome: outcomeOf(updated, question), quiz: quizStatus(ctx, attempt.quiz_id)};
+  return {attempt: updated, outcome: outcomeOf(ctx, updated, question), quiz: quizStatus(ctx, attempt.quiz_id)};
 }
 
 /**
@@ -183,14 +183,14 @@ export function selfGrade(ctx: Ctx, attempt: Attempt, grade: string | undefined)
 export function dispute(ctx: Ctx, attempt: Attempt, note: string | undefined): AnswerResult {
   const question = getQuestion(ctx, attempt.question_id)!;
   if (!(questionType(question.type)?.disputable ?? false)) throw usageError(`${question.type.replace('_', ' ')} answers can't be disputed; flag the question instead (lectio rate question ${question.id} wrong_key)`);
-  if (attempt.graded_by === 'disputed') return {attempt, outcome: outcomeOf(attempt, question), quiz: quizStatus(ctx, attempt.quiz_id)};
+  if (attempt.graded_by === 'disputed') return {attempt, outcome: outcomeOf(ctx, attempt, question), quiz: quizStatus(ctx, attempt.quiz_id)};
   if (attempt.score === null || attempt.score >= 1) throw failed('only a miss can be disputed');
   ctx.db.query("UPDATE attempts SET score = 1, graded_by = 'disputed', misconception = NULL WHERE id = ?").run(attempt.id);
   addFeedback(ctx, {target: 'attempt', target_id: attempt.id, kind: 'dispute', note: note ?? ''});
   refreshMemory(ctx, conceptIdsOf(ctx, question.id));
   ctx.event('attempt', attempt.id, {kind: 'disputed', question_id: question.id});
   const updated = getAttempt(ctx, attempt.id)!;
-  return {attempt: updated, outcome: outcomeOf(updated, question), quiz: quizStatus(ctx, attempt.quiz_id)};
+  return {attempt: updated, outcome: outcomeOf(ctx, updated, question), quiz: quizStatus(ctx, attempt.quiz_id)};
 }
 
 /** The tutor's re-grade of a free response. Both grades are kept; the learner's counts. */

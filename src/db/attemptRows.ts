@@ -49,9 +49,21 @@ export interface Outcome {
   explanation: string;
   agent_score: number | null;
   agent_note: string | null;
+  /**
+   * The tutor's prediction for this quiz item, shown only once the answer is graded (for a
+   * free response, after the self-grade) so it can't sway the answer or the grade.
+   */
+  predicted: number | null;
 }
 
-export function outcomeOf(attempt: Attempt, question: Question): Outcome {
+/** The tutor's prediction for a quiz attempt's item, once the attempt is graded; null before, and outside quizzes. */
+export function predictionFor(ctx: Ctx, attempt: Pick<Attempt, 'quiz_id' | 'question_id' | 'score'>): number | null {
+  if (attempt.quiz_id === null || attempt.score === null) return null;
+  const row = ctx.db.query('SELECT predicted FROM quiz_items WHERE quiz_id = ? AND question_id = ?').get(attempt.quiz_id, attempt.question_id) as {predicted: number | null} | null;
+  return row?.predicted ?? null;
+}
+
+export function outcomeOf(ctx: Ctx, attempt: Attempt, question: Question): Outcome {
   const type = questionType(question.type);
   let why: string | null = null;
   let detail: Record<string, boolean> | null = null;
@@ -84,6 +96,7 @@ export function outcomeOf(attempt: Attempt, question: Question): Outcome {
     explanation: reveal.explanation,
     agent_score: attempt.agent_score,
     agent_note: attempt.agent_note,
+    predicted: predictionFor(ctx, attempt),
   };
 }
 

@@ -45,6 +45,8 @@ export interface Outcome {
   explanation: string;
   agent_score: number | null;
   agent_note: string | null;
+  /** The tutor's prediction for this quiz item, once the answer is graded. */
+  predicted: number | null;
 }
 
 export interface QuizProgress {
@@ -153,6 +155,24 @@ export interface Progress {
   load: {budget_minutes: number; days: Array<{day: string; minutes: number}>; median_minutes: number | null; over_budget_days: number; lessons_finished: number; lessons_skipped: number; skip_reasons: Record<string, number>} | null;
   hypotheses: Array<{id: string; day: string; title: string; hypothesis: string; ready_for_verdict: boolean}>;
   concepts: {total: number; introduced: number; known: number; solid: number; due: number};
+  predictions: Predictions;
+}
+
+export interface PredictionBin {
+  from: number;
+  to: number;
+  n: number;
+  predicted: number | null;
+  actual: number | null;
+}
+
+/** How well the tutor's predictions matched what happened, beside a formula's. Brier: lower is better. */
+export interface Predictions {
+  n: number;
+  tutor: {brier: number | null; bins: PredictionBin[]};
+  formula: {brier: number | null; bins: PredictionBin[]};
+  skill: number | null;
+  by_week: Array<{week: string; n: number; tutor_brier: number | null; formula_brier: number | null}>;
 }
 
 export class ApiError extends Error {

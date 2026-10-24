@@ -6,7 +6,7 @@
  */
 import {describe, expect, test} from 'bun:test';
 import {default_w} from 'ts-fsrs';
-import {ratingFor, recallOn, replay} from '../../src/core/memory.ts';
+import {countedReviews, expectedRecall, ratingFor, recallOn, replay, reviewsOf, type ReviewCandidate} from '../../src/core/memory.ts';
 
 const day = (d: string, rating: 'again' | 'hard' | 'good' | 'easy') => ({day: d, at: `${d}T15:00:00Z`, rating});
 
@@ -71,5 +71,57 @@ describe('FSRS-6 reference vectors', () => {
 
   test('no reviews, no memory', () => {
     expect(replay([], 0.9)).toBeNull();
+  });
+});
+
+describe('which attempts count for memory', () => {
+  let n = 0;
+  const attempt = (over: Partial<ReviewCandidate>): ReviewCandidate => ({
+    id: `a${++n}`,
+    at: '2026-09-13T15:00:00Z',
+    day: '2026-09-13',
+    context: 'quiz',
+    role: 'review',
+    attempt_no: 1,
+    void: false,
+    score: 1,
+    confidence: 'sure',
+    hints_used: 0,
+    ...over,
+  });
+  const introduced = {status: 'introduced', introduced: '2026-09-12T16:00:00Z'};
+
+  test('first tries in quizzes and practice, graded, not void, not probes, since the concept was introduced', () => {
+    const counted = attempt({});
+    const candidates = [
+      counted,
+      attempt({attempt_no: 2, day: '2026-09-14', at: '2026-09-14T15:00:00Z'}),
+      attempt({void: true, day: '2026-09-15', at: '2026-09-15T15:00:00Z'}),
+      attempt({context: 'lesson', role: null, day: '2026-09-16', at: '2026-09-16T15:00:00Z'}),
+      attempt({role: 'probe', day: '2026-09-17', at: '2026-09-17T15:00:00Z'}),
+      attempt({score: null, day: '2026-09-18', at: '2026-09-18T15:00:00Z'}),
+      attempt({day: '2026-09-12', at: '2026-09-12T10:00:00Z'}),
+    ];
+    expect(countedReviews(candidates, introduced)).toEqual([counted]);
+  });
+
+  test('one a local day, the earliest; oldest first whatever order they come in', () => {
+    const later = attempt({at: '2026-09-13T18:00:00Z'});
+    const first = attempt({at: '2026-09-13T09:00:00Z', score: 0});
+    const practice = attempt({context: 'practice', day: '2026-09-15', at: '2026-09-15T08:00:00Z'});
+    expect(countedReviews([practice, later, first], introduced)).toEqual([first, practice]);
+    expect(reviewsOf([first, practice]).map(r => r.rating)).toEqual(['again', 'good']);
+  });
+
+  test('a planned or known concept, or one never introduced, has none', () => {
+    expect(countedReviews([attempt({})], {status: 'known', introduced: '2026-09-12T16:00:00Z'})).toEqual([]);
+    expect(countedReviews([attempt({})], {status: 'planned', introduced: null})).toEqual([]);
+  });
+
+  test('expected recall is the lowest over the concepts that have a memory', () => {
+    const fresh = [day('2026-09-12', 'good')];
+    const shaky = [day('2026-09-12', 'again')];
+    expect(expectedRecall([fresh, [], shaky], '2026-09-14', 0.9)).toBeCloseTo(recallOn(replay(shaky, 0.9)!, '2026-09-14'), 9);
+    expect(expectedRecall([[], []], '2026-09-14', 0.9)).toBeNull();
   });
 });

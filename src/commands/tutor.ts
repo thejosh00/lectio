@@ -244,7 +244,11 @@ export const tutorCommands: CommandDef[] = [
     human: body => {
       const quiz = body['quiz'] as Quiz;
       const superseded = body['superseded'] as string[];
-      return [`${body['existing'] === true ? 'already written' : 'submitted'}: ${quiz.kind} quiz ${quiz.id} (${(body['question_ids'] as string[]).length} questions)`, ...(superseded.length > 0 ? [`  superseded ${superseded.join(', ')}`] : [])];
+      return [
+        `${body['existing'] === true ? 'already written' : 'submitted'}: ${quiz.kind} quiz ${quiz.id} (${(body['question_ids'] as string[]).length} questions)`,
+        ...(superseded.length > 0 ? [`  superseded ${superseded.join(', ')}`] : []),
+        ...warnings(body),
+      ];
     },
   },
   {

@@ -4,7 +4,7 @@
  * the learner relies on are broken.
  */
 import {describe, expect, test} from 'bun:test';
-import {approachOutcomes, calibration, misconceptions, observedDifficulty, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact} from '../../src/core/measures.ts';
+import {approachOutcomes, calibration, misconceptions, observedDifficulty, predictions, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
 
 let n = 0;
 function fact(over: Partial<AttemptFact>): AttemptFact {
@@ -118,5 +118,40 @@ describe('question stats', () => {
     expect(stats).toMatchObject({attempts: 4, first_try: {n: 3, rate: 0.667}, picks: {a: 1, b: 2, c: 0}, difficulty_guessed: 2, difficulty_observed: 3});
     expect(observedDifficulty(0.95)).toBe(1);
     expect(observedDifficulty(0.1)).toBe(5);
+  });
+});
+
+describe('predictions', () => {
+  let k = 0;
+  const p = (over: Partial<PredictionFact>): PredictionFact => ({attempt_id: `p${++k}`, question_id: 'q1', role: 'review', concepts: ['c1'], day: '2026-09-14', predicted: 0.8, formula: 0.9, score: 1, ...over});
+
+  test('Brier scores for tutor and formula on the same items, and the skill between them', () => {
+    const r = predictions([p({predicted: 0.9, formula: 0.5, score: 1}), p({predicted: 0.2, formula: 0.5, score: 0}), p({predicted: 0.6, formula: 0.5, score: 0.5, role: 'new'})]);
+    expect(r.n).toBe(3);
+    expect(r.tutor.brier).toBe(0.02); // (0.01 + 0.04 + 0.01) / 3
+    expect(r.formula.brier).toBe(0.167); // (0.25 + 0.25 + 0) / 3
+    expect(r.skill).toBe(0.88);
+    expect(r.by_role).toEqual([
+      {role: 'new', n: 1, tutor_brier: 0.01, formula_brier: 0},
+      {role: 'review', n: 2, tutor_brier: 0.025, formula_brier: 0.25},
+    ]);
+  });
+
+  test('calibration bins in fifths, the top one closed at 1', () => {
+    const r = predictions([p({predicted: 1, score: 1}), p({predicted: 0.8, score: 0}), p({predicted: 0.1, score: 0})]);
+    expect(r.tutor.bins[4]).toEqual({from: 0.8, to: 1, n: 2, predicted: 0.9, actual: 0.5});
+    expect(r.tutor.bins[0]).toEqual({from: 0, to: 0.2, n: 1, predicted: 0.1, actual: 0});
+    expect(r.tutor.bins.slice(1, 4).every(b => b.n === 0 && b.predicted === null)).toBe(true);
+  });
+
+  test('surprises: sure of a right answer that missed, or of a miss that was right, most recent first', () => {
+    const old = p({predicted: 0.95, score: 0, day: '2026-09-10'});
+    const recent = p({predicted: 0.1, score: 1, day: '2026-09-20'});
+    const r = predictions([old, p({predicted: 0.7, score: 0}), p({predicted: 0.3, score: 0.5}), recent]);
+    expect(r.surprises).toEqual([recent, old]);
+  });
+
+  test('nothing predicted, nothing to say', () => {
+    expect(predictions([])).toMatchObject({n: 0, tutor: {brier: null}, formula: {brier: null}, skill: null, surprises: [], by_week: []});
   });
 });

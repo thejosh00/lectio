@@ -36,10 +36,12 @@ export interface QuizItem {
   position: number;
   question_id: string;
   role: ItemRole;
+  /** The tutor's prediction for the first try; agents only see it before an answer. */
+  predicted: number | null;
 }
 
 export function quizItems(ctx: Ctx, quizId: string): QuizItem[] {
-  return ctx.db.query('SELECT position, question_id, role FROM quiz_items WHERE quiz_id = ? ORDER BY position').all(quizId) as QuizItem[];
+  return ctx.db.query('SELECT position, question_id, role, predicted FROM quiz_items WHERE quiz_id = ? ORDER BY position').all(quizId) as QuizItem[];
 }
 
 /** First attempts at each question in the quiz, by question id. */
@@ -96,6 +98,8 @@ export interface QuizItemView {
   role: ItemRole;
   question: LearnerQuestion | Question;
   answered: Outcome | null;
+  /** Agents only: the prediction the item was written with. The learner sees it in `answered`, once graded. */
+  predicted?: number | null;
 }
 
 export interface QuizDetail extends Quiz {
@@ -123,7 +127,8 @@ export function quizDetail(ctx: Ctx, quiz: Quiz): QuizDetail {
       position: item.position,
       role: item.role,
       question: ctx.isAgent ? question : learnerView(question),
-      answered: attempt === undefined ? null : outcomeOf(attemptFromRow(attempt), question),
+      answered: attempt === undefined ? null : outcomeOf(ctx, attemptFromRow(attempt), question),
+      ...(ctx.isAgent ? {predicted: item.predicted} : {}),
     });
   }
   const concepts = ctx.db
@@ -169,6 +174,23 @@ export interface QuizSubmitResult {
   existing: boolean;
   question_ids: string[];
   superseded: string[];
+  warnings: string[];
+}
+
+/** Things worth saying about a valid quiz's predictions: missing ones, and new items aimed off target. */
+function predictionWarnings(items: readonly QuizItemInput[], kind: QuizKind, target: number): string[] {
+  if (kind === 'placement') return [];
+  const warnings: string[] = [];
+  const missing = items.filter(i => i.predicted === null).length;
+  if (missing > 0) warnings.push(`${missing} of ${items.length} items have no predict: give each your honest probability that the first try scores 1`);
+  const fresh = items.filter(i => i.role === 'new' && i.predicted !== null);
+  if (fresh.length > 0) {
+    const mean = fresh.reduce((sum, i) => sum + i.predicted!, 0) / fresh.length;
+    if (Math.abs(mean - target) > 0.1) {
+      warnings.push(`you predict ${Math.round(mean * 100)}% on today's new items against a target of ${Math.round(target * 100)}%: change the questions (${mean > target ? 'harder' : 'easier'}), not the predictions`);
+    }
+  }
+  return warnings;
 }
 
 export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; kind: string | undefined; quiz: unknown}): QuizSubmitResult {
@@ -178,7 +200,7 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
   const day = input.day ?? ctx.today();
   if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
   const existing = ctx.db.query("SELECT * FROM quizzes WHERE subject_id = ? AND day = ? AND kind IN ('daily', 'placement')").get(subject.id, day) as Quiz | null;
-  if (existing !== null) return {quiz: existing, existing: true, question_ids: quizItems(ctx, existing.id).map(i => i.question_id), superseded: []};
+  if (existing !== null) return {quiz: existing, existing: true, question_ids: quizItems(ctx, existing.id).map(i => i.question_id), superseded: [], warnings: []};
   const today = ctx.today();
   if (day !== today) throw failed(`quizzes are written for today (${today}), not ${day}`, {today});
   if (subject.status !== 'active') throw failed(`${subject.title} is ${subject.status}`);
@@ -241,7 +263,7 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
       item.existing !== undefined
         ? resolvedExisting.get(position)!
         : insertQuestion(ctx, item.question, {subjectId: subject.id, lessonId: lesson?.id ?? null, runId, conceptIds: ids, variantOf: variants.get(position) ?? null}).id;
-    ctx.db.query('INSERT INTO quiz_items (quiz_id, position, question_id, role) VALUES (?, ?, ?, ?)').run(id, position, questionId, item.role);
+    ctx.db.query('INSERT INTO quiz_items (quiz_id, position, question_id, role, predicted) VALUES (?, ?, ?, ?, ?)').run(id, position, questionId, item.role, item.predicted);
     questionIds.push(questionId);
   });
   const superseded = (
@@ -254,7 +276,13 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
     }
   }
   ctx.event('quiz', id, {kind: 'added', subject_id: subject.id, day, quiz_kind: kind, items: questionIds.length});
-  return {quiz: getQuiz(ctx, id)!, existing: false, question_ids: questionIds, superseded: kind === 'daily' ? superseded : []};
+  return {
+    quiz: getQuiz(ctx, id)!,
+    existing: false,
+    question_ids: questionIds,
+    superseded: kind === 'daily' ? superseded : [],
+    warnings: predictionWarnings(quizInput.items, kind, numberSetting(ctx.db, 'target_accuracy')),
+  };
 }
 
 /**

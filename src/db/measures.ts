@@ -9,6 +9,7 @@ import {
   load,
   misconceptions,
   outcomesBy,
+  predictions,
   questionStats,
   retention,
   retentionByWeek,
@@ -17,12 +18,14 @@ import {
   type AttemptFact,
   type BlockFact,
   type Introduction,
+  type PredictionFact,
 } from '../core/measures.ts';
+import {countedReviews, expectedRecall, reviewsOf} from '../core/memory.ts';
 import {addDaysIso} from '../core/time.ts';
 import type {Question} from '../core/types.ts';
 import {questionType} from '../questions/index.ts';
 import {parseJson, type Ctx} from './context.ts';
-import {memoryOf} from './memory.ts';
+import {memoryOf, reviewCandidates, type ConceptFacts} from './memory.ts';
 import {getQuestion} from './questions.ts';
 import {numberSetting} from './settings.ts';
 import {getSubject} from './subjects.ts';
@@ -82,6 +85,84 @@ export function attemptFacts(ctx: Ctx, filter: {subjectId?: string; since?: stri
     day: ctx.dayOf(row.at),
     answer: parseJson<unknown>(row.answer, null),
   }));
+}
+
+interface PredictionJoin {
+  id: string;
+  question_id: string;
+  subject_id: string;
+  at: string;
+  score: number;
+  answer: string;
+  role: string;
+  predicted: number;
+  quiz_added: string;
+}
+
+/** The share of first tries on `new` items scoring 1 in a subject over the 14 days before `before`, or the target under n = 5. */
+function recentAccuracy(ctx: Ctx, subjectId: string, before: string, target: number): number {
+  const row = ctx.db
+    .query(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN a.score = 1 THEN 1 ELSE 0 END), 0) AS hits FROM attempts a JOIN questions q ON q.id = a.question_id
+       WHERE q.subject_id = ? AND a.role = 'new' AND a.attempt_no = 1 AND a.void = 0 AND a.score IS NOT NULL AND a.at >= ? AND a.at < ?`,
+    )
+    .get(subjectId, addDaysIso(before, -14), before) as {n: number; hits: number};
+  return row.n < 5 ? target : row.hits / row.n;
+}
+
+/**
+ * First tries at the quiz items the tutor predicted, each with what the formula expected
+ * knowing only what the tutor knew when it wrote the quiz: FSRS recall that day, replayed
+ * from the reviews counted before the quiz was added (the lowest over the question's
+ * concepts), or, for an idea with no memory yet, the subject's recent same-day accuracy.
+ */
+export function predictionFacts(ctx: Ctx, subjectId?: string): Array<PredictionFact & {answer: unknown}> {
+  const rows = ctx.db
+    .query(
+      `SELECT a.id, a.question_id, q.subject_id, a.at, a.score, a.answer, qi.role, qi.predicted, z.added AS quiz_added
+       FROM attempts a JOIN quiz_items qi ON qi.quiz_id = a.quiz_id AND qi.question_id = a.question_id
+       JOIN quizzes z ON z.id = a.quiz_id JOIN questions q ON q.id = a.question_id
+       WHERE a.attempt_no = 1 AND a.void = 0 AND a.score IS NOT NULL AND qi.predicted IS NOT NULL ${subjectId === undefined ? '' : 'AND q.subject_id = ?'}
+       ORDER BY a.at, a.id`,
+    )
+    .all(...(subjectId === undefined ? [] : [subjectId])) as PredictionJoin[];
+  if (rows.length === 0) return [];
+  const conceptsOf = new Map<string, string[]>();
+  const questionIds = [...new Set(rows.map(r => r.question_id))];
+  for (const row of ctx.db.query(`SELECT question_id, concept_id FROM question_concepts WHERE question_id IN (${questionIds.map(() => '?').join(', ')})`).all(...questionIds) as Array<{
+    question_id: string;
+    concept_id: string;
+  }>) {
+    (conceptsOf.get(row.question_id) ?? conceptsOf.set(row.question_id, []).get(row.question_id)!).push(row.concept_id);
+  }
+  const conceptIds = [...new Set([...conceptsOf.values()].flat())];
+  const candidates = reviewCandidates(ctx, conceptIds);
+  const concepts = new Map(
+    (ctx.db.query(`SELECT id, status, introduced FROM concepts WHERE id IN (${conceptIds.map(() => '?').join(', ')})`).all(...conceptIds) as Array<ConceptFacts & {id: string}>).map(c => [c.id, c]),
+  );
+  const desired = numberSetting(ctx.db, 'desired_retention');
+  const target = numberSetting(ctx.db, 'target_accuracy');
+  return rows.map(row => {
+    const ids = conceptsOf.get(row.question_id) ?? [];
+    const day = ctx.dayOf(row.at);
+    const histories = ids.map(id => reviewsOf(countedReviews((candidates.get(id) ?? []).filter(a => a.at < row.quiz_added), concepts.get(id) ?? {status: 'planned', introduced: null})));
+    const formula = expectedRecall(histories, day, desired) ?? recentAccuracy(ctx, row.subject_id, row.quiz_added, target);
+    return {attempt_id: row.id, question_id: row.question_id, role: row.role, concepts: ids, day, predicted: row.predicted, formula, score: row.score, answer: parseJson<unknown>(row.answer, null)};
+  });
+}
+
+/** The predictions measure, with each surprise's question and answer for the tutor to read. */
+function predictionsReport(ctx: Ctx, subjectId?: string) {
+  const facts = predictionFacts(ctx, subjectId);
+  const answers = new Map(facts.map(f => [f.attempt_id, f.answer]));
+  const report = predictions(facts.map(({answer: _answer, ...fact}) => fact));
+  return {
+    ...report,
+    surprises: report.surprises.map(s => {
+      const prompt = getQuestion(ctx, s.question_id)?.prompt ?? '';
+      return {...s, prompt: prompt.length > 240 ? `${prompt.slice(0, 239)}…` : prompt, answer: answers.get(s.attempt_id) ?? null, concept_keys: s.concepts.map(c => conceptKey(ctx, c))};
+    }),
+  };
 }
 
 /** Each introduced concept, and the approaches the introducing lesson used on it. */
@@ -147,6 +228,8 @@ export interface ProgressReport {
   load: ReturnType<typeof load> | null;
   hypotheses: ReturnType<typeof openHypotheses>;
   concepts: {total: number; introduced: number; known: number; solid: number; due: number};
+  /** How well the tutor's predictions matched what happened, beside the formula's (M11). */
+  predictions: ReturnType<typeof predictionsReport>;
 }
 
 function conceptKey(ctx: Ctx, id: string): string {
@@ -203,6 +286,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     aims: outcomesBy(facts, a => a.aim, gap),
     load: loadReport,
     hypotheses: openHypotheses(ctx, subjectId),
+    predictions: predictionsReport(ctx, subjectId),
     concepts: {
       total: conceptRows.filter(c => c.status !== 'retired').length,
       introduced: conceptRows.filter(c => c.status === 'introduced').length,

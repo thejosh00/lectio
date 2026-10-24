@@ -6,41 +6,36 @@
  * has been introduced, and the first such attempt on that concept that local day. A
  * question with several concepts updates each of them.
  */
-import {ratingFor, recallOn, replay, type Review} from '../core/memory.ts';
-import type {Confidence, Memory} from '../core/types.ts';
+import {countedReviews, recallOn, replay, reviewsOf, type ReviewCandidate} from '../core/memory.ts';
+import type {Memory} from '../core/types.ts';
 import type {Ctx} from './context.ts';
 import {numberSetting} from './settings.ts';
 
-interface Candidate {
-  id: string;
-  at: string;
-  score: number;
-  confidence: Confidence;
-  hints_used: number;
+/** A concept as the counting rule needs it. */
+export interface ConceptFacts {
+  status: string;
+  introduced: string | null;
+}
+
+/** Every attempt on these concepts, as counting candidates, by concept id. */
+export function reviewCandidates(ctx: Ctx, conceptIds: readonly string[]): Map<string, ReviewCandidate[]> {
+  const out = new Map<string, ReviewCandidate[]>(conceptIds.map(id => [id, []]));
+  if (conceptIds.length === 0) return out;
+  const rows = ctx.db
+    .query(
+      `SELECT qc.concept_id, a.id, a.at, a.context, a.role, a.attempt_no, a.void, a.score, a.confidence, a.hints_used FROM attempts a
+       JOIN question_concepts qc ON qc.question_id = a.question_id WHERE qc.concept_id IN (${conceptIds.map(() => '?').join(', ')})`,
+    )
+    .all(...conceptIds) as Array<Omit<ReviewCandidate, 'day' | 'void'> & {concept_id: string; void: number}>;
+  for (const {concept_id, ...row} of rows) out.get(concept_id)!.push({...row, void: row.void === 1, day: ctx.dayOf(row.at)});
+  return out;
 }
 
 /** The attempts that count for a concept, oldest first: one per local day. */
-function countedFor(ctx: Ctx, conceptId: string): Candidate[] {
-  const concept = ctx.db.query('SELECT status, introduced FROM concepts WHERE id = ?').get(conceptId) as {status: string; introduced: string | null} | null;
-  if (concept === null || concept.introduced === null || concept.status === 'planned' || concept.status === 'known') return [];
-  const rows = ctx.db
-    .query(
-      `SELECT a.id, a.at, a.score, a.confidence, a.hints_used FROM attempts a
-       JOIN question_concepts qc ON qc.question_id = a.question_id
-       WHERE qc.concept_id = ? AND a.attempt_no = 1 AND a.void = 0 AND a.context IN ('quiz', 'practice')
-         AND (a.role IS NULL OR a.role != 'probe') AND a.score IS NOT NULL AND a.at >= ?
-       ORDER BY a.at, a.id`,
-    )
-    .all(conceptId, concept.introduced) as Candidate[];
-  const seenDays = new Set<string>();
-  const counted: Candidate[] = [];
-  for (const row of rows) {
-    const day = ctx.dayOf(row.at);
-    if (seenDays.has(day)) continue;
-    seenDays.add(day);
-    counted.push(row);
-  }
-  return counted;
+function countedFor(ctx: Ctx, conceptId: string): ReviewCandidate[] {
+  const concept = ctx.db.query('SELECT status, introduced FROM concepts WHERE id = ?').get(conceptId) as ConceptFacts | null;
+  if (concept === null) return [];
+  return countedReviews(reviewCandidates(ctx, [conceptId]).get(conceptId)!, concept);
 }
 
 /**
@@ -60,7 +55,7 @@ export function refreshMemory(ctx: Ctx, conceptIds: Iterable<string>): void {
   };
   const ids = [...new Set(conceptIds)];
   for (const conceptId of ids) {
-    const reviews: Review[] = countedFor(ctx, conceptId).map(c => ({day: ctx.dayOf(c.at), at: c.at, rating: ratingFor(c)}));
+    const reviews = reviewsOf(countedFor(ctx, conceptId));
     const state = replay(reviews, retention);
     if (state === null) {
       ctx.db.query('DELETE FROM concept_memory WHERE concept_id = ?').run(conceptId);

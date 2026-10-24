@@ -240,7 +240,8 @@ export function readLesson(value: unknown, facts: SubjectFacts, raw?: string): L
 
 // --- quizzes -----------------------------------------------------------------------
 
-export type QuizItemInput = {role: ItemRole; question: QuestionInput; existing?: undefined} | {role: ItemRole; existing: string; question?: undefined};
+/** `predicted`: the tutor's probability that the first try scores 1, or null if it gave none. */
+export type QuizItemInput = ({role: ItemRole; question: QuestionInput; existing?: undefined} | {role: ItemRole; existing: string; question?: undefined}) & {predicted: number | null};
 
 export interface QuizInput {
   lesson: string | null;
@@ -257,8 +258,11 @@ export function readQuiz(value: unknown, facts: SubjectFacts, kind: QuizKind): Q
   const itemNodes = node.get('items').array({min: 1, max: facts.limits.quiz_max_questions}) ?? [];
   const items: QuizItemInput[] = [];
   for (const item of itemNodes) {
-    item.object(['role', 'question', 'existing']);
+    item.object(['role', 'question', 'existing', 'predict']);
     const role = item.get('role').oneOf(kind === 'placement' ? (['probe'] as const) : ITEM_ROLES.filter(r => r !== 'probe'));
+    let predicted: number | null = null;
+    if (kind === 'placement' && item.get('predict').present) item.get('predict').fail('probes are never scored, so there is nothing to predict');
+    else predicted = item.get('predict').optionalNumber({min: 0, max: 1}) ?? null;
     const hasQuestion = item.get('question').present;
     const hasExisting = item.get('existing').present;
     if (hasQuestion === hasExisting) {
@@ -267,10 +271,10 @@ export function readQuiz(value: unknown, facts: SubjectFacts, kind: QuizKind): Q
     }
     if (hasExisting) {
       const existing = item.get('existing').string({max: 40});
-      if (role !== undefined && existing !== undefined) items.push({role, existing});
+      if (role !== undefined && existing !== undefined) items.push({role, existing, predicted});
     } else {
       const question = readQuestion(item.get('question'), facts, {needsRef: false});
-      if (role !== undefined && question !== undefined) items.push({role, question});
+      if (role !== undefined && question !== undefined) items.push({role, question, predicted});
     }
   }
   if (items.some(i => i.role === 'new') && (lesson === undefined || lesson.trim() === '')) node.get('lesson').fail('"new" items are on today\'s lesson: name it');

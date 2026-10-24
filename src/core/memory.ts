@@ -27,6 +27,61 @@ export function ratingFor(attempt: {score: number; confidence: Confidence; hints
   return 'good';
 }
 
+/** An attempt on a concept, as the counting rule sees it. */
+export interface ReviewCandidate {
+  id: string;
+  at: string;
+  /** The local day it happened on. */
+  day: string;
+  context: string;
+  role: string | null;
+  attempt_no: number;
+  void: boolean;
+  score: number | null;
+  confidence: Confidence;
+  hints_used: number;
+}
+
+/**
+ * The attempts that count for a concept's memory, oldest first. An attempt counts when it
+ * is the first try, not void, in a daily quiz or practice (not an inline check, and not a
+ * placement probe), graded, made since the concept was introduced, and the first such
+ * attempt on it that local day. A planned or known concept has none.
+ */
+export function countedReviews<T extends ReviewCandidate>(candidates: readonly T[], concept: {status: string; introduced: string | null}): T[] {
+  const introduced = concept.introduced;
+  if (introduced === null || concept.status === 'planned' || concept.status === 'known') return [];
+  const order = (a: T, b: T) => (a.at === b.at ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.at < b.at ? -1 : 1);
+  const eligible = candidates
+    .filter(a => a.attempt_no === 1 && !a.void && (a.context === 'quiz' || a.context === 'practice') && a.role !== 'probe' && a.score !== null && a.at >= introduced)
+    .sort(order);
+  const seenDays = new Set<string>();
+  return eligible.filter(a => {
+    if (seenDays.has(a.day)) return false;
+    seenDays.add(a.day);
+    return true;
+  });
+}
+
+/** Counted attempts as FSRS reviews. */
+export const reviewsOf = (counted: readonly ReviewCandidate[]): Review[] =>
+  counted.map(c => ({day: c.day, at: c.at, rating: ratingFor({score: c.score ?? 0, confidence: c.confidence, hints_used: c.hints_used})}));
+
+/**
+ * What the memory model alone expects on `day`: the lowest recall over the concepts that
+ * have a memory, each replayed from its reviews. Null when none of them has one yet.
+ */
+export function expectedRecall(histories: ReadonlyArray<readonly Review[]>, day: string, desiredRetention: number): number | null {
+  let lowest: number | null = null;
+  for (const reviews of histories) {
+    const state = replay(reviews, desiredRetention);
+    if (state === null) continue;
+    const recall = recallOn(state, day);
+    if (lowest === null || recall < lowest) lowest = recall;
+  }
+  return lowest;
+}
+
 export interface Review {
   /** The local day it happened on. */
   day: string;

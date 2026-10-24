@@ -287,6 +287,11 @@ const MIGRATIONS: string[] = [
   -- hand-back, so every build is checked by the one who asked for it.
   ALTER TABLE proposals ADD COLUMN accepted_at TEXT;
   `,
+  `
+  -- The tutor's probability that the first try at this item scores 1 (M11). Null when it
+  -- gave none, as on every quiz written before predictions.
+  ALTER TABLE quiz_items ADD COLUMN predicted REAL;
+  `,
 ];
 
 export interface OpenOptions {

@@ -29,7 +29,11 @@ interface Outcome {
   key: Record<string, unknown>;
   answer_text: string;
   explanation: string;
+  predicted: number | null;
 }
+
+/** The tutor's prediction, once the answer is graded. */
+const predictionLine = (outcome: Outcome) => (outcome.predicted === null ? [] : [`  your tutor gave this a ${percent(outcome.predicted)} chance`]);
 
 interface QuizView {
   id: string;
@@ -169,6 +173,7 @@ function showOutcome(io: CommandIO, outcome: Outcome): void {
   else io.out(`  ✗ not quite. The answer: ${outcome.answer_text}`);
   if (outcome.why !== null) io.out(`  why not that one: ${outcome.why}`);
   io.out(`  ${outcome.explanation.split('\n').join('\n  ')}`);
+  for (const line of predictionLine(outcome)) io.out(line);
 }
 
 async function call<T>(io: CommandIO, request: Parameters<CommandIO['call']>[0]): Promise<T> {
@@ -229,6 +234,7 @@ async function takeQuiz(io: CommandIO, id: string): Promise<void> {
       while (grade === undefined) grade = grades[(await ask(io, 'how did you do? g(ot it) p(artly) m(issed it): ')).toLowerCase()];
       outcome = (await call<{outcome: Outcome}>(io, {method: 'POST', path: `/api/attempts/${outcome.attempt_id}/self-grade`, body: {grade}})).outcome;
       io.out(`  ${outcome.explanation.split('\n').join('\n  ')}`);
+      for (const line of predictionLine(outcome)) io.out(line);
     } else if (outcome.disputable) {
       const text = (await ask(io, '  enter to go on, or d if you were right: ')).toLowerCase();
       if (text === 'd') {

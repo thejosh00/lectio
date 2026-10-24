@@ -423,6 +423,7 @@ export function QuestionCard({question, answered, where, kicker, onAnswered}: Pr
               )}
               {question.type === 'free_response' && <Markdown text={String(outcome.key['model_answer'] ?? '')} />}
               <Markdown text={outcome.explanation} />
+              {outcome.predicted !== null && <Prediction predicted={outcome.predicted} score={outcome.score} />}
               {outcome.disputable && (
                 <button type="button" className="small" onClick={() => void dispute()}>
                   I was right
@@ -440,5 +441,15 @@ export function QuestionCard({question, answered, where, kicker, onAnswered}: Pr
         </div>
       )}
     </div>
+  );
+}
+
+/** What the tutor expected, shown once the answer is graded: how well it knows you is part of what it learns. */
+function Prediction({predicted, score}: {predicted: number; score: number | null}) {
+  const surprise = score === null ? '' : score >= 1 && predicted <= 0.3 ? ' You surprised it.' : score < 0.5 && predicted >= 0.8 ? ' It expected you to get this one.' : '';
+  return (
+    <p className="small-text muted">
+      Your tutor gave this a {pct(predicted)} chance.{surprise}
+    </p>
   );
 }

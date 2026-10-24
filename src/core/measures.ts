@@ -269,6 +269,98 @@ export function questionStats(attempts: readonly AttemptFact[], difficulty: numb
   };
 }
 
+// --- predictions -------------------------------------------------------------------
+
+/** A first try at a quiz item the tutor gave a prediction for. */
+export interface PredictionFact {
+  attempt_id: string;
+  question_id: string;
+  role: string;
+  concepts: string[];
+  day: string;
+  /** The tutor's probability that the first try scores 1. */
+  predicted: number;
+  /**
+   * What the formula expected, knowing only what the tutor knew when it wrote the quiz:
+   * for an idea with a memory, FSRS recall that day (the lowest over its concepts); for a
+   * new one, the subject's recent same-day accuracy. Worked out by the loader.
+   */
+  formula: number;
+  /** The first try's score, 0–1: what both are scored against. */
+  score: number;
+}
+
+export interface CalibrationBin {
+  from: number;
+  to: number;
+  n: number;
+  /** The mean prediction in the bin, and the mean score; null when n is 0. */
+  predicted: number | null;
+  actual: number | null;
+}
+
+export interface Forecast {
+  /** The mean squared gap between prediction and score: 0 is perfect, 0.25 is a coin. */
+  brier: number | null;
+  bins: CalibrationBin[];
+}
+
+export interface Predictions {
+  n: number;
+  tutor: Forecast;
+  formula: Forecast;
+  /** 1 − tutor Brier ÷ formula Brier: above 0, the tutor knows the learner better than the formula. */
+  skill: number | null;
+  by_role: Array<{role: string; n: number; tutor_brier: number | null; formula_brier: number | null}>;
+  by_week: Array<{week: string; n: number; tutor_brier: number | null; formula_brier: number | null}>;
+  /** Confident and wrong about the learner, most recent first: sure of a right answer that missed, or of a miss that was right. */
+  surprises: PredictionFact[];
+}
+
+const round3 = (x: number) => Math.round(x * 1000) / 1000;
+
+function brier(facts: readonly PredictionFact[], pick: (f: PredictionFact) => number): number | null {
+  if (facts.length === 0) return null;
+  return round3(facts.reduce((sum, f) => sum + (pick(f) - f.score) ** 2, 0) / facts.length);
+}
+
+function forecast(facts: readonly PredictionFact[], pick: (f: PredictionFact) => number): Forecast {
+  const bins: CalibrationBin[] = [0, 0.2, 0.4, 0.6, 0.8].map(from => {
+    const to = round3(from + 0.2);
+    const inBin = facts.filter(f => pick(f) >= from && (pick(f) < to || (to === 1 && pick(f) <= 1)));
+    const mean = (xs: number[]) => (xs.length === 0 ? null : round3(xs.reduce((a, b) => a + b, 0) / xs.length));
+    return {from, to, n: inBin.length, predicted: mean(inBin.map(pick)), actual: mean(inBin.map(f => f.score))};
+  });
+  return {brier: brier(facts, pick), bins};
+}
+
+export const isSurprise = (f: PredictionFact) => (f.predicted >= 0.8 && f.score < 0.5) || (f.predicted <= 0.3 && f.score >= 1);
+
+/** How well the tutor's predictions matched what happened, beside the formula's, on the same items. */
+export function predictions(facts: readonly PredictionFact[]): Predictions {
+  const tutor = (f: PredictionFact) => f.predicted;
+  const formula = (f: PredictionFact) => f.formula;
+  const tutorBrier = brier(facts, tutor);
+  const formulaBrier = brier(facts, formula);
+  const grouped = <K extends string>(key: (f: PredictionFact) => K) => {
+    const groups = new Map<K, PredictionFact[]>();
+    for (const f of facts) (groups.get(key(f)) ?? groups.set(key(f), []).get(key(f))!).push(f);
+    return [...groups].sort(([a], [b]) => a.localeCompare(b));
+  };
+  return {
+    n: facts.length,
+    tutor: forecast(facts, tutor),
+    formula: forecast(facts, formula),
+    skill: tutorBrier === null || formulaBrier === null || formulaBrier === 0 ? null : round3(1 - tutorBrier / formulaBrier),
+    by_role: grouped(f => f.role).map(([role, list]) => ({role, n: list.length, tutor_brier: brier(list, tutor), formula_brier: brier(list, formula)})),
+    by_week: grouped(f => weekOf(f.day)).map(([week, list]) => ({week, n: list.length, tutor_brier: brier(list, tutor), formula_brier: brier(list, formula)})),
+    surprises: facts
+      .filter(isSurprise)
+      .sort((a, b) => b.day.localeCompare(a.day) || Math.abs(b.predicted - b.score) - Math.abs(a.predicted - a.score))
+      .slice(0, 10),
+  };
+}
+
 // --- load --------------------------------------------------------------------------
 
 export interface DayLoad {
