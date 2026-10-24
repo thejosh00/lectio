@@ -5,6 +5,7 @@
 import type {Run} from './api.ts';
 import {Markdown} from './markdown.tsx';
 import {NotesPanel} from './Notes.tsx';
+import {PlaybookPanel} from './Playbook.tsx';
 import {ago, useLoad} from './state.ts';
 
 interface Hypothesis {
@@ -25,6 +26,11 @@ export function TutorView() {
       <div className="section">How you learn</div>
       <div className="card">
         <NotesPanel empty="Your tutor writes down what works for you once it has seen you learn for a while." />
+      </div>
+
+      <div className="section">How it teaches</div>
+      <div className="card">
+        <PlaybookPanel />
       </div>
 
       <div className="section">What it is trying</div>

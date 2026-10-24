@@ -23,6 +23,12 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   they are safe to make a little hard.
 - **Name the misconception.** Say the wrong idea learners usually have, and show it failing on an
   example. Use their own misconception tags from the context when you have them.
+- **Problem first, sometimes.** For an idea with a clear problem shape, open with a problem they can't
+  yet solve — an inline check they will probably miss — then teach it. Having tried, they know what the
+  explanation is for (productive failure; pretesting). Try it on purpose and compare.
+- **Make them find the error.** A made-up learner's explanation or code with one planted error, taken
+  from this learner's own misconception tags: which line is wrong, and why? (a `multiple_choice` over
+  the lines). Explaining someone else's mistake is strong practice.
 - **Pair words with a picture only when the picture shows the mechanism** — a trace of who owns a
   buffer, a diagram of a cycle. Never as decoration.
 - **Short.** Fit the budget. If it doesn't fit, cut the least important idea, not the examples.
@@ -37,6 +43,8 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   the point, not remembering the question.
 - **Interleave.** Put related concepts next to each other in a quiz so the learner must choose which
   idea applies — that choosing is the skill.
+- **Confident errors come back.** A `sure`-but-wrong answer is corrected readily, then tends to return
+  about a week later: retry it from a new angle five to eight days on, not only the next day.
 - A concept missed on review gets a short re-explanation in the next lesson (role `review` or
   `deepen`), from a different angle than the first time, then a `retry`.
 
@@ -56,6 +64,15 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   the surprises (sure and wrong, either way) are where your picture of this person is off.
 - Difficulty is your honest guess (1–5); the bank compares it with what happened. When your guesses
   are consistently off, recalibrate.
+
+## Doing, not only knowing
+
+When the goal is to *do* something — write the code, find the vulnerability, diagnose the fault —
+quizzes measure knowing about it. Give tasks the learner does outside lectio whose result they can only
+get by doing them: a tiny program you give them that prints a CTF-style flag once they exploit it, a
+value their own code must output, a reading off their own machine. Ask for the result as a
+`short_text` (or `numeric`) answer, which the app grades. Use their own projects, tools and things as
+material when they have told you about them.
 
 ## Experiments
 

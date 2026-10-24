@@ -215,13 +215,32 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   const id = ctx.newId();
   ctx.db
     .query(
-      `INSERT INTO lessons (id, subject_id, day, title, objectives, estimated_minutes, rationale, hypothesis, sources, run_id, added_by, state, added)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?)`,
+      `INSERT INTO lessons (id, subject_id, day, title, objectives, estimated_minutes, rationale, hypothesis, sources, run_id, added_by, state, added, playbook_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?)`,
     )
-    .run(id, subject.id, day, lessonInput.title, JSON.stringify(lessonInput.objectives), lessonInput.estimated_minutes, lessonInput.rationale, lessonInput.hypothesis, JSON.stringify(lessonInput.sources), runId, ctx.actor, ctx.now());
+    .run(
+      id,
+      subject.id,
+      day,
+      lessonInput.title,
+      JSON.stringify(lessonInput.objectives),
+      lessonInput.estimated_minutes,
+      lessonInput.rationale,
+      lessonInput.hypothesis,
+      JSON.stringify(lessonInput.sources),
+      runId,
+      ctx.actor,
+      ctx.now(),
+      playbookVersion(ctx),
+    );
   const questionIds = insertContent(ctx, {id, subject_id: subject.id}, lessonInput, runId, new Map());
   ctx.event('lesson', id, {kind: 'added', subject_id: subject.id, day, title: lessonInput.title});
   return {lesson: getLesson(ctx, id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};
+}
+
+/** The playbook version a lesson is written under now (M13); null before there is one. */
+function playbookVersion(ctx: Ctx): number | null {
+  return (ctx.db.query("SELECT MAX(version) AS v FROM note_versions WHERE scope = 'playbook'").get() as {v: number | null}).v;
 }
 
 export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; raw?: string; diagrams?: ReadonlyMap<string, string | null>}): SubmitResult {
@@ -235,8 +254,8 @@ export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; 
     if (question !== undefined) keep.set(ref, question);
   }
   ctx.db
-    .query('UPDATE lessons SET title = ?, objectives = ?, estimated_minutes = ?, rationale = ?, hypothesis = ?, sources = ?, version = version + 1 WHERE id = ?')
-    .run(lessonInput.title, JSON.stringify(lessonInput.objectives), lessonInput.estimated_minutes, lessonInput.rationale, lessonInput.hypothesis, JSON.stringify(lessonInput.sources), lesson.id);
+    .query('UPDATE lessons SET title = ?, objectives = ?, estimated_minutes = ?, rationale = ?, hypothesis = ?, sources = ?, playbook_version = ?, version = version + 1 WHERE id = ?')
+    .run(lessonInput.title, JSON.stringify(lessonInput.objectives), lessonInput.estimated_minutes, lessonInput.rationale, lessonInput.hypothesis, JSON.stringify(lessonInput.sources), playbookVersion(ctx), lesson.id);
   const questionIds = insertContent(ctx, lesson, lessonInput, lesson.run_id, keep);
   ctx.event('lesson', lesson.id, {kind: 'revised', version: lesson.version + 1, before});
   return {lesson: getLesson(ctx, lesson.id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};

@@ -10,6 +10,7 @@ import {
   load,
   misconceptions,
   outcomesBy,
+  playbookOutcomes,
   predictions,
   questionStats,
   retention,
@@ -182,6 +183,32 @@ export function examFacts(ctx: Ctx, subjectId?: string): ExamFact[] {
   return facts.map(f => ({...f, expected: model(f.concepts, added.get(f.id) ?? f.at, f.day)}));
 }
 
+/** Lessons grouped by the playbook version that wrote them, with what they introduced and how their new items went (M13). */
+function playbookReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: string) {
+  const lessons = ctx.db
+    .query(`SELECT id, playbook_version FROM lessons WHERE state IN ('open', 'finished') ${subjectId === undefined ? '' : 'AND subject_id = ?'}`)
+    .all(...(subjectId === undefined ? [] : [subjectId])) as Array<{id: string; playbook_version: number | null}>;
+  if (lessons.every(l => l.playbook_version === null)) return [];
+  const versionOf = new Map(lessons.map(l => [l.id, l.playbook_version]));
+  const groups = new Map<number | null, {version: number | null; lessons: number; introduced: string[]; same_day: AttemptFact[]}>();
+  const group = (version: number | null) => groups.get(version) ?? groups.set(version, {version, lessons: 0, introduced: [], same_day: []}).get(version)!;
+  for (const l of lessons) group(l.playbook_version).lessons++;
+  for (const row of ctx.db.query("SELECT lc.lesson_id, lc.concept_id FROM lesson_concepts lc JOIN lessons l ON l.id = lc.lesson_id WHERE lc.role = 'new' AND l.state = 'finished'").all() as Array<{
+    lesson_id: string;
+    concept_id: string;
+  }>) {
+    if (versionOf.has(row.lesson_id)) group(versionOf.get(row.lesson_id)!).introduced.push(row.concept_id);
+  }
+  const lessonOfAttempt = new Map(
+    (ctx.db.query("SELECT a.id, z.lesson_id FROM attempts a JOIN quizzes z ON z.id = a.quiz_id WHERE a.role = 'new' AND z.lesson_id IS NOT NULL").all() as Array<{id: string; lesson_id: string}>).map(r => [r.id, r.lesson_id]),
+  );
+  for (const a of facts) {
+    const lesson = lessonOfAttempt.get(a.id);
+    if (lesson !== undefined && versionOf.has(lesson)) group(versionOf.get(lesson)!).same_day.push(a);
+  }
+  return playbookOutcomes([...groups.values()], facts, numberSetting(ctx.db, 'memory_gap_hours'));
+}
+
 function examsReport(ctx: Ctx, subjectId?: string) {
   const finished = (
     subjectId === undefined
@@ -272,6 +299,8 @@ export interface ProgressReport {
   predictions: ReturnType<typeof predictionsReport>;
   /** Checkups from the examiner: the score on questions the tutor never saw, beside what memory expected (M12). */
   exams: ReturnType<typeof examsReport>;
+  /** Outcomes by the playbook version lessons were written under: before and after, not cause (M13). */
+  playbook_versions: ReturnType<typeof playbookReport>;
 }
 
 function conceptKey(ctx: Ctx, id: string): string {
@@ -330,6 +359,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     hypotheses: openHypotheses(ctx, subjectId),
     predictions: predictionsReport(ctx, subjectId),
     exams: examsReport(ctx, subjectId),
+    playbook_versions: playbookReport(ctx, facts, subjectId),
     concepts: {
       total: conceptRows.filter(c => c.status !== 'retired').length,
       introduced: conceptRows.filter(c => c.status === 'introduced').length,

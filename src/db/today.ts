@@ -7,6 +7,7 @@ import {addDays} from '../core/time.ts';
 import type {Feedback, Lesson, Quiz, Subject} from '../core/types.ts';
 import {getMark, setMark} from './database.ts';
 import {visibleFeedback} from './feedback.ts';
+import {unseenPlaybookChange} from './playbook.ts';
 import type {Ctx} from './context.ts';
 import {lessonForDay, readinessOf, unfinishedLessons} from './lessons.ts';
 import {dueConcepts} from './memory.ts';
@@ -43,6 +44,8 @@ export interface TodayView {
   practice_due: number;
   /** Proposals waiting on the learner: to decide, a question to answer, a branch to review. */
   improvements: number;
+  /** The tutor changed how it teaches since the learner last looked (M13). */
+  playbook_changed: {version: number; note: string; at: string} | null;
 }
 
 const REPLIES_SEEN = 'replies_seen';
@@ -106,8 +109,15 @@ export function todayView(ctx: Ctx): TodayView {
   });
   const seen = getMark(ctx.db, REPLIES_SEEN) ?? '';
   const replies = ctx.db.query("SELECT * FROM feedback WHERE reply IS NOT NULL AND replied_at > ? AND actor = 'you' ORDER BY replied_at DESC LIMIT 20").all(seen) as Feedback[];
-  // The examiner's replies on a checkup are the learner's to read, not the tutor's (M12).
-  return {day, subjects, replies: visibleFeedback(ctx, replies), practice_due: subjects.reduce((sum, s) => sum + s.practice_due, 0), improvements: needsYou(ctx)};
+  return {
+    day,
+    subjects,
+    // The examiner's replies on a checkup are the learner's to read, not the tutor's (M12).
+    replies: visibleFeedback(ctx, replies),
+    practice_due: subjects.reduce((sum, s) => sum + s.practice_due, 0),
+    improvements: needsYou(ctx),
+    playbook_changed: unseenPlaybookChange(ctx),
+  };
 }
 
 export function markRepliesSeen(ctx: Ctx): void {

@@ -159,6 +159,8 @@ export interface Lesson {
   finished: string | null;
   active_seconds: number;
   version: number;
+  /** The playbook version it was written under (M13); null before the playbook. */
+  playbook_version: number | null;
 }
 
 export interface Question {
@@ -255,4 +257,6 @@ export interface NoteVersion {
   actor: Actor;
   note: string;
   at: string;
+  /** The version this one restored (a revert), or null. */
+  restored_from: number | null;
 }

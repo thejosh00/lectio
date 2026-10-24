@@ -410,6 +410,45 @@ export function examOutcomes(facts: readonly ExamFact[], gapHours: number): Exam
   };
 }
 
+// --- playbook versions (M13) ----------------------------------------------------------
+
+/** The lessons written under one playbook version (null: before the playbook). */
+export interface PlaybookGroup {
+  version: number | null;
+  lessons: number;
+  /** Concepts those lessons introduced, as concept ids. */
+  introduced: string[];
+  /** First tries on the `new` items of their quizzes. */
+  same_day: AttemptFact[];
+}
+
+export interface PlaybookOutcome {
+  version: number | null;
+  lessons: number;
+  /** Concepts introduced under it, and their retention on later delayed reviews. */
+  concepts: number;
+  retention: Rate;
+  same_day_accuracy: Rate;
+}
+
+/**
+ * Outcomes by playbook version. Versions follow one another, so this compares before with
+ * after — the learner and the subjects change too — and never says a version caused anything.
+ */
+export function playbookOutcomes(groups: readonly PlaybookGroup[], attempts: readonly AttemptFact[], gapHours: number): PlaybookOutcome[] {
+  const reviewsOf = new Map<string, AttemptFact[]>();
+  for (const a of attempts) {
+    if (!isDelayedReview(a, gapHours)) continue;
+    for (const c of a.concepts) (reviewsOf.get(c) ?? reviewsOf.set(c, []).get(c)!).push(a);
+  }
+  return [...groups]
+    .sort((a, b) => (a.version ?? 0) - (b.version ?? 0))
+    .map(g => {
+      const reviews = g.introduced.flatMap(c => reviewsOf.get(c) ?? []);
+      return {version: g.version, lessons: g.lessons, concepts: g.introduced.length, retention: rate(reviews.filter(retained).length, reviews.length), same_day_accuracy: sameDayAccuracy(g.same_day)};
+    });
+}
+
 // --- load --------------------------------------------------------------------------
 
 export interface DayLoad {

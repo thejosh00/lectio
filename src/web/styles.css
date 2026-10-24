@@ -1534,6 +1534,32 @@ table.data th.num {
 
 /* --- notes and runs --------------------------------------------------------------------- */
 
+/* What changed between two versions of the playbook. */
+.diff {
+  font-size: 13px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.diff > div {
+  padding: 4px 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff .add {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.diff .del {
+  background: var(--danger-soft);
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+
 .notes .prose {
   font-size: 16px;
 }

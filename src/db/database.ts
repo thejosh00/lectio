@@ -308,6 +308,13 @@ const MIGRATIONS: string[] = [
   );
   CREATE UNIQUE INDEX quizzes_one_exam ON quizzes(subject_id, day) WHERE kind = 'exam';
   `,
+  `
+  -- M13: the living playbook. A version that restores an earlier one says which, so the
+  -- restored lines keep the owners they had; each lesson records the playbook version it
+  -- was written under (null before the playbook).
+  ALTER TABLE note_versions ADD COLUMN restored_from INTEGER;
+  ALTER TABLE lessons ADD COLUMN playbook_version INTEGER;
+  `,
 ];
 
 export interface OpenOptions {

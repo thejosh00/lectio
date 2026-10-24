@@ -21,15 +21,24 @@ export function noteHistory(ctx: Ctx, scope: string): NoteVersion[] {
   return ctx.db.query('SELECT * FROM note_versions WHERE scope = ? ORDER BY version DESC').all(scope) as NoteVersion[];
 }
 
-export function setNote(ctx: Ctx, scope: string, body: string, note: string): {note: NoteVersion; changed: boolean} {
-  const max = numberSetting(ctx.db, 'notes_max_bytes');
+export function setNote(
+  ctx: Ctx,
+  scope: string,
+  body: string,
+  note: string,
+  options: {cap?: 'notes_max_bytes' | 'playbook_max_bytes'; restoredFrom?: number} = {},
+): {note: NoteVersion; changed: boolean} {
+  const cap = options.cap ?? 'notes_max_bytes';
+  const max = numberSetting(ctx.db, cap);
   const size = byteLength(body);
-  if (size > max) throw failed(`the notes are ${size} bytes; the cap is ${max} (notes_max_bytes). Make them more concise: replace, don't append.`);
+  if (size > max) throw failed(`it is ${size} bytes; the cap is ${max} (${cap}). Make it more concise: replace, don't append.`);
   if (ctx.isAgent && note.trim() === '') throw usageError('say what changed and why: --note "…"');
   const latest = latestNote(ctx, scope);
   if (latest !== null && latest.body === body) return {note: latest, changed: false};
   const version = (latest?.version ?? 0) + 1;
-  ctx.db.query('INSERT INTO note_versions (scope, version, body, actor, note, at) VALUES (?, ?, ?, ?, ?, ?)').run(scope, version, body, ctx.actor, note.trim(), ctx.now());
+  ctx.db
+    .query('INSERT INTO note_versions (scope, version, body, actor, note, at, restored_from) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(scope, version, body, ctx.actor, note.trim(), ctx.now(), options.restoredFrom ?? null);
   ctx.event('note', scope, {kind: 'changed', scope, version, note: note.trim()});
   return {note: latestNote(ctx, scope)!, changed: true};
 }
@@ -37,17 +46,21 @@ export function setNote(ctx: Ctx, scope: string, body: string, note: string): {n
 /**
  * Which lines of the latest version the learner wrote. A line belongs to whoever first
  * wrote it in the unbroken run of versions that kept it, so the tutor can see what it
- * must never contradict.
+ * must never contradict. A version that restores an earlier one gives the lines it brings
+ * back the owners they had there: restoring the tutor's words doesn't make them yours.
  */
-export function learnerLines(history: readonly NoteVersion[]): string[] {
+export function learnerLines(history: readonly Pick<NoteVersion, 'version' | 'body' | 'actor' | 'restored_from'>[]): string[] {
   const ordered = [...history].sort((a, b) => a.version - b.version);
+  const ownersAt = new Map<number, Map<string, string>>();
   let owners = new Map<string, string>();
   for (const version of ordered) {
+    const restored = version.restored_from === null ? undefined : ownersAt.get(version.restored_from);
     const next = new Map<string, string>();
     for (const line of version.body.split('\n').map(l => l.trim()).filter(l => l !== '')) {
-      next.set(line, owners.get(line) ?? version.actor);
+      next.set(line, owners.get(line) ?? restored?.get(line) ?? version.actor);
     }
     owners = next;
+    ownersAt.set(version.version, next);
   }
   return [...owners].filter(([, actor]) => actor === 'you').map(([line]) => line);
 }

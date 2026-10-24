@@ -18,6 +18,7 @@ import {examRoutes} from './routes/exams.ts';
 import {feedbackRoutes} from './routes/feedback.ts';
 import {lessonRoutes} from './routes/lessons.ts';
 import {noteRoutes} from './routes/notes.ts';
+import {playbookRoutes} from './routes/playbook.ts';
 import {proposalRoutes} from './routes/proposals.ts';
 import {questionRoutes} from './routes/questions.ts';
 import {quizRoutes} from './routes/quizzes.ts';
@@ -35,6 +36,7 @@ const ROUTES: Route[] = [
   ...feedbackRoutes,
   ...questionRoutes,
   ...noteRoutes,
+  ...playbookRoutes,
   ...assetRoutes,
   ...proposalRoutes,
   ...tutorRoutes,

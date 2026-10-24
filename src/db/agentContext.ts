@@ -18,6 +18,7 @@ import {lessonDetail, listLessons, readinessOf, unfinishedLessons} from './lesso
 import {attemptFacts, progressReport} from './measures.ts';
 import {memoryOf} from './memory.ts';
 import {LEARNER_SCOPE, noteView, subjectScope} from './notes.ts';
+import {playbookView} from './playbook.ts';
 import {getQuestion} from './questions.ts';
 import {quizDetail, visibleQuizzes} from './quizzes.ts';
 import {lastFinishedRun, listRuns, openRunOf} from './runs.ts';
@@ -182,6 +183,8 @@ export function agentContext(ctx: Ctx, subjectId?: string) {
     },
     due: dueReport(ctx),
     learner_notes: noteView(ctx, LEARNER_SCOPE),
+    // How you teach (M13): yours to change, at most every playbook_min_days; empty until you seed it.
+    playbook: playbookView(ctx),
     subjects: subjects.map(s => subjectContext(ctx, s, since, contextSince)),
     regrade: awaitingRegrade(ctx)
       .filter(a => subjectId === undefined || getQuestion(ctx, a.question_id)?.subject_id === subjectId)

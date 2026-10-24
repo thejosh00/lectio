@@ -4,7 +4,7 @@
  * the learner relies on are broken.
  */
 import {describe, expect, test} from 'bun:test';
-import {approachOutcomes, calibration, misconceptions, observedDifficulty, predictions, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
+import {approachOutcomes, calibration, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
 
 let n = 0;
 function fact(over: Partial<AttemptFact>): AttemptFact {
@@ -153,5 +153,23 @@ describe('predictions', () => {
 
   test('nothing predicted, nothing to say', () => {
     expect(predictions([])).toMatchObject({n: 0, tutor: {brier: null}, formula: {brier: null}, skill: null, surprises: [], by_week: []});
+  });
+});
+
+describe('playbook versions', () => {
+  test('per version: concepts introduced, their delayed retention, and same-day accuracy on its lessons\' new items', () => {
+    const later = [fact({concepts: ['c1'], score: 1}), fact({concepts: ['c1'], score: 0}), fact({concepts: ['c2'], score: 1}), fact({concepts: ['c2'], gap_hours: 2})];
+    const outcomes = playbookOutcomes(
+      [
+        {version: 2, lessons: 1, introduced: ['c2'], same_day: [fact({role: 'new', gap_hours: 0.1, score: 1})]},
+        {version: null, lessons: 3, introduced: ['c1'], same_day: [fact({role: 'new', gap_hours: 0.1, score: 0}), fact({role: 'new', gap_hours: 0.1, score: 1})]},
+      ],
+      later,
+      20,
+    );
+    expect(outcomes).toEqual([
+      {version: null, lessons: 3, concepts: 1, retention: {n: 2, rate: 0.5}, same_day_accuracy: {n: 2, rate: 0.5}},
+      {version: 2, lessons: 1, concepts: 1, retention: {n: 1, rate: 1}, same_day_accuracy: {n: 1, rate: 1}},
+    ]);
   });
 });

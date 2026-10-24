@@ -83,6 +83,15 @@ export function TodayView() {
           <span aria-hidden>›</span>
         </a>
       )}
+      {data.playbook_changed && (
+        <a className="banner" href="#/tutor">
+          <span className="spacer">
+            Your tutor changed how it teaches
+            {data.playbook_changed.note ? `: ${data.playbook_changed.note.length > 90 ? `${data.playbook_changed.note.slice(0, 89).trimEnd()}…` : data.playbook_changed.note}` : ''}
+          </span>
+          <span aria-hidden>›</span>
+        </a>
+      )}
       {data.replies.length > 0 && (
         <div className="card from-tutor">
           <div className="row">

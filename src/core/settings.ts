@@ -54,6 +54,8 @@ export const SETTINGS: Record<string, SettingSpec> = {
   exam_days: {default: '7', summary: "days between a subject's checkups from the examiner", validate: integer(1)},
   exam_max_questions: {default: '8', summary: 'questions (and concepts) in one checkup', validate: integer(1)},
   exam_min_age_days: {default: '3', summary: 'days since a concept was introduced before a checkup may ask about it', validate: integer(0)},
+  playbook_max_bytes: {default: '16384', summary: "the tutor's playbook (how it teaches), in bytes", validate: integer(256)},
+  playbook_min_days: {default: '3', summary: 'days between changes the tutor makes to its playbook', validate: integer(0)},
   exam_expire_days: {default: '3', summary: "days a checkup waits to be finished before it's skipped", validate: integer(1)},
 };
 

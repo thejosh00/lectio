@@ -112,6 +112,20 @@ export interface TodayView {
   replies: Feedback[];
   practice_due: number;
   improvements?: number;
+  /** The tutor changed how it teaches since you last looked (M13). */
+  playbook_changed?: {version: number; note: string; at: string} | null;
+}
+
+/** The tutor's playbook (M13). */
+export interface PlaybookView {
+  scope: string;
+  body: string;
+  version: number;
+  actor: string | null;
+  note: string;
+  at: string | null;
+  learner_lines: string[];
+  next_change_from: string | null;
 }
 
 export interface Memory {
