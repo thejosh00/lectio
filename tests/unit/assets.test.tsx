@@ -25,7 +25,7 @@ test('anything else is not an image, whatever it is called', () => {
   expect(sniffImage(new Uint8Array())).toBeUndefined();
 });
 
-const ctx = (assets: string[]) => ({path: 'blocks[2].body', conceptKeys: new Set<string>(), assets: new Set(assets), questionRefs: new Set<string>(), limits: {widget_max_bytes: 1000}});
+const ctx = (assets: string[]) => ({path: 'blocks[2].body', conceptKeys: new Set<string>(), assets: new Set(assets), questionRefs: new Set<string>(), diagrams: new Map<string, string | null>(), limits: {widget_max_bytes: 1000}});
 const ID = 'a'.repeat(64);
 
 test('an image block needs an asset that exists and a non-empty alt', () => {

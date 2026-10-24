@@ -95,6 +95,13 @@ test('assets are served with their sniffed type, nosniff, a locked-down CSP and 
   expect((await fetch(`${lc.url}/assets/..%2Flectio.db`, auth)).status).toBe(404);
 });
 
+test('an asset asked for under a foreign host is refused, like every other route (R2)', async () => {
+  const id = (await lc.j(['asset', 'put', lc.file('x.svg', SVG)], TUTOR)).json.asset.id as string;
+  const response = await fetch(`${lc.url}/assets/${id}`, {headers: {host: 'evil.example', authorization: `Bearer ${lc.token('you')}`}});
+  expect(response.status).toBe(403);
+  expect((await response.json()).error).toContain('allowed_hosts');
+});
+
 test('a lesson may show an image only of an asset that exists, with an alt', async () => {
   const subject = await rustSubject(lc);
   const run = await startRun(lc);
