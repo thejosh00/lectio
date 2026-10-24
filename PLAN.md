@@ -1374,3 +1374,64 @@ Defaults are chosen so whoever builds this is never blocked, and any of them can
 | How many changes in flight? | One (`build_wip_max`). Raise it once reviews keep up |
 | Where do proposals live: in lectio, or as omnifactum tasks for `omni-work`? | In lectio, beside the evidence they cite and the outcomes that judge them. An export to omni could come later |
 | Can the tutor propose changes to its own skill? | Yes (`tutor_skill`), except `rules.md`, which is the learner's |
+
+## 17. Pushing the teacher (M11–M15)
+
+Four days into real use, the tutor's feedback was slow and its own: retention had one delayed
+review behind it, a hypothesis needs two delayed reviews per concept, and the tutor wrote both the
+lessons and the questions retention is measured on. These milestones give it fast, honest feedback it
+can't game, the freedom to change how it teaches with each change measured, and a measure of the
+learner's capacity to push against. They are built in one session, not through the loop, because each
+cuts across the schema, the measures and the contract; small changes still go to the queue (§11).
+
+Each one ships on its own. What doesn't move: the app makes no model calls, existing measures keep
+their definitions (new ones go beside them), `rules.md` and the settings are the learner's, and the
+learner ships.
+
+**M11 — Predictions.** Each quiz item carries the tutor's `predict`: the probability the first try
+scores 1. A new measure scores those predictions (Brier score, calibration bins, the biggest
+surprises) against what happened, beside a formula baseline on the same items (FSRS recall from the
+reviews before the quiz was written; trailing same-day accuracy for new items). The learner sees the
+prediction only once the answer is graded. The tutor aims new items at `target_accuracy` by
+prediction rather than by the 1–5 guess.
+*Done when:* a quiz with predictions, answered, gives the expected Brier scores for tutor and formula;
+the learner's view has no prediction before an answer is graded (after the self-grade for a free
+response); and a placement quiz with `predict` is refused.
+
+**M12 — The examiner.** A third agent, `agent:examiner`, writes a checkup each week from the
+syllabus: the app draws the concepts at random (never examined first) and stores the draw; the
+examiner sees each concept's title, summary and the objectives of the lesson that introduced it, but
+no lesson text, tutor questions, notes or memory. Exam attempts never count for memory and are left
+out of every existing measure; a new measure compares the checkup score with the recall the memory
+model expected. The tutor sees nothing of an exam until it is finished, then its results. Reads gain
+a `readers` list per route, so the examiner reads only its own routes. This is a fence against
+accidental leaks, not a security boundary: `rules.md` forbids another agent's token or reading the
+database directly.
+*Done when:* with an exam open and again once finished, every GET and the event stream, called as
+`agent:tutor`, show no exam question outside the finished results; exam attempts leave memory, the
+existing measures and other attempts' `gap_hours` unchanged; and an unfinished exam expires.
+
+**M13 — The living playbook.** The pedagogy (`teaching.md`) moves into lectio as a versioned
+document the tutor edits directly, at most every `playbook_min_days`, each version with its reason.
+Lessons record the version that wrote them, and a measure compares versions (before and after, not
+causal). The learner sees every change as a diff and reverts in one tap; a revert doesn't make the
+restored lines the learner's. `teaching.md` stays as the seed for a new instance.
+*Done when:* the cooldown, the note, a revert and learner lines behave as above, and lessons are
+stamped at submit and revise.
+
+**M14 — Two-arm lessons.** A lesson can name an experiment and tag blocks `arm: a|b`. The app assigns
+an arm with a biased coin (balanced, not predictable), shows the learner only their arm, and hides
+the assignment from agents until the lesson is finished. A measure compares arms with an interval and
+says "too few to say" under 10 reviews an arm; the tutor closes an experiment with a verdict.
+*Done when:* assignment stays balanced over 20 lessons, the learner sees one arm and agents both, and
+measures and reading time leave out the unshown arm.
+
+**M15 — Capacity.** A `throughput` measure: concepts introduced, minutes, the cohort's later
+retention, and retained concepts per hour. The fixed "0–2 new concepts a day" rule gives way to the
+playbook's dose rule: ramp while retention holds above a floor, deload when it doesn't, and a
+frontier day every four weeks (a placement-kind quiz probing past the edge).
+*Done when:* the measure is right on a fixed history and the skill's commands all exist.
+
+**Then, through the queue** (filed once M13 ships, so migrations don't collide): a `find_errors`
+question type, review credit flowing to prerequisites (Math Academy's FIRe), an `audio` block,
+"I'm stuck" answered in minutes, and an extra lesson on request.
