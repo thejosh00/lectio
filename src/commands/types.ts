@@ -12,6 +12,8 @@ export interface CommandIO {
   readStdin(): Promise<string>;
   /** Read a file the command names (`--file lesson.json`). */
   readFile(path: string): Promise<string>;
+  /** The same, as bytes (`asset put picture.png`). */
+  readBytes(path: string): Promise<Uint8Array>;
   env: Record<string, string | undefined>;
   /** For commands that must read before they write (`notes edit`), and the quiz. */
   call(call: ApiCall): Promise<ApiResult>;

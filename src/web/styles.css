@@ -1016,6 +1016,25 @@ h3 {
   font-size: 14px;
 }
 
+.image-block {
+  margin: 0;
+}
+
+.image-block img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.image-block .caption {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
 .code-block .output {
   margin-top: 4px;
   font-size: 13px;

@@ -169,6 +169,26 @@ export const tutorCommands: CommandDef[] = [
     },
   },
   {
+    name: 'asset put',
+    audience: 'tutor',
+    summary: 'store an image (SVG, PNG, JPEG, GIF, WebP) for an image block; prints its id (idempotent by content)',
+    usage: 'lectio asset put <file>',
+    build: async (args, io) => {
+      const file = need(args.positional[0], 'lectio asset put <file>');
+      let data: Uint8Array;
+      try {
+        data = await io.readBytes(file);
+      } catch (error) {
+        throw new CommandUsage(`can't read ${file}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return {method: 'POST', path: '/api/assets', body: {data_base64: Buffer.from(data).toString('base64')}};
+    },
+    human: body => {
+      const asset = body['asset'] as {id: string; mime: string; bytes: number};
+      return [`${body['existing'] === true ? 'already stored' : 'stored'}: ${asset.id} (${asset.mime}, ${asset.bytes} bytes)`];
+    },
+  },
+  {
     name: 'lesson revise',
     audience: 'tutor',
     summary: "replace a lesson's content while it hasn't been opened",

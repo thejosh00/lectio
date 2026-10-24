@@ -50,6 +50,17 @@ function CodeBlock({block}: BlockProps) {
   );
 }
 
+/** An SVG is shown only ever through `<img>`, where its scripts don't run. */
+function ImageBlock({block}: BlockProps) {
+  const caption = block.body['caption'];
+  return (
+    <figure className="image-block">
+      <img src={`/assets/${encodeURIComponent(String(block.body['asset'] ?? ''))}`} alt={String(block.body['alt'] ?? '')} loading="lazy" />
+      {typeof caption === 'string' && <figcaption className="caption">{caption}</figcaption>}
+    </figure>
+  );
+}
+
 function QuestionBlock({block, lessonId, onAnswered}: BlockProps) {
   if (block.question === undefined) return <p className="muted">(an inline check that is no longer available)</p>;
   return <QuestionCard question={block.question} answered={block.answered ?? null} where={{lesson: lessonId}} kicker="Check" {...(onAnswered === undefined ? {} : {onAnswered})} />;
@@ -61,6 +72,7 @@ export const BLOCK_RENDERERS: Record<string, ComponentType<BlockProps>> = {
   code: CodeBlock,
   question: QuestionBlock,
   diagram: DiagramBlock,
+  image: ImageBlock,
 };
 
 export function Block(props: BlockProps) {
