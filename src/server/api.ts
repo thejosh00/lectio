@@ -15,6 +15,7 @@ import {compile, errorResponse, json, readBody, whose, type CompiledRoute, type 
 import {assetRoutes} from './routes/assets.ts';
 import {attemptRoutes} from './routes/attempts.ts';
 import {examRoutes} from './routes/exams.ts';
+import {experimentRoutes} from './routes/experiments.ts';
 import {feedbackRoutes} from './routes/feedback.ts';
 import {lessonRoutes} from './routes/lessons.ts';
 import {noteRoutes} from './routes/notes.ts';
@@ -41,6 +42,7 @@ const ROUTES: Route[] = [
   ...proposalRoutes,
   ...tutorRoutes,
   ...examRoutes,
+  ...experimentRoutes,
   ...settingsRoutes,
 ];
 

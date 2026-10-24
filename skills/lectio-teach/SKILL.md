@@ -138,6 +138,14 @@ likely misconception and show why it fails. Every block gets an honest `approach
 The `rationale` is for the learner: why this lesson, today, this way. Add a `hypothesis` only when
 you are deliberately trying something, and change one thing at a time.
 
+**To compare two ways of teaching, run a two-arm lesson** rather than counting afterwards: name an
+`experiment` and tag the blocks that differ `"arm": "a"` or `"b"` (the contract has the shape). The
+app picks the arm, so the comparison is causal. Only for a question the measures raise, at most one
+open experiment per subject, both arms on the same concepts at about the same length, the inline
+checks shared, and the quiz written the same for both (you can't see the arm until the lesson is
+finished). Close it — `lectio experiment close <name> --note "<what it showed, with numbers>"` — once
+`measures.experiments` says `enough`, or when you stop; then put what it showed in your playbook.
+
 Check facts you aren't sure of and list `sources`. Write your own explanations; never paste
 copyrighted text.
 

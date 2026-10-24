@@ -315,6 +315,26 @@ const MIGRATIONS: string[] = [
   ALTER TABLE note_versions ADD COLUMN restored_from INTEGER;
   ALTER TABLE lessons ADD COLUMN playbook_version INTEGER;
   `,
+  `
+  -- M14: two-arm lessons. A lesson may name an experiment and tag some blocks with an arm;
+  -- the app picks which arm the learner sees and keeps the pick in its own table, so it is
+  -- read only where it is meant to be (the learner's view, and measures of finished lessons).
+  CREATE TABLE experiments (
+    name        TEXT PRIMARY KEY,
+    subject_id  TEXT NOT NULL REFERENCES subjects(id),
+    arms        TEXT NOT NULL,
+    status      TEXT NOT NULL,
+    verdict     TEXT,
+    opened      TEXT NOT NULL,
+    closed      TEXT
+  );
+  CREATE TABLE lesson_arms (
+    lesson_id  TEXT PRIMARY KEY REFERENCES lessons(id),
+    arm        TEXT NOT NULL
+  );
+  ALTER TABLE lessons ADD COLUMN experiment TEXT;
+  ALTER TABLE blocks ADD COLUMN arm TEXT;
+  `,
 ];
 
 export interface OpenOptions {

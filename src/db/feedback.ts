@@ -9,6 +9,7 @@ import {AppError, EXIT_USAGE, failed, notFound, usageError} from '../core/errors
 import {FEEDBACK_TARGETS, FIX_FLAGS, feedbackProblem, isFeedbackTarget, type FeedbackTarget} from '../core/feedbackKinds.ts';
 import {isResolution, RESOLUTIONS, type Feedback, type Resolution} from '../core/types.ts';
 import type {Ctx} from './context.ts';
+import {armOf} from './experiments.ts';
 import {resolveId, type RefKind} from './refs.ts';
 import {resolveSubject} from './subjects.ts';
 
@@ -33,6 +34,13 @@ export function addFeedback(ctx: Ctx, input: {target: FeedbackTarget; target_id:
   return getFeedback(ctx, id)!;
 }
 
+/** A block from the arm of a two-arm lesson the learner wasn't shown can't be reacted to (M14). */
+export function refuseUnshownBlock(ctx: Ctx, f: Pick<Feedback, 'target' | 'target_id'>): void {
+  if (f.target !== 'block') return;
+  const row = ctx.db.query('SELECT lesson_id, arm FROM blocks WHERE id = ?').get(f.target_id) as {lesson_id: string; arm: string | null} | null;
+  if (row !== null && row.arm !== null && row.arm !== armOf(ctx, row.lesson_id)) throw notFound(`no block "${f.target_id}" in what you were shown`);
+}
+
 /** An ask about an unfinished checkup would show the tutor its question: flag it instead, or ask once it's done. */
 export function refuseExamAsk(ctx: Ctx, f: Pick<Feedback, 'target' | 'target_id'>): void {
   const scope = examScope(ctx, f);
@@ -48,6 +56,7 @@ export function createFeedback(ctx: Ctx, input: {target: string | undefined; tar
   if (input.target === 'attempt') throw usageError('dispute an attempt with "lectio dispute <attempt>"');
   const targetId = input.target === 'subject' ? resolveSubject(ctx, input.target_id).id : resolveId(ctx, TARGET_REF[input.target], input.target_id);
   if (input.kind === 'ask') refuseExamAsk(ctx, {target: input.target, target_id: targetId});
+  refuseUnshownBlock(ctx, {target: input.target, target_id: targetId});
   return addFeedback(ctx, {target: input.target, target_id: targetId, kind: input.kind, note: input.note ?? ''});
 }
 

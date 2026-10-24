@@ -7,6 +7,7 @@ import {
   approachOutcomes,
   calibration,
   examOutcomes,
+  experimentOutcomes,
   load,
   misconceptions,
   outcomesBy,
@@ -19,6 +20,7 @@ import {
   sameDayAccuracyByWeek,
   type AttemptFact,
   type BlockFact,
+  type ArmGroup,
   type ExamFact,
   type Introduction,
   type PredictionFact,
@@ -199,14 +201,45 @@ function playbookReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: str
   }>) {
     if (versionOf.has(row.lesson_id)) group(versionOf.get(row.lesson_id)!).introduced.push(row.concept_id);
   }
-  const lessonOfAttempt = new Map(
+  for (const [lesson, attempts] of newItemsByLesson(ctx, facts)) if (versionOf.has(lesson)) group(versionOf.get(lesson)!).same_day.push(...attempts);
+  return playbookOutcomes([...groups.values()], facts, numberSetting(ctx.db, 'memory_gap_hours'));
+}
+
+/** First tries on the `new` items of each lesson's quizzes, by lesson id. */
+function newItemsByLesson(ctx: Ctx, facts: readonly AttemptFact[]): Map<string, AttemptFact[]> {
+  const lessonOf = new Map(
     (ctx.db.query("SELECT a.id, z.lesson_id FROM attempts a JOIN quizzes z ON z.id = a.quiz_id WHERE a.role = 'new' AND z.lesson_id IS NOT NULL").all() as Array<{id: string; lesson_id: string}>).map(r => [r.id, r.lesson_id]),
   );
+  const out = new Map<string, AttemptFact[]>();
   for (const a of facts) {
-    const lesson = lessonOfAttempt.get(a.id);
-    if (lesson !== undefined && versionOf.has(lesson)) group(versionOf.get(lesson)!).same_day.push(a);
+    const lesson = lessonOf.get(a.id);
+    if (lesson !== undefined) (out.get(lesson) ?? out.set(lesson, []).get(lesson)!).push(a);
   }
-  return playbookOutcomes([...groups.values()], facts, numberSetting(ctx.db, 'memory_gap_hours'));
+  return out;
+}
+
+/** Each experiment's finished lessons, split by the arm the learner saw (M14). */
+function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: string) {
+  const experiments = (
+    subjectId === undefined ? ctx.db.query('SELECT * FROM experiments ORDER BY opened').all() : ctx.db.query('SELECT * FROM experiments WHERE subject_id = ? ORDER BY opened').all(subjectId)
+  ) as Array<{name: string; arms: string; status: string; verdict: string | null}>;
+  if (experiments.length === 0) return [];
+  const newItems = newItemsByLesson(ctx, facts);
+  return experimentOutcomes(
+    experiments.map(e => {
+      const lessons = ctx.db
+        .query("SELECT l.id, la.arm FROM lessons l JOIN lesson_arms la ON la.lesson_id = l.id WHERE l.experiment = ? AND l.state = 'finished'")
+        .all(e.name) as Array<{id: string; arm: 'a' | 'b'}>;
+      const arm = (which: 'a' | 'b'): ArmGroup => {
+        const ids = lessons.filter(l => l.arm === which).map(l => l.id);
+        const introduced = ids.flatMap(id => (ctx.db.query("SELECT concept_id FROM lesson_concepts WHERE lesson_id = ? AND role = 'new'").all(id) as Array<{concept_id: string}>).map(r => r.concept_id));
+        return {lessons: ids.length, introduced, same_day: ids.flatMap(id => newItems.get(id) ?? [])};
+      };
+      return {name: e.name, arms: parseJson<{a: string; b: string}>(e.arms, {a: '', b: ''}), status: e.status, verdict: e.verdict, a: arm('a'), b: arm('b')};
+    }),
+    facts,
+    numberSetting(ctx.db, 'memory_gap_hours'),
+  );
 }
 
 function examsReport(ctx: Ctx, subjectId?: string) {
@@ -243,7 +276,10 @@ function introductions(ctx: Ctx, subjectId?: string): Introduction[] {
     )
     .all(...(subjectId === undefined ? [] : [subjectId])) as Array<{concept_id: string; key: string; lesson_id: string}>;
   return rows.map(row => {
-    const blocks = ctx.db.query('SELECT approach, concepts FROM blocks WHERE lesson_id = ?').all(row.lesson_id) as Array<{approach: string; concepts: string}>;
+    // In a two-arm lesson, only the arm the learner saw taught anything (M14).
+    const blocks = ctx.db
+      .query('SELECT approach, concepts FROM blocks WHERE lesson_id = ? AND (arm IS NULL OR arm = (SELECT arm FROM lesson_arms WHERE lesson_id = ?))')
+      .all(row.lesson_id, row.lesson_id) as Array<{approach: string; concepts: string}>;
     const approaches = [...new Set(blocks.filter(b => parseJson<string[]>(b.concepts, []).includes(row.key)).map(b => b.approach))];
     return {concept_id: row.concept_id, approaches};
   });
@@ -257,7 +293,8 @@ function blockFacts(ctx: Ctx, subjectId?: string): BlockFact[] {
       `SELECT b.id, b.approach, b.type, b.seen_seconds, b.completed,
          (SELECT COUNT(*) FROM feedback f WHERE f.target = 'block' AND f.target_id = b.id AND f.kind = 'helpful') AS helpful,
          (SELECT COUNT(*) FROM feedback f WHERE f.target = 'block' AND f.target_id = b.id AND f.kind = 'confusing') AS confusing
-       FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.state IN ('open', 'finished') ${subjectId === undefined ? '' : 'AND l.subject_id = ?'}`,
+       FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.state IN ('open', 'finished') ${subjectId === undefined ? '' : 'AND l.subject_id = ?'}
+         AND (b.arm IS NULL OR (l.state = 'finished' AND b.arm = (SELECT arm FROM lesson_arms WHERE lesson_id = l.id)))`,
     )
     .all(...(subjectId === undefined ? [] : [subjectId])) as Array<{approach: string; type: string; seen_seconds: number; completed: number; helpful: number; confusing: number}>;
   return rows.map(r => ({approach: r.approach, type: r.type, seen_seconds: r.seen_seconds, completed: r.completed === 1, completable: COMPLETABLE.has(r.type), helpful: r.helpful, confusing: r.confusing}));
@@ -301,6 +338,8 @@ export interface ProgressReport {
   exams: ReturnType<typeof examsReport>;
   /** Outcomes by the playbook version lessons were written under: before and after, not cause (M13). */
   playbook_versions: ReturnType<typeof playbookReport>;
+  /** Two-arm experiments: per arm, retention and same-day accuracy, and the difference with an interval (M14). */
+  experiments: ReturnType<typeof experimentsReport>;
 }
 
 function conceptKey(ctx: Ctx, id: string): string {
@@ -360,6 +399,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     predictions: predictionsReport(ctx, subjectId),
     exams: examsReport(ctx, subjectId),
     playbook_versions: playbookReport(ctx, facts, subjectId),
+    experiments: experimentsReport(ctx, facts, subjectId),
     concepts: {
       total: conceptRows.filter(c => c.status !== 'retired').length,
       introduced: conceptRows.filter(c => c.status === 'introduced').length,

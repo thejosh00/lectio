@@ -1,7 +1,7 @@
 import {notFound, usageError} from '../../core/errors.ts';
 import {fixBlock, finishLesson, getBlock, getLesson, lessonDetail, lessonForDay, unfinishedLessons, listLessons, openLesson, recordActivity, resolveBlock, resolveLesson, reviseLesson, setVerdict, skipLesson, submitLesson} from '../../db/lessons.ts';
 import {activeSubjects, resolveSubject} from '../../db/subjects.ts';
-import {addFeedback, refuseExamAsk} from '../../db/feedback.ts';
+import {addFeedback, refuseExamAsk, refuseUnshownBlock} from '../../db/feedback.ts';
 import {getQuestion} from '../../db/questions.ts';
 import {resolveId} from '../../db/refs.ts';
 import {markRepliesSeen, todayView} from '../../db/today.ts';
@@ -138,6 +138,7 @@ export const lessonRoutes: Route[] = [
         const target = blockId !== undefined && getBlock(ctx, blockId) !== undefined ? 'block' : 'question';
         if (target === 'question' && getQuestion(ctx, questionId!) === undefined) throw notFound(`no block or question "${ref ?? ''}"`);
         refuseExamAsk(ctx, {target, target_id: (blockId ?? questionId)!});
+        refuseUnshownBlock(ctx, {target, target_id: (blockId ?? questionId)!});
         return {feedback: addFeedback(ctx, {target, target_id: (blockId ?? questionId)!, kind: 'ask', note: str(req.body, 'note') ?? ''})};
       }),
   },

@@ -12,7 +12,8 @@ import {blockType} from '../blocks/index.ts';
 import {AppError, EXIT_ERROR, EXIT_USAGE, failed, notFound, usageError} from '../core/errors.ts';
 import {LESSON_RATINGS, SKIP_REASONS} from '../core/feedbackKinds.ts';
 import {lessonReadiness, type Readiness} from '../core/schedule.ts';
-import {Invalid, readBlock, readLesson, type LessonInput, type SubjectFacts} from '../core/submission.ts';
+import {armEstimates, Invalid, readBlock, readLesson, type LessonInput, type SubjectFacts} from '../core/submission.ts';
+import {armOf, drawArm, ensureExperiment, setArm} from './experiments.ts';
 import {Node} from '../core/validate.ts';
 import {isDay} from '../core/time.ts';
 import type {Block, ConceptRole, Feedback, Lesson, Question, Subject} from '../core/types.ts';
@@ -154,6 +155,10 @@ function budgetWarnings(input: LessonInput, subject: Subject): string[] {
   if (Math.abs(input.estimated_minutes - blocksMinutes) > Math.max(3, blocksMinutes * 0.5)) {
     warnings.push(`estimated_minutes is ${input.estimated_minutes}, but the blocks add up to about ${blocksMinutes}`);
   }
+  const arms = armEstimates(input.blocks);
+  if (input.experiment !== null && Math.max(arms.a, arms.b) > Math.min(arms.a, arms.b) * 1.25) {
+    warnings.push(`the arms take different time (a about ${Math.round(arms.a / 60)} min, b about ${Math.round(arms.b / 60)} min): time on task is a difference of its own; even them up`);
+  }
   return warnings;
 }
 
@@ -175,8 +180,8 @@ function insertContent(ctx: Ctx, lesson: {id: string; subject_id: string}, input
   input.blocks.forEach((block, position) => {
     const body = block.type === 'question' ? {...block.body, question_id: questionIds[String(block.body['ref'])]} : block.body;
     ctx.db
-      .query('INSERT INTO blocks (id, lesson_id, position, type, approach, concepts, body) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(ctx.newId(), lesson.id, position, block.type, block.approach, JSON.stringify(block.concepts), JSON.stringify(body));
+      .query('INSERT INTO blocks (id, lesson_id, position, type, approach, concepts, body, arm) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(ctx.newId(), lesson.id, position, block.type, block.approach, JSON.stringify(block.concepts), JSON.stringify(body), block.arm);
   });
   return questionIds;
 }
@@ -234,8 +239,22 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
       playbookVersion(ctx),
     );
   const questionIds = insertContent(ctx, {id, subject_id: subject.id}, lessonInput, runId, new Map());
+  assignExperiment(ctx, {id, subject_id: subject.id, experiment: null}, lessonInput);
   ctx.event('lesson', id, {kind: 'added', subject_id: subject.id, day, title: lessonInput.title});
   return {lesson: getLesson(ctx, id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};
+}
+
+/**
+ * A two-arm lesson's experiment and the arm its learner sees (M14). A revise keeps the arm
+ * while the experiment stays the same, and draws again when it changes.
+ */
+function assignExperiment(ctx: Ctx, lesson: {id: string; subject_id: string; experiment: string | null}, input: LessonInput): void {
+  const name = input.experiment?.name ?? null;
+  ctx.db.query('UPDATE lessons SET experiment = ? WHERE id = ?').run(name, lesson.id);
+  if (input.experiment === null) return setArm(ctx, lesson.id, null);
+  ensureExperiment(ctx, lesson.subject_id, input.experiment);
+  if (lesson.experiment === name && armOf(ctx, lesson.id) !== null) return;
+  setArm(ctx, lesson.id, drawArm(ctx, input.experiment.name));
 }
 
 /** The playbook version a lesson is written under now (M13); null before there is one. */
@@ -257,6 +276,7 @@ export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; 
     .query('UPDATE lessons SET title = ?, objectives = ?, estimated_minutes = ?, rationale = ?, hypothesis = ?, sources = ?, playbook_version = ?, version = version + 1 WHERE id = ?')
     .run(lessonInput.title, JSON.stringify(lessonInput.objectives), lessonInput.estimated_minutes, lessonInput.rationale, lessonInput.hypothesis, JSON.stringify(lessonInput.sources), playbookVersion(ctx), lesson.id);
   const questionIds = insertContent(ctx, lesson, lessonInput, lesson.run_id, keep);
+  assignExperiment(ctx, lesson, lessonInput);
   ctx.event('lesson', lesson.id, {kind: 'revised', version: lesson.version + 1, before});
   return {lesson: getLesson(ctx, lesson.id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};
 }
@@ -307,10 +327,12 @@ export function recordActivity(ctx: Ctx, lesson: Lesson, body: Record<string, un
   const blocks = node.get('blocks').optionalArray({max: 200});
   if (node.issues.length > 0) throw usageError(node.issues.map(i => `${i.path}: ${i.message}`).join('; '));
   if (seconds > 0) ctx.db.query('UPDATE lessons SET active_seconds = active_seconds + ? WHERE id = ?').run(seconds, lesson.id);
+  const arm = armOf(ctx, lesson.id);
   for (const b of blocks) {
     const id = b.get('id').string({max: 40});
     const block = id === undefined ? undefined : getBlock(ctx, id);
-    if (block === undefined || block.lesson_id !== lesson.id) continue;
+    // A block from the arm the learner wasn't shown can't have been read.
+    if (block === undefined || block.lesson_id !== lesson.id || (block.arm !== null && block.arm !== arm)) continue;
     const seen = Math.min(3600, Math.max(0, Math.floor(Number(b.get('seen_seconds').value ?? 0)) || 0));
     const interactions = Math.min(10_000, Math.max(0, Math.floor(Number(b.get('interactions').value ?? 0)) || 0));
     const errors = Math.min(1000, Math.max(0, Math.floor(Number(b.get('errors').value ?? 0)) || 0));
@@ -365,6 +387,8 @@ export interface BlockView extends Block {
 }
 
 export interface LessonDetail extends Lesson {
+  /** Agents only, once the lesson is finished: which arm of its experiment the learner saw (M14). */
+  assigned_arm?: 'a' | 'b' | null;
   subject: {id: string; title: string};
   concepts: Array<{key: string; title: string; role: ConceptRole; status: string}>;
   blocks: BlockView[];
@@ -378,10 +402,14 @@ export interface LessonDetail extends Lesson {
 export function lessonDetail(ctx: Ctx, lesson: Lesson): LessonDetail {
   const subject = getSubject(ctx, lesson.subject_id)!;
   const full = ctx.isAgent;
-  let seconds = 0;
-  const blocks: BlockView[] = blocksOf(ctx, lesson.id).map(block => {
+  // The learner sees the shared blocks and their arm; agents see both arms, labelled, and
+  // which one the learner got only once the lesson is finished.
+  const arm = armOf(ctx, lesson.id);
+  const shown = blocksOf(ctx, lesson.id).filter(block => full || block.arm === null || block.arm === arm);
+  const perArm = {shared: 0, a: 0, b: 0};
+  const blocks: BlockView[] = shown.map(block => {
     const type = blockType(block.type);
-    seconds += type?.estimateSeconds(block.body) ?? 0;
+    perArm[block.arm ?? 'shared'] += type?.estimateSeconds(block.body) ?? 0;
     const view: BlockView = {...block, text: type?.plainText(block.body) ?? `[${block.type}]`};
     if (block.type === 'question' && typeof block.body['question_id'] === 'string') {
       const question = getQuestion(ctx, block.body['question_id']);
@@ -396,7 +424,17 @@ export function lessonDetail(ctx: Ctx, lesson: Lesson): LessonDetail {
   const quiz = ctx.db.query("SELECT id, state, kind FROM quizzes WHERE lesson_id = ? AND kind IN ('daily', 'placement') ORDER BY added DESC LIMIT 1").get(lesson.id) as {id: string; state: string; kind: string} | null;
   const ids = [lesson.id, ...blocks.map(b => b.id)];
   const feedback = ctx.db.query(`SELECT * FROM feedback WHERE target IN ('lesson', 'block') AND target_id IN (${ids.map(() => '?').join(', ')}) ORDER BY at`).all(...ids) as Feedback[];
-  return {...lesson, subject: {id: subject.id, title: subject.title}, concepts: lessonConcepts(ctx, lesson.id), blocks, quiz, estimate_minutes: Math.max(1, Math.round(seconds / 60)), feedback};
+  const seconds = perArm.shared + Math.max(perArm.a, perArm.b);
+  return {
+    ...lesson,
+    ...(full && lesson.experiment !== null ? {assigned_arm: lesson.state === 'finished' ? arm : null} : {}),
+    subject: {id: subject.id, title: subject.title},
+    concepts: lessonConcepts(ctx, lesson.id),
+    blocks,
+    quiz,
+    estimate_minutes: Math.max(1, Math.round(seconds / 60)),
+    feedback,
+  };
 }
 
 export function requireLessonOf(ctx: Ctx, subjectId: string, ref: string): Lesson {

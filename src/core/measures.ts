@@ -449,6 +449,77 @@ export function playbookOutcomes(groups: readonly PlaybookGroup[], attempts: rea
     });
 }
 
+// --- two-arm experiments (M14) ---------------------------------------------------------
+
+/** The finished lessons of one arm of an experiment. */
+export interface ArmGroup {
+  lessons: number;
+  /** Concepts they introduced, as concept ids. */
+  introduced: string[];
+  /** First tries on the `new` items of their quizzes. */
+  same_day: AttemptFact[];
+}
+
+export interface ExperimentGroup {
+  name: string;
+  arms: {a: string; b: string};
+  status: string;
+  verdict: string | null;
+  a: ArmGroup;
+  b: ArmGroup;
+}
+
+export interface ArmOutcome {
+  /** How the arm teaches, as the tutor described it. */
+  description: string;
+  lessons: number;
+  concepts: number;
+  retention: Rate;
+  same_day_accuracy: Rate;
+}
+
+export interface ExperimentOutcome {
+  name: string;
+  status: string;
+  verdict: string | null;
+  a: ArmOutcome;
+  b: ArmOutcome;
+  /** Retention of a minus b, with a 90% interval; null until both arms have delayed reviews. */
+  difference: {retention: number; low: number; high: number} | null;
+  /** Whether both arms have at least `minReviews` delayed reviews. Below that: too few to say. */
+  enough: boolean;
+}
+
+/**
+ * Two-arm experiments: per arm, the concepts its lessons introduced and their retention on
+ * later delayed reviews, and same-day accuracy; then the difference with an interval. It
+ * reports, and never declares a winner.
+ */
+export function experimentOutcomes(groups: readonly ExperimentGroup[], attempts: readonly AttemptFact[], gapHours: number, minReviews = 10): ExperimentOutcome[] {
+  const reviewsOf = new Map<string, AttemptFact[]>();
+  for (const a of attempts) {
+    if (!isDelayedReview(a, gapHours)) continue;
+    for (const c of a.concepts) (reviewsOf.get(c) ?? reviewsOf.set(c, []).get(c)!).push(a);
+  }
+  const arm = (g: ArmGroup, description: string): ArmOutcome => {
+    const reviews = g.introduced.flatMap(c => reviewsOf.get(c) ?? []);
+    return {description, lessons: g.lessons, concepts: g.introduced.length, retention: rate(reviews.filter(retained).length, reviews.length), same_day_accuracy: sameDayAccuracy(g.same_day)};
+  };
+  return groups.map(g => {
+    const a = arm(g.a, g.arms.a);
+    const b = arm(g.b, g.arms.b);
+    let difference: ExperimentOutcome['difference'] = null;
+    if (a.retention.rate !== null && b.retention.rate !== null) {
+      const pa = a.retention.rate;
+      const pb = b.retention.rate;
+      const se = Math.sqrt((pa * (1 - pa)) / a.retention.n + (pb * (1 - pb)) / b.retention.n);
+      const d = pa - pb;
+      difference = {retention: round3(d), low: round3(d - 1.645 * se), high: round3(d + 1.645 * se)};
+    }
+    return {name: g.name, status: g.status, verdict: g.verdict, a, b, difference, enough: a.retention.n >= minReviews && b.retention.n >= minReviews};
+  });
+}
+
 // --- load --------------------------------------------------------------------------
 
 export interface DayLoad {

@@ -77,7 +77,8 @@ material when they have told you about them.
 ## Experiments
 
 Try something deliberately only when you have a reason (the measures suggest it), change **one**
-thing, and say so in `hypothesis`. Close it with a verdict once its concepts have two delayed reviews.
+thing, and say so in `hypothesis`. When the question is *which of two ways works better for this
+person*, make it a two-arm lesson: the app picks the arm, so the answer is cause, not coincidence. Close it with a verdict once its concepts have two delayed reviews.
 Write what you learn into the learner notes with counts — and keep the notes short enough to read.
 
 ## The learner's voice

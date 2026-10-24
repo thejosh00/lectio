@@ -81,7 +81,10 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
   // Which approaches taught each concept: the blocks on it in lessons that included it.
   const taughtBy = new Map<string, Set<string>>();
   for (const row of ctx.db
-    .query("SELECT b.approach, b.concepts FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.subject_id = ? AND l.state IN ('open', 'finished')")
+    .query(
+      `SELECT b.approach, b.concepts FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.subject_id = ? AND l.state IN ('open', 'finished')
+         AND (b.arm IS NULL OR (l.state = 'finished' AND b.arm = (SELECT arm FROM lesson_arms WHERE lesson_id = l.id)))`,
+    )
     .all(subject.id) as Array<{approach: string; concepts: string}>) {
     for (const key of JSON.parse(row.concepts) as string[]) (taughtBy.get(key) ?? taughtBy.set(key, new Set()).get(key)!).add(row.approach);
   }

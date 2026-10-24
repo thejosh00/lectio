@@ -133,6 +133,8 @@ export interface Block {
   completed: boolean;
   errors: number;
   last_error: string | null;
+  /** In a two-arm lesson (M14): the arm it belongs to, or null when every learner sees it. */
+  arm: 'a' | 'b' | null;
 }
 
 export interface Source {
@@ -161,6 +163,8 @@ export interface Lesson {
   version: number;
   /** The playbook version it was written under (M13); null before the playbook. */
   playbook_version: number | null;
+  /** The experiment it is part of (M14), by name; null for most lessons. */
+  experiment: string | null;
 }
 
 export interface Question {

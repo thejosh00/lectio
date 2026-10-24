@@ -4,7 +4,7 @@
  * the learner relies on are broken.
  */
 import {describe, expect, test} from 'bun:test';
-import {approachOutcomes, calibration, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
+import {approachOutcomes, calibration, experimentOutcomes, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
 
 let n = 0;
 function fact(over: Partial<AttemptFact>): AttemptFact {
@@ -171,5 +171,36 @@ describe('playbook versions', () => {
       {version: null, lessons: 3, concepts: 1, retention: {n: 2, rate: 0.5}, same_day_accuracy: {n: 2, rate: 0.5}},
       {version: 2, lessons: 1, concepts: 1, retention: {n: 1, rate: 1}, same_day_accuracy: {n: 1, rate: 1}},
     ]);
+  });
+});
+
+describe('two-arm experiments', () => {
+  const reviews = (concept: string, right: number, wrong: number) => [
+    ...Array.from({length: right}, () => fact({concepts: [concept], score: 1})),
+    ...Array.from({length: wrong}, () => fact({concepts: [concept], score: 0})),
+  ];
+  const group = (aConcepts: string[], bConcepts: string[]) => ({
+    name: 'worked_vs_problem_first',
+    arms: {a: 'worked first', b: 'problem first'},
+    status: 'open',
+    verdict: null,
+    a: {lessons: aConcepts.length, introduced: aConcepts, same_day: [fact({role: 'new', gap_hours: 0.1})]},
+    b: {lessons: bConcepts.length, introduced: bConcepts, same_day: []},
+  });
+
+  test('per arm: retention of what it introduced; the difference with a 90% interval once both have reviews', () => {
+    const [r] = experimentOutcomes([group(['c1'], ['c2'])], [...reviews('c1', 8, 2), ...reviews('c2', 5, 5)], 20);
+    expect(r!.a).toMatchObject({description: 'worked first', lessons: 1, concepts: 1, retention: {n: 10, rate: 0.8}, same_day_accuracy: {n: 1, rate: 1}});
+    expect(r!.b.retention).toEqual({n: 10, rate: 0.5});
+    // 0.3 ± 1.645 × √(0.8·0.2/10 + 0.5·0.5/10)
+    expect(r!.difference).toEqual({retention: 0.3, low: -0.033, high: 0.633});
+    expect(r!.enough).toBe(true);
+  });
+
+  test('too few reviews to say, or none in an arm', () => {
+    const [few] = experimentOutcomes([group(['c1'], ['c2'])], [...reviews('c1', 3, 0), ...reviews('c2', 1, 1)], 20);
+    expect(few!.enough).toBe(false);
+    const [none] = experimentOutcomes([group(['c1'], [])], reviews('c1', 3, 0), 20);
+    expect(none!.difference).toBeNull();
   });
 });

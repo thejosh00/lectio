@@ -17,9 +17,17 @@ interface Hypothesis {
   verdict: string | null;
 }
 
+interface Experiment {
+  name: string;
+  arms: {a: string; b: string};
+  status: 'open' | 'closed';
+  verdict: string | null;
+}
+
 export function TutorView() {
   const runs = useLoad<{runs: Run[]}>('/api/runs?limit=30');
   const hypotheses = useLoad<{hypotheses: Hypothesis[]}>('/api/hypotheses');
+  const experiments = useLoad<{experiments: Experiment[]}>('/api/experiments');
   return (
     <div>
       <h2 className="page">Your tutor</h2>
@@ -34,8 +42,26 @@ export function TutorView() {
       </div>
 
       <div className="section">What it is trying</div>
+      {(experiments.data?.experiments ?? []).length > 0 && (
+        <div className="card">
+          <p className="small-text muted" style={{marginTop: 0}}>
+            Comparing two ways of teaching: each lesson in a comparison shows you one of them, picked at random, so the result says which works for you.
+          </p>
+          <ul className="list">
+            {experiments.data!.experiments.map(e => (
+              <li key={e.name}>
+                <strong>{e.name.replace(/_/g, ' ')}</strong> <span className={`pill ${e.status === 'closed' ? 'tutor' : ''}`}>{e.status === 'closed' ? 'done' : 'running'}</span>
+                <div className="small-text">
+                  {e.arms.a} <span className="muted">or</span> {e.arms.b}
+                </div>
+                {e.verdict !== null && <div className="small-text">{e.verdict}</div>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {(hypotheses.data?.hypotheses ?? []).length === 0 ? (
-        <p className="muted small-text">Nothing yet. When your tutor tries a different way of teaching on purpose, it says so here, and later says how it went.</p>
+        (experiments.data?.experiments ?? []).length > 0 ? null : <p className="muted small-text">Nothing yet. When your tutor tries a different way of teaching on purpose, it says so here, and later says how it went.</p>
       ) : (
         <div className="card">
           <ul className="list">

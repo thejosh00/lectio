@@ -98,6 +98,14 @@ export interface BlockInput {
   concepts: string[];
   body: Record<string, unknown>;
   estimate_seconds: number;
+  /** In a two-arm lesson: the arm it belongs to; null when every learner sees it. */
+  arm: 'a' | 'b' | null;
+}
+
+/** A two-arm lesson's experiment (M14): what is being compared, by name, and how each arm teaches. */
+export interface ExperimentInput {
+  name: string;
+  arms: {a: string; b: string};
 }
 
 export interface LessonInput {
@@ -110,11 +118,18 @@ export interface LessonInput {
   concepts: Array<{key: string; role: ConceptRole}>;
   blocks: BlockInput[];
   questions: QuestionInput[];
-  /** The sum of the blocks' own estimates. */
+  /** The blocks' own estimates added up — the shared blocks and the longer arm. */
   estimate_seconds: number;
+  experiment: ExperimentInput | null;
 }
 
-const LESSON_FIELDS = ['title', 'objectives', 'estimated_minutes', 'rationale', 'hypothesis', 'sources', 'concepts', 'blocks', 'questions'];
+const LESSON_FIELDS = ['title', 'objectives', 'estimated_minutes', 'rationale', 'hypothesis', 'sources', 'concepts', 'blocks', 'questions', 'experiment'];
+
+/** What a learner reads of a two-arm lesson: the shared blocks and one arm. Only the longer arm counts toward the time. */
+export function armEstimates(blocks: readonly Pick<BlockInput, 'arm' | 'estimate_seconds'>[]): {shared: number; a: number; b: number} {
+  const sum = (arm: 'a' | 'b' | null) => blocks.filter(b => b.arm === arm).reduce((total, b) => total + b.estimate_seconds, 0);
+  return {shared: sum(null), a: sum('a'), b: sum('b')};
+}
 
 export function readSources(node: Node): Array<{title: string; url: string}> {
   const out: Array<{title: string; url: string}> = [];
@@ -127,9 +142,10 @@ export function readSources(node: Node): Array<{title: string; url: string}> {
   return out;
 }
 
-export function readBlock(node: Node, facts: SubjectFacts, questionRefs: ReadonlySet<string>): BlockInput | undefined {
-  const o = node.object(['type', 'approach', 'concepts', 'body']);
+export function readBlock(node: Node, facts: SubjectFacts, questionRefs: ReadonlySet<string>, options: {arms?: boolean} = {}): BlockInput | undefined {
+  const o = node.object(options.arms === true ? ['type', 'approach', 'concepts', 'body', 'arm'] : ['type', 'approach', 'concepts', 'body']);
   if (o === undefined) return undefined;
+  const arm = node.get('arm').present ? (node.get('arm').oneOf(['a', 'b'] as const) ?? null) : null;
   const typeNode = node.get('type');
   const typeName = typeNode.string({max: 32});
   const type = typeName === undefined ? undefined : blockType(typeName);
@@ -153,7 +169,11 @@ export function readBlock(node: Node, facts: SubjectFacts, questionRefs: Readonl
     return undefined;
   }
   if (approach === undefined) return undefined;
-  return {type: type.type, approach, concepts, body: checked.value as Record<string, unknown>, estimate_seconds: type.estimateSeconds(checked.value)};
+  if (arm !== null && type.type === 'question') {
+    node.get('arm').fail('an inline check is shared by both arms: a check in one arm only would be extra practice for that arm');
+    return undefined;
+  }
+  return {type: type.type, approach, concepts, body: checked.value as Record<string, unknown>, estimate_seconds: type.estimateSeconds(checked.value), arm};
 }
 
 /** A whole lesson submission. `raw` is the JSON as sent, for the size limit. */
@@ -205,11 +225,13 @@ export function readLesson(value: unknown, facts: SubjectFacts, raw?: string): L
     questions.push(question);
   }
 
+  const experiment = readExperiment(node.get('experiment'));
   const blockNodes = node.get('blocks').array({min: 1, max: facts.limits.lesson_max_blocks}) ?? [];
   const blocks: BlockInput[] = [];
   const usedRefs = new Set<string>();
   for (const b of blockNodes) {
-    const block = readBlock(b, facts, refs);
+    const block = readBlock(b, facts, refs, {arms: true});
+    if (block !== undefined && block.arm !== null && !node.get('experiment').present) b.get('arm').fail('arms belong to an experiment: name it in "experiment"');
     if (block === undefined) continue;
     if (block.type === 'question') {
       const ref = String(block.body['ref']);
@@ -223,7 +245,15 @@ export function readLesson(value: unknown, facts: SubjectFacts, raw?: string): L
     if (ref !== undefined && blockNodes.length > 0 && blocks.length === blockNodes.length && !usedRefs.has(ref)) q.get('ref').fail(`"${ref}" isn't used by any question block; put it in a block, or in the quiz instead`);
   });
 
+  if (experiment !== undefined && blocks.length === blockNodes.length) {
+    const concepts = (arm: 'a' | 'b') => [...new Set(blocks.filter(b => b.arm === arm).flatMap(b => b.concepts))].sort();
+    for (const arm of ['a', 'b'] as const) if (!blocks.some(b => b.arm === arm)) node.get('blocks').fail(`arm ${arm} has no blocks: tag at least one block "arm": "${arm}"`);
+    if (concepts('a').join(',') !== concepts('b').join(',')) {
+      node.get('blocks').fail(`the arms teach different concepts (a: ${concepts('a').join(', ') || 'none'}; b: ${concepts('b').join(', ') || 'none'}): an experiment compares two ways of teaching the same ideas`);
+    }
+  }
   if (node.issues.length > 0) throw new Invalid('lesson', node.issues);
+  const estimates = armEstimates(blocks);
   return {
     title: title!,
     objectives: objectives!,
@@ -234,8 +264,21 @@ export function readLesson(value: unknown, facts: SubjectFacts, raw?: string): L
     concepts,
     blocks,
     questions,
-    estimate_seconds: blocks.reduce((sum, b) => sum + b.estimate_seconds, 0),
+    estimate_seconds: estimates.shared + Math.max(estimates.a, estimates.b),
+    experiment: experiment ?? null,
   };
+}
+
+/** `experiment: {name, arms: {a, b}}`: a slug naming what is compared, and a line on how each arm teaches. */
+function readExperiment(node: Node): ExperimentInput | undefined {
+  if (!node.present) return undefined;
+  if (node.object(['name', 'arms']) === undefined) return undefined;
+  const name = node.get('name').string({max: 32, pattern: APPROACH_PATTERN, patternMessage: 'must be a lowercase slug of at most 32 characters, e.g. worked_vs_problem_first'});
+  const arms = node.get('arms');
+  if (arms.object(['a', 'b']) === undefined) return undefined;
+  const a = arms.get('a').string({max: 300});
+  const b = arms.get('b').string({max: 300});
+  return name === undefined || a === undefined || b === undefined ? undefined : {name, arms: {a, b}};
 }
 
 // --- quizzes -----------------------------------------------------------------------
