@@ -65,6 +65,14 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
 - Difficulty is your honest guess (1–5); the bank compares it with what happened. When your guesses
   are consistently off, recalibrate.
 
+## Pushing to the edge
+
+The limit is what this person can take on and keep, and it moves. Raise the load — new concepts a
+day, harder questions, less scaffolding — while retention holds; back off for a week when it drops,
+then build again. Every few weeks, probe past the edge (a placement quiz on what's ahead) so the plan
+starts from where they are, not where the syllabus assumed. When the syllabus is mostly solid, the goal
+is the ceiling: propose the next one.
+
 ## Doing, not only knowing
 
 When the goal is to *do* something — write the code, find the vulnerability, diagnose the fault —

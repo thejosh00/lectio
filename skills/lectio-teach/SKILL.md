@@ -118,13 +118,27 @@ For each subject in `due.subjects`:
   subject and the road ahead, 3–5 minutes, introducing at most the first concept) and a placement
   quiz (`--kind placement`): 4–8 `probe` items spread across the syllabus at rising difficulty. Next
   run, mark what the probes showed they know with `"status": "known"`.
-- **`ready`.** Choose 0–2 new concepts whose prerequisites have `recall_now` ≥ 0.8, are `known`, or
-  were introduced in the last day or two and answered right then (a concept has no memory until a
-  daily quiz or practice counts an answer on it — inline checks and placement probes don't).
-  Choose **0** when same-day accuracy has been well under target or due reviews are piling up — a
-  review day is a good day. Then choose reviews: due concepts with the lowest recall first, recent
-  misconceptions, anything rated `confusing`. Respect subject feedback (`slower`, `more_examples`…),
-  the learner's `goal` and `note`.
+- **`ready`.** Choose new concepts whose prerequisites have `recall_now` ≥ 0.8, are `known`, or were
+  introduced in the last day or two and answered right then (a concept has no memory until a daily
+  quiz or practice counts an answer on it — inline checks and placement probes don't). **How many is
+  the dose, and the dose is measured, not fixed:** start a subject at one or two a day. Each week, read
+  `measures.throughput`: while the latest weeks' cohorts hold their retention above the floor in your
+  playbook (0.8 if it names none) and same-day accuracy is within 0.1 of the target, raise the dose —
+  one more new concept a day, or harder material in the same time. When retention falls below the
+  floor two weeks running, deload: a week of reviews with at most one new concept a day, then build
+  again. The aim is the most retained concepts per hour this learner can sustain. Choose **0** on a day
+  when same-day accuracy has been well under target or due reviews are piling up — a review day is a
+  good day. Then choose reviews: due concepts with the lowest recall first, recent misconceptions,
+  anything rated `confusing`. Respect subject feedback (`slower`, `more_examples`…), the learner's
+  `goal` and `note`.
+- **Every four weeks, a frontier day** (`last_placement` is the last placement-kind quiz): write that
+  day's quiz with `--kind placement` instead of a daily quiz — 4–8 `probe` items past the edge, on
+  planned concepts and harder takes on introduced ones, at rising difficulty. Probes never count for
+  memory or retention. Next run, mark what they showed with `"status": "known"`, and re-aim the plan.
+- **The goal ladder.** When at least 80% of a subject's concepts are solid (`recall_now` ≥ 0.8, or
+  `known`), the syllabus has stopped being the ceiling: say so in the run summary and the plan, and
+  propose the next rung of the goal (from explaining it, to using it, to building with it, to judging
+  others' work). The goal is the learner's to change; you propose.
 - **Fit the budget** (`budget` in each subject's context): about 60% lesson, 40% quiz. Reading runs
   at about 200 words a minute, a question takes about 45 seconds. Shorter beats complete.
 - **Not ready** (`waiting`): leave it. Never stack lessons: a learner away for a week comes back to

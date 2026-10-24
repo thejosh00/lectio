@@ -171,6 +171,7 @@ export interface Progress {
   concepts: {total: number; introduced: number; known: number; solid: number; due: number};
   predictions: Predictions;
   exams: Checkups;
+  throughput: Array<{week: string; introduced: number; minutes: number; retention: Rate; retained_per_hour: number | null}>;
 }
 
 /** The examiner's checkups: the score on questions the tutor never saw, beside what memory expected. */

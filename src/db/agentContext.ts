@@ -149,6 +149,8 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
     // Checkups the learner finished since the last run, now there is nothing left to give away (M12).
     exams: examResults(ctx, subject.id, since),
     widget_errors: blocksWithErrors(ctx, subject.id),
+    // The last placement-kind quiz: the first one, or the latest frontier day (M15).
+    last_placement: (ctx.db.query("SELECT MAX(day) AS day FROM quizzes WHERE subject_id = ? AND kind = 'placement'").get(subject.id) as {day: string | null}).day,
     budget: {
       minutes_per_day: subject.minutes_per_day,
       lesson_minutes: lessonMinutes,

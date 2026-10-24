@@ -162,6 +162,21 @@ export function ProgressView({ships = []}: {ships?: Array<{week: string; label: 
           <CheckupsCard e={p.exams} />
 
           <div className="card chart-card">
+            <h3>Learned and kept, per hour</h3>
+            <p className="sub">New ideas each week, times the share still there on later reviews, for every hour you spent. Your tutor pushes this up while what you keep holds.</p>
+            {p.throughput.filter(w => w.retained_per_hour !== null).length === 0 ? (
+              <p className="muted small-text">This fills in once a week's new ideas have come back for review.</p>
+            ) : (
+              <Chart
+                ariaLabel="concepts learned and kept per hour, by week"
+                points={p.throughput.filter(w => w.retained_per_hour !== null).map(w => ({x: w.week, y: w.retained_per_hour!, note: `${w.introduced} new · ${Math.round(w.minutes)} min · ${w.retention.n} reviews`}))}
+                max={Math.max(1, ...p.throughput.map(w => w.retained_per_hour ?? 0))}
+                format={y => y.toFixed(1)}
+              />
+            )}
+          </div>
+
+          <div className="card chart-card">
             <h3>Same-day accuracy by week</h3>
             <p className="sub">First tries on new material. Much higher than the target means too easy; much lower, too hard.</p>
             {p.same_day_accuracy_by_week.length === 0 ? (

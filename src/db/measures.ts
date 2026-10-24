@@ -18,6 +18,7 @@ import {
   retentionByWeek,
   sameDayAccuracy,
   sameDayAccuracyByWeek,
+  throughput,
   type AttemptFact,
   type BlockFact,
   type ArmGroup,
@@ -242,6 +243,21 @@ function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: 
   );
 }
 
+/** Week by week: concepts introduced, minutes spent, and how much of it was kept (M15). */
+function throughputReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: string) {
+  const where = subjectId === undefined ? '' : 'AND subject_id = ?';
+  const params = subjectId === undefined ? [] : [subjectId];
+  const introductions = (ctx.db.query(`SELECT id, introduced FROM concepts WHERE introduced IS NOT NULL AND status != 'known' ${where}`).all(...params) as Array<{id: string; introduced: string}>).map(c => ({
+    concept_id: c.id,
+    day: ctx.dayOf(c.introduced),
+  }));
+  const minutes = [
+    ...(ctx.db.query(`SELECT day, active_seconds FROM lessons WHERE active_seconds > 0 ${where}`).all(...params) as Array<{day: string; active_seconds: number}>).map(l => ({day: l.day, minutes: l.active_seconds / 60})),
+    ...facts.filter(a => a.context !== 'lesson').map(a => ({day: a.day, minutes: a.seconds / 60})),
+  ];
+  return throughput({introductions, minutes, attempts: facts, gapHours: numberSetting(ctx.db, 'memory_gap_hours')});
+}
+
 function examsReport(ctx: Ctx, subjectId?: string) {
   const finished = (
     subjectId === undefined
@@ -340,6 +356,8 @@ export interface ProgressReport {
   playbook_versions: ReturnType<typeof playbookReport>;
   /** Two-arm experiments: per arm, retention and same-day accuracy, and the difference with an interval (M14). */
   experiments: ReturnType<typeof experimentsReport>;
+  /** Week by week: concepts introduced, minutes, their later retention, and retained concepts per hour (M15). */
+  throughput: ReturnType<typeof throughputReport>;
 }
 
 function conceptKey(ctx: Ctx, id: string): string {
@@ -400,6 +418,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     exams: examsReport(ctx, subjectId),
     playbook_versions: playbookReport(ctx, facts, subjectId),
     experiments: experimentsReport(ctx, facts, subjectId),
+    throughput: throughputReport(ctx, facts, subjectId),
     concepts: {
       total: conceptRows.filter(c => c.status !== 'retired').length,
       introduced: conceptRows.filter(c => c.status === 'introduced').length,

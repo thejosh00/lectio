@@ -520,6 +520,51 @@ export function experimentOutcomes(groups: readonly ExperimentGroup[], attempts:
   });
 }
 
+// --- throughput (M15) ------------------------------------------------------------------
+
+export interface ThroughputWeek {
+  week: string;
+  /** Concepts introduced that week (by the day their lesson was finished). */
+  introduced: number;
+  /** Minutes spent that week: reading lessons and answering quizzes. */
+  minutes: number;
+  /** That week's concepts on their later delayed reviews: did they stick? */
+  retention: Rate;
+  /** Introduced × retention ÷ hours: how much is learned and kept per hour spent. Null until the cohort has reviews. */
+  retained_per_hour: number | null;
+}
+
+/**
+ * How much the learner takes on and keeps, week by week: the measure to push on. More new
+ * concepts a week is only progress if they are retained; the floor on retention is the
+ * playbook's, not this measure's.
+ */
+export function throughput(input: {introductions: ReadonlyArray<{concept_id: string; day: string}>; minutes: ReadonlyArray<{day: string; minutes: number}>; attempts: readonly AttemptFact[]; gapHours: number}): ThroughputWeek[] {
+  const reviewsOf = new Map<string, AttemptFact[]>();
+  for (const a of input.attempts) {
+    if (!isDelayedReview(a, input.gapHours)) continue;
+    for (const c of a.concepts) (reviewsOf.get(c) ?? reviewsOf.set(c, []).get(c)!).push(a);
+  }
+  const weeks = new Map<string, {concepts: string[]; minutes: number}>();
+  const week = (day: string) => weeks.get(weekOf(day)) ?? weeks.set(weekOf(day), {concepts: [], minutes: 0}).get(weekOf(day))!;
+  for (const i of input.introductions) week(i.day).concepts.push(i.concept_id);
+  for (const m of input.minutes) week(m.day).minutes += m.minutes;
+  return [...weeks]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([w, {concepts, minutes}]) => {
+      const reviews = concepts.flatMap(c => reviewsOf.get(c) ?? []);
+      const retention = rate(reviews.filter(retained).length, reviews.length);
+      const hours = minutes / 60;
+      return {
+        week: w,
+        introduced: concepts.length,
+        minutes: Math.round(minutes * 10) / 10,
+        retention,
+        retained_per_hour: retention.rate === null || hours === 0 ? null : Math.round(((concepts.length * retention.rate) / hours) * 100) / 100,
+      };
+    });
+}
+
 // --- load --------------------------------------------------------------------------
 
 export interface DayLoad {

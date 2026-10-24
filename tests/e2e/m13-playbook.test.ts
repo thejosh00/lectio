@@ -92,3 +92,19 @@ test("Today says when the tutor changed how it teaches, until the learner has lo
   await setPlaybook('- problems first\n- mine', 'mine', {as: 'you'});
   expect((await lc.j(['today'])).json.playbook_changed).toBeNull();
 });
+
+test('the context says when the last placement-kind quiz was, and progress carries throughput (M15)', async () => {
+  const subject = await rustSubject(lc);
+  const run = await startRun(lc);
+  const placement = {
+    rationale: 'Where to start.',
+    items: [{role: 'probe', question: {type: 'short_text', aim: 'recall', difficulty: 1, concepts: ['stack-vs-heap'], prompt: 'Where do fixed-size locals live?', body: {accept: ['stack']}, explanation: 'On the stack.'}}],
+  };
+  expect((await lc.j(['quiz', 'submit', subject, '--day', lc.ctx().today(), '--run', run, '--kind', 'placement', '--file', lc.file('p.json', placement)], TUTOR)).code).toBe(0);
+  const context = (await lc.j(['context'], TUTOR)).json;
+  expect(context.subjects[0].last_placement).toBe(lc.ctx().today());
+  const lesson = await submitLesson(lc, subject, run);
+  await lc.j(['finish', lesson.json.lesson.id]);
+  const weeks = (await lc.j(['progress', '--subject', subject])).json.progress.throughput;
+  expect(weeks).toEqual([expect.objectContaining({week: '2026-09-07', introduced: 1, retained_per_hour: null})]);
+});

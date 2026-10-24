@@ -4,7 +4,7 @@
  * the learner relies on are broken.
  */
 import {describe, expect, test} from 'bun:test';
-import {approachOutcomes, calibration, experimentOutcomes, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
+import {approachOutcomes, calibration, experimentOutcomes, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, throughput, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
 
 let n = 0;
 function fact(over: Partial<AttemptFact>): AttemptFact {
@@ -202,5 +202,29 @@ describe('two-arm experiments', () => {
     expect(few!.enough).toBe(false);
     const [none] = experimentOutcomes([group(['c1'], [])], reviews('c1', 3, 0), 20);
     expect(none!.difference).toBeNull();
+  });
+});
+
+describe('throughput', () => {
+  test('per week: concepts introduced, minutes, their later retention, and retained concepts per hour', () => {
+    const weeks = throughput({
+      introductions: [
+        {concept_id: 'c1', day: '2026-09-14'},
+        {concept_id: 'c2', day: '2026-09-15'},
+        {concept_id: 'c3', day: '2026-09-22'},
+      ],
+      minutes: [
+        {day: '2026-09-14', minutes: 20},
+        {day: '2026-09-16', minutes: 10},
+        {day: '2026-09-22', minutes: 15},
+      ],
+      attempts: [fact({concepts: ['c1'], score: 1, day: '2026-09-18'}), fact({concepts: ['c2'], score: 0, day: '2026-09-18'}), fact({concepts: ['c2'], score: 1, gap_hours: 2})],
+      gapHours: 20,
+    });
+    // Week of the 14th: 2 concepts, 30 minutes, 1 of 2 delayed reviews retained → 2 × 0.5 ÷ 0.5 h.
+    expect(weeks).toEqual([
+      {week: '2026-09-14', introduced: 2, minutes: 30, retention: {n: 2, rate: 0.5}, retained_per_hour: 2},
+      {week: '2026-09-21', introduced: 1, minutes: 15, retention: {n: 0, rate: null}, retained_per_hour: null},
+    ]);
   });
 });
