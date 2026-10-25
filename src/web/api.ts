@@ -172,6 +172,14 @@ export interface Progress {
   predictions: Predictions;
   exams: Checkups;
   throughput: Array<{week: string; introduced: number; minutes: number; retention: Rate; retained_per_hour: number | null}>;
+  media: Array<{
+    type: string;
+    blocks: number;
+    with: {concepts: number} & Rate;
+    without: {concepts: number} & Rate;
+    experiments: Array<{name: string; difference: {retention: number; low: number; high: number} | null; enough: boolean}>;
+    ready: boolean;
+  }>;
 }
 
 /** The examiner's checkups: the score on questions the tutor never saw, beside what memory expected. */

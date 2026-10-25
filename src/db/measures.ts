@@ -9,6 +9,7 @@ import {
   examOutcomes,
   experimentOutcomes,
   load,
+  mediaOutcomes,
   misconceptions,
   outcomesBy,
   playbookOutcomes,
@@ -23,7 +24,9 @@ import {
   type BlockFact,
   type ArmGroup,
   type ExamFact,
+  type ExperimentMedia,
   type Introduction,
+  type MediaIntroduction,
   type PredictionFact,
 } from '../core/measures.ts';
 import {countedReviews, expectedRecall, reviewsOf} from '../core/memory.ts';
@@ -243,6 +246,23 @@ function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: 
   );
 }
 
+/** Each experiment's outcome with the block types its arms used, for the media measure (M16). */
+function experimentMedia(ctx: Ctx, outcomes: ReturnType<typeof experimentsReport>): ExperimentMedia[] {
+  return outcomes.map(outcome => {
+    const rows = ctx.db
+      .query('SELECT DISTINCT b.arm, b.type FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.experiment = ? AND b.arm IS NOT NULL')
+      .all(outcome.name) as Array<{arm: 'a' | 'b'; type: string}>;
+    return {outcome, a_types: rows.filter(r => r.arm === 'a').map(r => r.type), b_types: rows.filter(r => r.arm === 'b').map(r => r.type)};
+  });
+}
+
+/** What each block type does for the learner, across every subject or one (M16). */
+export function mediaReport(ctx: Ctx, subjectId?: string) {
+  const facts = attemptFacts(ctx, {subjectId});
+  const gap = numberSetting(ctx.db, 'memory_gap_hours');
+  return mediaOutcomes(introductions(ctx, subjectId), blockFacts(ctx, subjectId), facts, gap, experimentMedia(ctx, experimentsReport(ctx, facts, subjectId)));
+}
+
 /** Week by week: concepts introduced, minutes spent, and how much of it was kept (M15). */
 function throughputReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: string) {
   const where = subjectId === undefined ? '' : 'AND subject_id = ?';
@@ -281,8 +301,8 @@ function predictionsReport(ctx: Ctx, subjectId?: string) {
   };
 }
 
-/** Each introduced concept, and the approaches the introducing lesson used on it. */
-function introductions(ctx: Ctx, subjectId?: string): Introduction[] {
+/** Each introduced concept, and the approaches and block types the introducing lesson used on it. */
+function introductions(ctx: Ctx, subjectId?: string): Array<Introduction & MediaIntroduction> {
   const rows = ctx.db
     .query(
       `SELECT c.id AS concept_id, c.key, lc.lesson_id FROM concepts c
@@ -294,10 +314,10 @@ function introductions(ctx: Ctx, subjectId?: string): Introduction[] {
   return rows.map(row => {
     // In a two-arm lesson, only the arm the learner saw taught anything (M14).
     const blocks = ctx.db
-      .query('SELECT approach, concepts FROM blocks WHERE lesson_id = ? AND (arm IS NULL OR arm = (SELECT arm FROM lesson_arms WHERE lesson_id = ?))')
-      .all(row.lesson_id, row.lesson_id) as Array<{approach: string; concepts: string}>;
-    const approaches = [...new Set(blocks.filter(b => parseJson<string[]>(b.concepts, []).includes(row.key)).map(b => b.approach))];
-    return {concept_id: row.concept_id, approaches};
+      .query('SELECT approach, type, concepts FROM blocks WHERE lesson_id = ? AND (arm IS NULL OR arm = (SELECT arm FROM lesson_arms WHERE lesson_id = ?))')
+      .all(row.lesson_id, row.lesson_id) as Array<{approach: string; type: string; concepts: string}>;
+    const on = blocks.filter(b => parseJson<string[]>(b.concepts, []).includes(row.key));
+    return {concept_id: row.concept_id, approaches: [...new Set(on.map(b => b.approach))], types: [...new Set(on.map(b => b.type))]};
   });
 }
 
@@ -358,6 +378,8 @@ export interface ProgressReport {
   experiments: ReturnType<typeof experimentsReport>;
   /** Week by week: concepts introduced, minutes, their later retention, and retained concepts per hour (M15). */
   throughput: ReturnType<typeof throughputReport>;
+  /** What each block type does for the learner: retention with and without it, engagement, and the experiments that tested it (M16). */
+  media: ReturnType<typeof mediaOutcomes>;
 }
 
 function conceptKey(ctx: Ctx, id: string): string {
@@ -382,6 +404,9 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     if (memory.recall_now >= 0.8) solid++;
     if (memory.is_due) due++;
   }
+  const intros = introductions(ctx, subjectId);
+  const blocks = blockFacts(ctx, subjectId);
+  const experiments = experimentsReport(ctx, facts, subjectId);
   let loadReport: ProgressReport['load'] = null;
   if (subject !== undefined) {
     const since = addDaysIso(ctx.now(), -numberSetting(ctx.db, 'context_days'));
@@ -409,7 +434,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     target_accuracy: numberSetting(ctx.db, 'target_accuracy'),
     calibration: {...cal, sure_but_wrong: cal.sure_but_wrong.map(s => ({...s, key: conceptKey(ctx, s.concept_id)}))},
     misconceptions: misconceptions(recent).map(m => ({...m, concept_keys: m.concepts.map(c => conceptKey(ctx, c))})),
-    approaches: approachOutcomes(introductions(ctx, subjectId), blockFacts(ctx, subjectId), facts, gap),
+    approaches: approachOutcomes(intros, blocks, facts, gap),
     question_types: outcomesBy(facts, a => a.question_type, gap),
     aims: outcomesBy(facts, a => a.aim, gap),
     load: loadReport,
@@ -417,8 +442,9 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     predictions: predictionsReport(ctx, subjectId),
     exams: examsReport(ctx, subjectId),
     playbook_versions: playbookReport(ctx, facts, subjectId),
-    experiments: experimentsReport(ctx, facts, subjectId),
+    experiments,
     throughput: throughputReport(ctx, facts, subjectId),
+    media: mediaOutcomes(intros, blocks, facts, gap, experimentMedia(ctx, experiments)),
     concepts: {
       total: conceptRows.filter(c => c.status !== 'retired').length,
       introduced: conceptRows.filter(c => c.status === 'introduced').length,

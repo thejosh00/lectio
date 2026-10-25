@@ -30,6 +30,7 @@ import {Node, formatIssue} from '../core/validate.ts';
 import {parseJson, type Ctx} from './context.ts';
 import {resolveId, type RefKind} from './refs.ts';
 import {getRun, requireOpenRun} from './runs.ts';
+import {mediaReport} from './measures.ts';
 import {numberSetting} from './settings.ts';
 
 export interface Proposal {
@@ -55,6 +56,8 @@ export interface Proposal {
   outcome_note: string | null;
   added: string;
   changed: string;
+  /** The media type (block type) it adds, if any (M16). */
+  media: string | null;
 }
 
 export interface ProposalComment {
@@ -179,10 +182,10 @@ export function addProposal(ctx: Ctx, input: {proposal: unknown; run: string | u
   const now = ctx.now();
   ctx.db
     .query(
-      `INSERT INTO proposals (id, number, title, area, problem, change, success, evidence, support, priority, status, proposed_by, run_id, added, changed)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'normal', ?, ?, ?, ?, ?)`,
+      `INSERT INTO proposals (id, number, title, area, problem, change, success, evidence, support, priority, status, proposed_by, run_id, added, changed, media)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'normal', ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, number, p.title, p.area, p.problem, p.change, p.success, JSON.stringify(evidence), approveNow ? 'approved' : 'open', ctx.actor, run?.id ?? null, now, now);
+    .run(id, number, p.title, p.area, p.problem, p.change, p.success, JSON.stringify(evidence), approveNow ? 'approved' : 'open', ctx.actor, run?.id ?? null, now, now, p.media);
   ctx.event('proposal', id, {kind: 'added', number, area: p.area, status: approveNow ? 'approved' : 'open'});
   return {proposal: getProposal(ctx, id)!, caps: capsLeft(ctx, run)};
 }
@@ -337,6 +340,16 @@ export function recordOutcome(ctx: Ctx, proposal: Proposal, input: {outcome: str
   if (input.outcome === undefined || !(OUTCOMES as readonly string[]).includes(input.outcome)) throw usageError(`the outcome is one of ${OUTCOMES.join(', ')}`);
   const note = input.note?.trim() ?? '';
   if (note === '') throw usageError('say what you saw: --note "…"');
+  // Whether a media type helped is the measure's to show, not an impression's (M16).
+  if (proposal.media !== null && (input.outcome === 'helped' || input.outcome === 'no_difference')) {
+    const evidence = mediaReport(ctx).find(m => m.type === proposal.media);
+    if (evidence === undefined || !evidence.ready) {
+      throw failed(
+        `not enough evidence yet on ${proposal.media}: run a two-arm lesson setting it against an alternative until the experiment says enough, or wait for 10 delayed reviews each side (now ${evidence?.with.n ?? 0} with, ${evidence?.without.n ?? 0} without). got_in_the_way and unused can be recorded any time.`,
+        {why: 'not_enough_evidence', media: evidence ?? null},
+      );
+    }
+  }
   ctx.db.query('UPDATE proposals SET outcome = ?, outcome_note = ?, changed = ? WHERE id = ?').run(input.outcome, note, ctx.now(), proposal.id);
   comment(ctx, proposal, 'outcome', `${input.outcome}: ${note}`);
   ctx.event('proposal', proposal.id, {kind: 'outcome', number: proposal.number, outcome: input.outcome});
@@ -396,6 +409,7 @@ export function proposalsContext(ctx: Ctx, lastRun: Run | undefined) {
   const shipped = listProposals(ctx, {status: ['shipped']});
   const declined = listProposals(ctx, {status: ['declined']}).slice(0, 20);
   const run = ctx.isAgent ? ctx.db.query('SELECT id FROM agent_runs WHERE actor = ? AND finished IS NULL').get(ctx.actor) as {id: string} | null : null;
+  let media: ReturnType<typeof mediaReport> | undefined;
   return {
     open_proposals: open.map(brief),
     declined_proposals: declined.map(p => ({number: p.number, title: p.title, area: p.area, why: commentsOf(ctx, p.id).filter(c => c.kind === 'decision').at(-1)?.body ?? ''})),
@@ -411,7 +425,13 @@ export function proposalsContext(ctx: Ctx, lastRun: Run | undefined) {
     shipped_since_last_run: shipped.filter(p => p.shipped_at !== null && p.shipped_at >= since).map(p => ({...brief(p), shipped_at: p.shipped_at, success: p.success})),
     awaiting_outcome: shipped
       .filter(p => p.outcome === null)
-      .map(p => ({...brief(p), shipped_at: p.shipped_at, success: p.success, overdue: p.shipped_at !== null && daysBetween(ctx.dayOf(p.shipped_at), today) >= outcomeDays})),
+      .map(p => {
+        const days = p.shipped_at === null ? 0 : daysBetween(ctx.dayOf(p.shipped_at), today);
+        if (p.media === null) return {...brief(p), shipped_at: p.shipped_at, success: p.success, overdue: p.shipped_at !== null && days >= outcomeDays};
+        // A media type is judged from its measure: due once there is enough evidence, or long after shipping (M16).
+        const evidence = (media ??= mediaReport(ctx)).find(m => m.type === p.media) ?? null;
+        return {...brief(p), media: p.media, shipped_at: p.shipped_at, success: p.success, media_evidence: evidence, overdue: evidence?.ready === true || days >= outcomeDays * 3};
+      }),
     proposal_caps: capsLeft(ctx, run === null ? undefined : getRun(ctx, run.id)),
   };
 }

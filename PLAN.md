@@ -1432,6 +1432,18 @@ playbook's dose rule: ramp while retention holds above a floor, deload when it d
 frontier day every four weeks (a placement-kind quiz probing past the edge).
 *Done when:* the measure is right on a fixed history and the skill's commands all exist.
 
+**M16 — The media ladder.** Media types (image, diagram, steps, widget, audio, video) are rungs the
+tutor climbs on evidence. `lectio tools` runs where the tutor runs and says which tools the machine has
+and which media types they make possible; lectio never installs anything. A `block_type` proposal names
+the media type it adds (`media`); when it ships, the tutor's first uses of it are two-arm lessons against
+the best alternative it already has. A new measure, per block type: retention of what it taught against
+what was taught without it, engagement, and the experiments that set it against an alternative (with
+minus without, with an interval). The outcome of a media proposal waits for that evidence: `helped` and
+`no_difference` are refused until it is `ready`.
+*Done when:* an experiment whose arms differ by block type shows up under that type, oriented with
+minus without; a media proposal's `helped` is refused until its evidence is ready; and `lectio tools`
+answers with no server.
+
 **Then, through the queue** (filed once M13 ships, so migrations don't collide): a `find_errors`
 question type, review credit flowing to prerequisites (Math Academy's FIRe), an `audio` block,
 "I'm stuck" answered in minutes, and an extra lesson on request.

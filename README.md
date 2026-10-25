@@ -227,6 +227,13 @@ by hand with `lectio proposal shipped <n> --commit <sha>`, as you would for a bi
 accepts it or asks for another change, which goes back to the builder (`lectio proposal review <n>
 accept|changes`). Until then the Improvements page lists it under *With your tutor*.
 
+**Media types are a ladder.** Images and diagrams exist; step-throughs, animations, audio and video are
+added one at a time, when the tutor shows the need: ideas of one kind that keep failing however it
+teaches them with what it has. Its proposal names the media type, and `lectio tools` says whether this
+machine can make it (Chrome, ffmpeg, manim, `say`…; installing them is yours to do). Once shipped, the
+tutor tries the new type in two-arm lessons against the best alternative, and its outcome waits for
+that evidence. Progress shows, per media type, how what it taught was retained.
+
 **Guardrails.** People sit at both ends: nothing is built until you approve it and nothing runs
 until you ship it. `tests/guard/` pins what an agent's token can never do and what the measures
 mean; the builder never loosens a test to make a change pass.

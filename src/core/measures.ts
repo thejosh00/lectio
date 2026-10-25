@@ -565,6 +565,91 @@ export function throughput(input: {introductions: ReadonlyArray<{concept_id: str
     });
 }
 
+// --- media types (M16) ----------------------------------------------------------------
+
+/** A concept introduced by a lesson, and the block types that taught it there (the arm the learner saw). */
+export interface MediaIntroduction {
+  concept_id: string;
+  types: string[];
+}
+
+/** A two-arm experiment, with the block types each arm used. */
+export interface ExperimentMedia {
+  outcome: ExperimentOutcome;
+  a_types: string[];
+  b_types: string[];
+}
+
+export interface MediaExperiment {
+  name: string;
+  status: string;
+  verdict: string | null;
+  /** Retention with the media type minus without it, with a 90% interval. */
+  difference: {retention: number; low: number; high: number} | null;
+  enough: boolean;
+}
+
+export interface MediaOutcome {
+  type: string;
+  blocks: number;
+  /** Concepts introduced with it, and their later retention, against those introduced without it. Confounded: it is chosen for the ideas that need it. */
+  with: {concepts: number} & Rate;
+  without: {concepts: number} & Rate;
+  median_seen_seconds: number | null;
+  completion: Rate | null;
+  helpful: number;
+  confusing: number;
+  /** Two-arm experiments where one arm used it and the other didn't: the causal evidence. */
+  experiments: MediaExperiment[];
+  /** Whether there is enough to judge it: an experiment with `enough`, or 10 delayed reviews each side. */
+  ready: boolean;
+}
+
+/**
+ * What each block type does for this learner: retention of what it taught against what was
+ * taught without it, engagement, and — what settles it — the two-arm experiments that set
+ * it against an alternative. It reports, and never declares a winner.
+ */
+export function mediaOutcomes(intros: readonly MediaIntroduction[], blocks: readonly BlockFact[], attempts: readonly AttemptFact[], gapHours: number, experiments: readonly ExperimentMedia[]): MediaOutcome[] {
+  const reviewsOf = new Map<string, AttemptFact[]>();
+  for (const a of attempts) {
+    if (!isDelayedReview(a, gapHours)) continue;
+    for (const c of a.concepts) (reviewsOf.get(c) ?? reviewsOf.set(c, []).get(c)!).push(a);
+  }
+  const outcome = (concepts: readonly MediaIntroduction[]) => {
+    const reviews = concepts.flatMap(i => reviewsOf.get(i.concept_id) ?? []);
+    return {concepts: concepts.length, ...rate(reviews.filter(retained).length, reviews.length)};
+  };
+  const types = new Set<string>([...intros.flatMap(i => i.types), ...blocks.map(b => b.type)]);
+  types.delete('question');
+  return [...types].sort().map(type => {
+    const used = blocks.filter(b => b.type === type);
+    const completable = used.filter(b => b.completable);
+    const tested = experiments.flatMap(e => {
+      const inA = e.a_types.includes(type);
+      const inB = e.b_types.includes(type);
+      if (inA === inB) return [];
+      const d = e.outcome.difference;
+      const difference = d === null ? null : inA ? d : {retention: round3(-d.retention), low: round3(-d.high), high: round3(-d.low)};
+      return [{name: e.outcome.name, status: e.outcome.status, verdict: e.outcome.verdict, difference, enough: e.outcome.enough}];
+    });
+    const withIt = outcome(intros.filter(i => i.types.includes(type)));
+    const without = outcome(intros.filter(i => !i.types.includes(type)));
+    return {
+      type,
+      blocks: used.length,
+      with: withIt,
+      without,
+      median_seen_seconds: median(used.map(b => b.seen_seconds)),
+      completion: completable.length === 0 ? null : rate(completable.filter(b => b.completed).length, completable.length),
+      helpful: used.reduce((sum, b) => sum + b.helpful, 0),
+      confusing: used.reduce((sum, b) => sum + b.confusing, 0),
+      experiments: tested,
+      ready: tested.some(e => e.enough) || (withIt.n >= 10 && without.n >= 10),
+    };
+  });
+}
+
 // --- load --------------------------------------------------------------------------
 
 export interface DayLoad {

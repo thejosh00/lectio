@@ -33,6 +33,7 @@ const LOCAL_COMMANDS: Array<[string, string]> = [
   ['token', 'issue a token for an actor: lectio token you | agent:tutor | agent:builder | agent:examiner'],
   ['login', 'remember the server and a token: lectio login --url … --token … [--default]'],
   ['backup', 'copy the database now: lectio backup [--label …] | lectio backup restore <file> (server stopped)'],
+  ['tools', 'what the tutor can make here: the tools on this machine, and which media types they unlock'],
 ];
 
 const GROUPS: Array<[Audience, string]> = [
@@ -92,6 +93,8 @@ export interface RunOptions {
   /** One line of input at a time, for the interactive quiz. */
   readLine?: (prompt: string) => Promise<string | undefined>;
   shuffle?: <T>(items: readonly T[]) => T[];
+  /** How `lectio tools` looks for tools; injected so tests don't depend on the machine. */
+  tools?: import('./local/tools.ts').ToolDeps;
   clock?: () => number;
   /** Injected by tests so `serve` does not block. */
   serve?: (request: ServeRequest) => Promise<number>;
@@ -216,6 +219,14 @@ export async function run(options: RunOptions): Promise<number> {
     // Tighten what an older version created world-readable (fileModes.ts).
     secureDataDir({dataDir, files: [...dbFiles(DB_FILE), CLIENT_FILE], dirs: [BACKUP_DIR]});
     return (options.serve ?? serve)({dbPath, dataDir, hostname: host, port, development: args.booleans.has('dev'), out});
+  }
+
+  if (name === 'tools') {
+    const {realToolDeps, toolsReport, toolsText} = await import('./local/tools.ts');
+    const report = toolsReport(options.tools ?? realToolDeps(env));
+    if (json) emitJson({ok: true, ...report});
+    else for (const line of toolsText(report)) out(line);
+    return EXIT_OK;
   }
 
   if (name === 'service') {

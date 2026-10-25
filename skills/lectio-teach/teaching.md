@@ -30,7 +30,8 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   from this learner's own misconception tags: which line is wrong, and why? (a `multiple_choice` over
   the lines). Explaining someone else's mistake is strong practice.
 - **Pair words with a picture only when the picture shows the mechanism** — a trace of who owns a
-  buffer, a diagram of a cycle. Never as decoration.
+  buffer, a diagram of a cycle. Never as decoration. Richer media (animation, audio, video) earn their
+  place the same way: by a two-arm lesson against something cheaper, on this learner.
 - **Short.** Fit the budget. If it doesn't fit, cut the least important idea, not the examples.
 - **Honest approaches.** Label every block with how it actually teaches (`worked_example`,
   `analogy`, `misconception`…) and the concepts it serves. That is how outcomes find their way back

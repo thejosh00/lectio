@@ -335,6 +335,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE lessons ADD COLUMN experiment TEXT;
   ALTER TABLE blocks ADD COLUMN arm TEXT;
   `,
+  `
+  -- M16: the media type a proposal adds (a block type such as widget or video), so its
+  -- outcome can be judged from that type's measure rather than from an impression.
+  ALTER TABLE proposals ADD COLUMN media TEXT;
+  `,
 ];
 
 export interface OpenOptions {

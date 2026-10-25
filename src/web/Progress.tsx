@@ -240,6 +240,18 @@ export function ProgressView({ships = []}: {ships?: Array<{week: string; label: 
             rows={p.approaches.filter(a => a.with.concepts > 0).map(a => ({name: a.approach, cells: [`${a.with.concepts}`, rateText(a.with), rateText(a.without)]}))}
           />
           <OutcomeTable
+            title="Kinds of media"
+            note="Concepts taught with it · retained (n) · taught without it, retained (n) · against an alternative, head to head"
+            rows={p.media
+              .filter(m => m.blocks > 0 && !['markdown', 'callout', 'code'].includes(m.type))
+              .map(m => {
+                const tested = m.experiments.find(e => e.difference !== null);
+                const points = (x: number) => `${x > 0 ? '+' : ''}${Math.round(x * 100)}`;
+                const head = tested?.difference ? `${points(tested.difference.retention)} pts${tested.enough ? '' : ' (early)'}` : '—';
+                return {name: m.type, cells: [`${m.with.concepts}`, rateText(m.with), rateText(m.without), head]};
+              })}
+          />
+          <OutcomeTable
             title="Kinds of question"
             note="Retained on later reviews (n) · right first time, same day (n)"
             rows={p.question_types.map(g => ({name: g.group, cells: [rateText(g.retention), rateText(g.same_day_accuracy)]}))}

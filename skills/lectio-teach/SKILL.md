@@ -42,6 +42,9 @@ lectio context --json
 lectio agents
 ```
 
+Once per session, also see what you can make here — the tools on this machine and the media types they
+unlock (`lectio tools --json`; it runs locally, no server needed).
+
 ## 2. Start
 
 ```bash
@@ -202,6 +205,15 @@ refusal that didn't say what to do instead)? If so, `support` the open proposal 
 one — `lectio proposal add --file p.json --run <run>`, shape and examples in the contract. Most runs
 have none. Never re-propose something in `declined_proposals`.
 
+**Media types are a ladder you climb on evidence** (contract: "Media types"). Ask for the next one —
+a `block_type` proposal with `media` naming it — only when ideas of one kind (a process, a motion, a
+place) keep failing their reviews however you teach them with what you have, and only after the
+cheaper rungs: a step-through before an animation, an animation before a video. `lectio tools` says
+what the machine can make; if the new type needs a tool it lacks, say so in `change` — installing
+software is the learner's call. When a media type ships, your first uses of it are two-arm lessons
+against the best alternative you already have, on the same concepts at the same length; that is how
+you tell help from novelty.
+
 **See what shipped for you.** Each proposal in `to_review` is one of yours that is now running.
 Read `lectio agents` again (the contract changed with it) and the `handback` for what the builder
 did, and use it where today's lesson calls for it. If it lets you do what you couldn't (the `problem`
@@ -217,7 +229,10 @@ mean it helped — that is the outcome, once you have used it for a while.
 
 Then, for each proposal in `awaiting_outcome` you have now used enough to judge (or that is
 `overdue`), record its outcome: `lectio proposal outcome <n> helped|no_difference|got_in_the_way|unused
---note "<evidence>"`. Be honest; `no_difference` is useful.
+--note "<evidence>"`. Be honest; `no_difference` is useful. A media type's outcome comes from its
+`media_evidence` once it is `ready` (the server refuses `helped` or `no_difference` before then): cite
+the experiments' differences and intervals, then write into your playbook which kinds of idea it helps
+and which it doesn't.
 
 **When `retro_due`:** look back over the week — the measures, approach outcomes, hypotheses, flags,
 skips, and shipped proposals' outcomes — and ask: *what one change to lectio would most improve how

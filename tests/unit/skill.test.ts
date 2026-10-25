@@ -7,7 +7,7 @@ import {describe, expect, test} from 'bun:test';
 import {matchCommand} from '../../src/commands/index.ts';
 
 const read = (path: string) => Bun.file(new URL(`../../skills/${path}`, import.meta.url)).text();
-const LOCAL = new Set(['--version', 'token', 'login', 'serve', 'service', 'backup']);
+const LOCAL = new Set(['--version', 'token', 'login', 'serve', 'service', 'backup', 'tools']);
 
 function commandsIn(text: string): string[] {
   const blocks = [...text.matchAll(/```bash\n([\s\S]*?)```/g)].flatMap(m => m[1]!.split('\n'));

@@ -46,6 +46,8 @@ export interface ProposalInput {
   change: string;
   success: string;
   evidence: Evidence[];
+  /** The media type (block type) it adds, when it adds one (M16): its outcome is judged from that type's measure. */
+  media: string | null;
 }
 
 /** The edges of the lifecycle: action → the statuses it may start from, and where it goes. */
@@ -99,7 +101,7 @@ export function readEvidence(node: Node): Evidence[] {
 /** A proposal as filed. Every problem is listed by path. */
 export function readProposal(value: unknown): {value?: ProposalInput; issues: Issue[]} {
   const node = Node.root(value);
-  const o = node.object(['title', 'area', 'problem', 'change', 'success', 'evidence']);
+  const o = node.object(['title', 'area', 'problem', 'change', 'success', 'evidence', 'media']);
   if (o === undefined) return {issues: node.issues};
   const title = node.get('title').string({max: 120});
   const area = node.get('area').oneOf(AREAS);
@@ -107,8 +109,10 @@ export function readProposal(value: unknown): {value?: ProposalInput; issues: Is
   const change = node.get('change').string({max: 4000});
   const success = node.get('success').string({max: 2000});
   const evidence = readEvidence(node.get('evidence'));
+  const media = node.get('media').optionalString({max: 32, pattern: /^[a-z][a-z0-9_]*$/, patternMessage: 'must be the block type it adds, e.g. widget'});
+  if (media !== undefined && area !== 'block_type') node.get('media').fail('only a block_type proposal adds a media type');
   if (node.issues.length > 0 || title === undefined || area === undefined || problem === undefined || change === undefined || success === undefined) return {issues: node.issues};
-  return {value: {title: title.trim(), area, problem: problem.trim(), change: change.trim(), success: success.trim(), evidence}, issues: []};
+  return {value: {title: title.trim(), area, problem: problem.trim(), change: change.trim(), success: success.trim(), evidence, media: media ?? null}, issues: []};
 }
 
 /** `lectio/p12-flashcard-block`: the branch a proposal is built on. */
