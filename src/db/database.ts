@@ -340,6 +340,11 @@ const MIGRATIONS: string[] = [
   -- outcome can be judged from that type's measure rather than from an impression.
   ALTER TABLE proposals ADD COLUMN media TEXT;
   `,
+  `
+  -- #4: the labels an SVG asset gives the reader (its <text> elements), for its block's time
+  -- estimate. NULL until counted: assets stored before this are counted from their bytes.
+  ALTER TABLE assets ADD COLUMN labels INTEGER;
+  `,
 ];
 
 export interface OpenOptions {

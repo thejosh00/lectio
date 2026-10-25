@@ -29,5 +29,6 @@ export const questionBlock: BlockType<QuestionBlockBody> = {
   },
   plainText: body => `[Check: ${body.ref}]`,
   estimateSeconds: () => SECONDS_PER_QUESTION,
+  timed: `${SECONDS_PER_QUESTION} s`,
   tracks: ['seen'],
 };

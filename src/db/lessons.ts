@@ -9,6 +9,7 @@
  * while an earlier one is unfinished, and re-submitting a day returns what is there.
  */
 import {blockType} from '../blocks/index.ts';
+import {SECONDS_PER_WORD} from '../blocks/types.ts';
 import {AppError, EXIT_ERROR, EXIT_USAGE, failed, notFound, usageError} from '../core/errors.ts';
 import {LESSON_RATINGS, SKIP_REASONS} from '../core/feedbackKinds.ts';
 import {lessonReadiness, type Readiness} from '../core/schedule.ts';
@@ -20,6 +21,7 @@ import type {Block, ConceptRole, Feedback, Lesson, Question, Subject} from '../c
 import {latestAttempt, outcomeOf, type Outcome} from './attemptRows.ts';
 import {conceptIds, conceptStatuses} from './concepts.ts';
 import {parseJson, type Ctx} from './context.ts';
+import {assetLabels} from './assets.ts';
 import {addFeedback, resolveFeedbackRows} from './feedback.ts';
 import {getQuestion, insertQuestion, learnerView, retireQuestion, rewriteQuestion, type LearnerQuestion} from './questions.ts';
 import {resolveId} from './refs.ts';
@@ -128,6 +130,7 @@ export function subjectFacts(ctx: Ctx, subjectId: string, diagrams: ReadonlyMap<
   return {
     concepts: conceptStatuses(ctx, subjectId),
     assets: new Set((ctx.db.query('SELECT id FROM assets').all() as Array<{id: string}>).map(r => r.id)),
+    assetLabels: assetLabels(ctx),
     diagrams,
     limits: {lesson_max_blocks: n('lesson_max_blocks'), lesson_max_bytes: n('lesson_max_bytes'), widget_max_bytes: n('widget_max_bytes'), quiz_max_questions: n('quiz_max_questions')},
   };
@@ -157,9 +160,44 @@ function budgetWarnings(input: LessonInput, subject: Subject): string[] {
   }
   const arms = armEstimates(input.blocks);
   if (input.experiment !== null && Math.max(arms.a, arms.b) > Math.min(arms.a, arms.b) * 1.25) {
-    warnings.push(`the arms take different time (a about ${Math.round(arms.a / 60)} min, b about ${Math.round(arms.b / 60)} min): time on task is a difference of its own; even them up`);
+    const [longer, shorter] = arms.a > arms.b ? (['a', 'b'] as const) : (['b', 'a'] as const);
+    const gap = arms[longer] - arms[shorter];
+    const percent = arms[shorter] === 0 ? '' : `, ${Math.round((gap / arms[shorter]) * 100)}% more`;
+    warnings.push(
+      `the arms take different time: ${longer} about ${arms[longer]} s, ${shorter} about ${arms[shorter]} s (${longer} is ${gap} s longer${percent}). ` +
+        `Time on task is a difference of its own: even them up to within a quarter, by about ${Math.ceil(gap / SECONDS_PER_WORD)} words of text. arm_seconds has each block's share`,
+    );
   }
   return warnings;
+}
+
+/** Each arm's estimate and its blocks', for evening the arms up; null for a lesson without an experiment. */
+export interface ArmSeconds {
+  shared: number;
+  a: number;
+  b: number;
+  longer: 'a' | 'b' | null;
+  /** Each arm's blocks and their estimates; `position` is the block's index in `blocks`. */
+  blocks: {a: ArmBlock[]; b: ArmBlock[]};
+}
+
+interface ArmBlock {
+  position: number;
+  type: string;
+  seconds: number;
+}
+
+const armBlocks = (input: LessonInput, arm: 'a' | 'b'): ArmBlock[] =>
+  input.blocks.flatMap((block, position) => (block.arm === arm ? [{position, type: block.type, seconds: block.estimate_seconds}] : []));
+
+function armSeconds(input: LessonInput): ArmSeconds | null {
+  if (input.experiment === null) return null;
+  const arms = armEstimates(input.blocks);
+  return {
+    ...arms,
+    longer: arms.a === arms.b ? null : arms.a > arms.b ? 'a' : 'b',
+    blocks: {a: armBlocks(input, 'a'), b: armBlocks(input, 'b')},
+  };
 }
 
 function insertContent(ctx: Ctx, lesson: {id: string; subject_id: string}, input: LessonInput, runId: string | null, keep: Map<string, Question>): Record<string, string> {
@@ -191,6 +229,8 @@ export interface SubmitResult {
   existing: boolean;
   question_ids: Record<string, string>;
   estimate_minutes: number;
+  /** A two-arm lesson's estimate per arm, in seconds; null without an experiment. */
+  arm_seconds: ArmSeconds | null;
   warnings: string[];
 }
 
@@ -209,7 +249,7 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
   const existing = lessonForDay(ctx, subject.id, day);
   if (existing !== undefined) {
-    return {lesson: existing, existing: true, question_ids: questionIdsOf(ctx, existing.id), estimate_minutes: existing.estimated_minutes, warnings: []};
+    return {lesson: existing, existing: true, question_ids: questionIdsOf(ctx, existing.id), estimate_minutes: existing.estimated_minutes, arm_seconds: null, warnings: []};
   }
   const today = ctx.today();
   if (day !== today) throw failed(`lessons are written for today (${today}), not ${day}`, {today});
@@ -241,7 +281,7 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   const questionIds = insertContent(ctx, {id, subject_id: subject.id}, lessonInput, runId, new Map());
   assignExperiment(ctx, {id, subject_id: subject.id, experiment: null}, lessonInput);
   ctx.event('lesson', id, {kind: 'added', subject_id: subject.id, day, title: lessonInput.title});
-  return {lesson: getLesson(ctx, id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};
+  return {lesson: getLesson(ctx, id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), arm_seconds: armSeconds(lessonInput), warnings: budgetWarnings(lessonInput, subject)};
 }
 
 /**
@@ -278,7 +318,7 @@ export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; 
   const questionIds = insertContent(ctx, lesson, lessonInput, lesson.run_id, keep);
   assignExperiment(ctx, lesson, lessonInput);
   ctx.event('lesson', lesson.id, {kind: 'revised', version: lesson.version + 1, before});
-  return {lesson: getLesson(ctx, lesson.id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), warnings: budgetWarnings(lessonInput, subject)};
+  return {lesson: getLesson(ctx, lesson.id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), arm_seconds: armSeconds(lessonInput), warnings: budgetWarnings(lessonInput, subject)};
 }
 
 // --- the learner's actions ---------------------------------------------------------
@@ -407,9 +447,10 @@ export function lessonDetail(ctx: Ctx, lesson: Lesson): LessonDetail {
   const arm = armOf(ctx, lesson.id);
   const shown = blocksOf(ctx, lesson.id).filter(block => full || block.arm === null || block.arm === arm);
   const perArm = {shared: 0, a: 0, b: 0};
+  const timing = {assetLabels: shown.some(block => block.type === 'image') ? assetLabels(ctx) : new Map<string, number>()};
   const blocks: BlockView[] = shown.map(block => {
     const type = blockType(block.type);
-    perArm[block.arm ?? 'shared'] += type?.estimateSeconds(block.body) ?? 0;
+    perArm[block.arm ?? 'shared'] += type?.estimateSeconds(block.body, timing) ?? 0;
     const view: BlockView = {...block, text: type?.plainText(block.body) ?? `[${block.type}]`};
     if (block.type === 'question' && typeof block.body['question_id'] === 'string') {
       const question = getQuestion(ctx, block.body['question_id']);

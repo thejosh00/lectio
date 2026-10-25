@@ -34,5 +34,6 @@ export const codeBlock: BlockType<CodeBody> = {
     body.source.split('\n').filter(line => line.trim() !== '').length * SECONDS_PER_LINE +
     readingSeconds(body.caption ?? '') +
     (body.output === null ? 0 : body.output.split('\n').length * 2),
+  timed: `${SECONDS_PER_LINE} s a non-blank line, 2 s a line of output, and the caption's words`,
   tracks: ['seen'],
 };

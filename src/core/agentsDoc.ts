@@ -7,6 +7,7 @@
  * server — which is what stops the contract drifting from the API.
  */
 import {APPROACHES, BLOCK_TYPES, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
+import {CAPTION_MAX, SECONDS_PER_LABEL, SECONDS_TO_LOOK} from '../blocks/types.ts';
 import {PLANNED_QUESTION_TYPES, QUESTION_TYPES} from '../questions/index.ts';
 import {AREAS, OUTCOMES} from './proposals.ts';
 import {AIMS, DAILY_ROLES} from './types.ts';
@@ -535,8 +536,9 @@ export function agentsDocument(options: ContractOptions): string {
     '   An `image` block shows a picture you stored first with `asset put <file>`: put it, then use the',
     '   `asset.id` it returns as the block\'s `asset`. The type is read from the bytes (SVG, PNG, JPEG, GIF,',
     `   WebP), at most ${L['asset_max_bytes']} bytes; the same bytes give the same id, so putting twice is harmless.`,
+    "   `asset.labels` is how many labels it counted in an SVG: its `<text>` elements with words in them.",
     '   Use a `diagram` block for flows and boxes-and-arrows; draw an SVG image where position matters (a',
-    '   labelled parts layout). Give every image an `alt` that says what it shows.',
+    `   labelled parts layout). Give every image an \`alt\` that says what it shows. A caption is at most ${CAPTION_MAX} characters.`,
     '   **Two-arm lessons** answer which of two ways of teaching works better for this learner, by cause rather',
     '   than by counting. Name an `experiment` (a slug, and a line on how each arm teaches) and tag the blocks that',
     '   differ `"arm": "a"` or `"b"`; untagged blocks are shared. Both arms teach the same concepts, at about the',
@@ -544,6 +546,11 @@ export function agentsDocument(options: ContractOptions): string {
     '   and you see which only once the lesson is finished (`assigned_arm`), so write the quiz the same for both.',
     '   Keep the arms of a name the same; `measures.experiments` compares them, and says `enough` once both have',
     '   10 delayed reviews. Close it with what it showed, then put the result in your playbook.',
+    '   Submitting or revising one returns `arm_seconds`: each arm\'s estimate in seconds, the `longer` one,',
+    '   and every arm block\'s share by its position in `blocks`. Even the arms to within a quarter in one revision:',
+    '   a warning names the longer arm and the gap. A picture is timed by what it gives the reader to take in',
+    `   (the block table's "Timed as"): ${SECONDS_TO_LOOK} s to look, ${SECONDS_PER_LABEL} s per label of an SVG or element of a diagram, and the`,
+    '   caption. Labels count, so a labelled drawing balances a fuller description than its caption alone would.',
     ...shown('experiment'),
     '7. **Check** every visual before submitting: read `steps` frames and SVG back once.',
     "8. **Keep the bank healthy.** `questions` gives each question's record: first-try share, picks per",
@@ -594,8 +601,8 @@ export function agentsDocument(options: ContractOptions): string {
     '### Block types',
     '',
     ...table(
-      ['Type', 'Body', 'Renders as'],
-      BLOCK_TYPES.map(t => [`\`${t.type}\``, t.shape, t.renders]),
+      ['Type', 'Body', 'Renders as', 'Timed as'],
+      BLOCK_TYPES.map(t => [`\`${t.type}\``, t.shape, t.renders, t.timed]),
     ),
     '',
     `Coming later: ${Object.entries(PLANNED_BLOCK_TYPES).map(([t, m]) => `\`${t}\` (${m})`).join(', ')}. Every visual block will carry an \`alt\`.`,

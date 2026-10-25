@@ -39,3 +39,15 @@ export function sniffImage(bytes: Uint8Array): AssetMime | undefined {
   if (SVG_START.test(head)) return 'image/svg+xml';
   return undefined;
 }
+
+/**
+ * The labels an SVG gives the reader: its `<text>` elements with words in them (their
+ * `<tspan>`s are part of the one label). A picture's time estimate counts them.
+ */
+export function svgLabels(svg: string): number {
+  let labels = 0;
+  for (const match of svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text\s*>/gi)) {
+    if (match[1]!.replace(/<[^>]*>/g, '').trim() !== '') labels++;
+  }
+  return labels;
+}

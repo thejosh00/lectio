@@ -1,5 +1,5 @@
 import {Node, result} from '../core/validate.ts';
-import {readingSeconds, type BlockType} from './types.ts';
+import {CAPTION_MAX, readingSeconds, SECONDS_PER_LABEL, SECONDS_TO_LOOK, type BlockType} from './types.ts';
 
 /** A picture: an asset stored with `lectio asset put`, named by the id that returned. */
 export interface ImageBody {
@@ -7,9 +7,6 @@ export interface ImageBody {
   alt: string;
   caption: string | null;
 }
-
-/** About ten seconds to take in a picture, before reading its caption. */
-const SECONDS_TO_LOOK = 10;
 
 export const imageBlock: BlockType<ImageBody> = {
   type: 'image',
@@ -22,10 +19,11 @@ export const imageBlock: BlockType<ImageBody> = {
     const asset = node.get('asset').string({max: 64});
     if (asset !== undefined && !ctx.assets.has(asset)) node.get('asset').fail(`no asset "${asset}"; store it first with "lectio asset put <file>" and use the id it returns`);
     const alt = node.get('alt').string({max: 1000});
-    const caption = node.get('caption').optionalString({max: 500});
+    const caption = node.get('caption').optionalString({max: CAPTION_MAX});
     return result(node.issues, o && asset !== undefined && alt !== undefined ? {asset, alt, caption: caption ?? null} : undefined);
   },
   plainText: body => [`[Image: ${body.alt}]`, ...(body.caption === null ? [] : [body.caption])].join('\n'),
-  estimateSeconds: body => SECONDS_TO_LOOK + readingSeconds(body.caption ?? ''),
+  estimateSeconds: (body, ctx) => SECONDS_TO_LOOK + (ctx.assetLabels.get(body.asset) ?? 0) * SECONDS_PER_LABEL + readingSeconds(body.caption ?? ''),
+  timed: `${SECONDS_TO_LOOK} s to look, ${SECONDS_PER_LABEL} s per label (an SVG's \`<text>\` elements; PNG, JPEG, GIF and WebP count none), and the caption's words`,
   tracks: ['seen'],
 };

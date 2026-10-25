@@ -18,5 +18,6 @@ export const markdownBlock: BlockType<MarkdownBody> = {
   },
   plainText: body => body.md,
   estimateSeconds: body => readingSeconds(body.md),
+  timed: 'its words, at 200 a minute',
   tracks: ['seen'],
 };

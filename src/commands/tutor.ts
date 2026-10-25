@@ -37,6 +37,11 @@ async function textInput(args: ParsedArgs, io: CommandIO): Promise<string> {
 }
 
 const warnings = (body: Record<string, unknown>) => ((body['warnings'] as string[] | undefined) ?? []).map(w => `  warning: ${w}`);
+/** A two-arm lesson's time per arm (#4), so evening them up doesn't need --json. */
+const armTimes = (body: Record<string, unknown>) => {
+  const arms = body['arm_seconds'] as {shared: number; a: number; b: number} | null | undefined;
+  return arms == null ? [] : [`  arms: a about ${arms.a} s, b about ${arms.b} s, shared about ${arms.shared} s`];
+};
 
 export const tutorCommands: CommandDef[] = [
   {
@@ -165,7 +170,7 @@ export const tutorCommands: CommandDef[] = [
     }),
     human: body => {
       const lesson = body['lesson'] as Lesson;
-      return [`${body['existing'] === true ? 'already written' : 'submitted'}: ${lesson.title} (${lesson.id}, ${lesson.day})`, ...warnings(body)];
+      return [`${body['existing'] === true ? 'already written' : 'submitted'}: ${lesson.title} (${lesson.id}, ${lesson.day})`, ...armTimes(body), ...warnings(body)];
     },
   },
   {
@@ -196,7 +201,7 @@ export const tutorCommands: CommandDef[] = [
     values: ['file'],
     booleans: ['stdin'],
     build: async (args, io) => ({method: 'PUT', path: `/api/lessons/${enc(need(args.positional[0], 'lectio lesson revise <lesson> --file lesson.json'))}`, body: {lesson: await jsonInput(args, io, 'lesson')}}),
-    human: body => [`revised: ${(body['lesson'] as Lesson).title} (v${(body['lesson'] as Lesson).version})`, ...warnings(body)],
+    human: body => [`revised: ${(body['lesson'] as Lesson).title} (v${(body['lesson'] as Lesson).version})`, ...armTimes(body), ...warnings(body)],
   },
   {
     name: 'lesson show',

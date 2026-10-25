@@ -25,5 +25,6 @@ export const calloutBlock: BlockType<CalloutBody> = {
   },
   plainText: body => `[${CALLOUT_LABELS[body.kind]}] ${body.md}`,
   estimateSeconds: body => readingSeconds(body.md) + 2,
+  timed: 'its words, plus 2 s',
   tracks: ['seen'],
 };

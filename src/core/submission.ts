@@ -15,6 +15,8 @@ export interface SubjectFacts {
   /** key → status, for every concept in the subject. */
   concepts: ReadonlyMap<string, ConceptStatus>;
   assets: ReadonlySet<string>;
+  /** Asset id → its labels, for a picture's time estimate; an asset not here has none. */
+  assetLabels?: ReadonlyMap<string, number>;
   /** Mermaid sources checked before validation (`src/server/diagrams.ts`): source → error, or null. */
   diagrams?: ReadonlyMap<string, string | null>;
   limits: {lesson_max_blocks: number; lesson_max_bytes: number; widget_max_bytes: number; quiz_max_questions: number};
@@ -173,7 +175,7 @@ export function readBlock(node: Node, facts: SubjectFacts, questionRefs: Readonl
     node.get('arm').fail('an inline check is shared by both arms: a check in one arm only would be extra practice for that arm');
     return undefined;
   }
-  return {type: type.type, approach, concepts, body: checked.value as Record<string, unknown>, estimate_seconds: type.estimateSeconds(checked.value), arm};
+  return {type: type.type, approach, concepts, body: checked.value as Record<string, unknown>, estimate_seconds: type.estimateSeconds(checked.value, {assetLabels: facts.assetLabels ?? new Map()}), arm};
 }
 
 /** A whole lesson submission. `raw` is the JSON as sent, for the size limit. */

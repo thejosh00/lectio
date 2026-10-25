@@ -94,6 +94,9 @@ function fill(text: string, values: Record<string, string>): string {
   return text.replace(/<[a-z-]+>/g, placeholder => values[placeholder] ?? placeholder);
 }
 
+/** What the examples' responses said that the test checks afterwards. */
+const submitted: {arm_seconds?: unknown; asset_labels?: unknown} = {};
+
 async function runExamples(instance: Instance, examples: Example[], values: Record<string, string>): Promise<void> {
   for (const example of examples) {
     let line = fill(example.line, values);
@@ -114,7 +117,11 @@ async function runExamples(instance: Instance, examples: Example[], values: Reco
     if (argv[1] === 'run' && argv[2] === 'start') values['<run>'] = result.json.run.id;
     if (argv[1] === 'asset' && argv[2] === 'put') values['<asset>'] = result.json.asset.id;
     if (argv[1] === 'proposal' && argv[2] === 'add') values['<proposal>'] = String(result.json.proposal.number);
-    if (argv[1] === 'lesson' && argv[2] === 'submit' && argv[3] === values['<subject>']) values['<new-lesson>'] = result.json.lesson.id;
+    if (argv[1] === 'lesson' && argv[2] === 'submit' && argv[3] === values['<subject>']) {
+      values['<new-lesson>'] = result.json.lesson.id;
+      submitted.arm_seconds = result.json.arm_seconds;
+    }
+    if (argv[1] === 'asset' && argv[2] === 'put') submitted.asset_labels = result.json.asset.labels;
   }
 }
 
@@ -150,6 +157,9 @@ test('every example in the contract runs as documented', async () => {
   const served = await fetch(`${lc.url}/assets/${values['<asset>']}`, {headers: {authorization: `Bearer ${lc.token('you')}`}});
   expect(served.headers.get('content-type')).toBe('image/svg+xml');
   expect(await served.text()).toContain('"hi" (heap)');
+  // The submit timed each arm (#4); the SVG's three labels count toward the shared image.
+  expect(submitted.asset_labels).toBe(3);
+  expect(submitted.arm_seconds).toMatchObject({longer: 'a', blocks: {a: [{position: 2, type: 'code'}], b: [{position: 1, type: 'markdown'}]}});
   // The placement probe's anticipated wrong answer records its tag.
   const probe = lc.db.query("SELECT i.quiz_id, i.question_id FROM quiz_items i JOIN questions q ON q.id = i.question_id WHERE q.type = 'numeric'").get() as {quiz_id: string; question_id: string};
   const counted = await answerQ(lc, {question: probe.question_id, quiz: probe.quiz_id, answer: 5});
