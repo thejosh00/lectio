@@ -44,8 +44,8 @@ describe('the media measure', () => {
   const block = (type: string, over: Partial<BlockFact> = {}): BlockFact => ({approach: 'visual', type, seen_seconds: 30, completed: false, completable: false, helpful: 0, confusing: 0, ...over});
   const experiment = (difference: ExperimentOutcome['difference'], enough: boolean): ExperimentOutcome => ({
     name: 'diagram_vs_text', status: 'open', verdict: null, enough, difference,
-    a: {description: 'a', lessons: 1, concepts: 1, retention: {n: 10, rate: 0.5}, same_day_accuracy: {n: 0, rate: null}},
-    b: {description: 'b', lessons: 1, concepts: 1, retention: {n: 10, rate: 0.7}, same_day_accuracy: {n: 0, rate: null}},
+    a: {description: 'a', lessons: 1, concepts: 1, retention: {n: 10, rate: 0.5}, same_day_accuracy: {n: 0, rate: null}, median_seen_seconds: null, median_active_seconds: null, timed_lessons: 0},
+    b: {description: 'b', lessons: 1, concepts: 1, retention: {n: 10, rate: 0.7}, same_day_accuracy: {n: 0, rate: null}, median_seen_seconds: null, median_active_seconds: null, timed_lessons: 0},
   });
 
   test('with and without, engagement, and inline checks left out', () => {

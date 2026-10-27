@@ -232,12 +232,17 @@ function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: 
   return experimentOutcomes(
     experiments.map(e => {
       const lessons = ctx.db
-        .query("SELECT l.id, la.arm FROM lessons l JOIN lesson_arms la ON la.lesson_id = l.id WHERE l.experiment = ? AND l.state = 'finished'")
-        .all(e.name) as Array<{id: string; arm: 'a' | 'b'}>;
+        .query(
+          `SELECT l.id, la.arm, l.active_seconds,
+                  (SELECT COALESCE(SUM(b.seen_seconds), 0) FROM blocks b WHERE b.lesson_id = l.id AND b.arm = la.arm) AS seen_seconds
+           FROM lessons l JOIN lesson_arms la ON la.lesson_id = l.id WHERE l.experiment = ? AND l.state = 'finished'`,
+        )
+        .all(e.name) as Array<{id: string; arm: 'a' | 'b'; active_seconds: number; seen_seconds: number}>;
       const arm = (which: 'a' | 'b'): ArmGroup => {
-        const ids = lessons.filter(l => l.arm === which).map(l => l.id);
+        const mine = lessons.filter(l => l.arm === which);
+        const ids = mine.map(l => l.id);
         const introduced = ids.flatMap(id => (ctx.db.query("SELECT concept_id FROM lesson_concepts WHERE lesson_id = ? AND role = 'new'").all(id) as Array<{concept_id: string}>).map(r => r.concept_id));
-        return {lessons: ids.length, introduced, same_day: ids.flatMap(id => newItems.get(id) ?? [])};
+        return {lessons: ids.length, introduced, same_day: ids.flatMap(id => newItems.get(id) ?? []), timing: mine.map(l => ({seen_seconds: l.seen_seconds, active_seconds: l.active_seconds}))};
       };
       return {name: e.name, arms: parseJson<{a: string; b: string}>(e.arms, {a: '', b: ''}), status: e.status, verdict: e.verdict, a: arm('a'), b: arm('b')};
     }),

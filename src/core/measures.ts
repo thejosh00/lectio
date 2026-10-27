@@ -458,6 +458,16 @@ export interface ArmGroup {
   introduced: string[];
   /** First tries on the `new` items of their quizzes. */
   same_day: AttemptFact[];
+  /** Per finished lesson: the seconds seen on this arm's blocks, and the lesson's active seconds (#5). */
+  timing?: ArmLessonTime[];
+}
+
+/** How long one finished two-arm lesson was read: on the arm's own blocks, and in all. */
+export interface ArmLessonTime {
+  /** Seen seconds summed over the lesson's blocks tagged with the arm the learner saw. */
+  seen_seconds: number;
+  /** The lesson's active reading time. */
+  active_seconds: number;
 }
 
 export interface ExperimentGroup {
@@ -476,6 +486,12 @@ export interface ArmOutcome {
   concepts: number;
   retention: Rate;
   same_day_accuracy: Rate;
+  /** Median over its timed lessons of the seconds seen on the arm's own blocks; null with none (#5). */
+  median_seen_seconds: number | null;
+  /** Median active seconds of those lessons, shared blocks included; null with none. */
+  median_active_seconds: number | null;
+  /** The lessons the medians are over: finished, with some reading time recorded. */
+  timed_lessons: number;
 }
 
 export interface ExperimentOutcome {
@@ -503,7 +519,17 @@ export function experimentOutcomes(groups: readonly ExperimentGroup[], attempts:
   }
   const arm = (g: ArmGroup, description: string): ArmOutcome => {
     const reviews = g.introduced.flatMap(c => reviewsOf.get(c) ?? []);
-    return {description, lessons: g.lessons, concepts: g.introduced.length, retention: rate(reviews.filter(retained).length, reviews.length), same_day_accuracy: sameDayAccuracy(g.same_day)};
+    const timed = (g.timing ?? []).filter(t => t.active_seconds > 0 || t.seen_seconds > 0);
+    return {
+      description,
+      lessons: g.lessons,
+      concepts: g.introduced.length,
+      retention: rate(reviews.filter(retained).length, reviews.length),
+      same_day_accuracy: sameDayAccuracy(g.same_day),
+      median_seen_seconds: median(timed.map(t => t.seen_seconds)),
+      median_active_seconds: median(timed.map(t => t.active_seconds)),
+      timed_lessons: timed.length,
+    };
   };
   return groups.map(g => {
     const a = arm(g.a, g.arms.a);

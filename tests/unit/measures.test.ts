@@ -203,6 +203,22 @@ describe('two-arm experiments', () => {
     const [none] = experimentOutcomes([group(['c1'], [])], reviews('c1', 3, 0), 20);
     expect(none!.difference).toBeNull();
   });
+
+  test('per arm: median seconds seen on its own blocks and median active seconds, over lessons with reading time (#5)', () => {
+    const g = group(['c1'], ['c2']);
+    const timed = {
+      ...g,
+      a: {...g.a, lessons: 4, timing: [{seen_seconds: 30, active_seconds: 200}, {seen_seconds: 50, active_seconds: 260}, {seen_seconds: 40, active_seconds: 240}, {seen_seconds: 0, active_seconds: 0}]},
+      b: {...g.b, lessons: 2, timing: [{seen_seconds: 20, active_seconds: 180}, {seen_seconds: 35, active_seconds: 300}]},
+    };
+    const [r] = experimentOutcomes([timed], [], 20);
+    // The lesson never read isn't timed: it would pull the median to 0.
+    expect(r!.a).toMatchObject({lessons: 4, median_seen_seconds: 40, median_active_seconds: 240, timed_lessons: 3});
+    expect(r!.b).toMatchObject({lessons: 2, median_seen_seconds: 27.5, median_active_seconds: 240, timed_lessons: 2});
+    // Without timing: null, not 0.
+    const [untimed] = experimentOutcomes([g], [], 20);
+    expect(untimed!.a).toMatchObject({median_seen_seconds: null, median_active_seconds: null, timed_lessons: 0});
+  });
 });
 
 describe('throughput', () => {

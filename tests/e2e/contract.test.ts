@@ -165,6 +165,27 @@ test('every example in the contract runs as documented', async () => {
   const counted = await answerQ(lc, {question: probe.question_id, quiz: probe.quiz_id, answer: 5});
   expect(counted.attempt).toMatchObject({score: 0, misconception: 'counts-notes-not-steps'});
   expect(counted.outcome.why).toContain('four steps');
+
+  // The context the preflight example reads gives each arm its reading time, and a finished
+  // two-arm lesson its assigned arm (#5).
+  const learnerView = (await (await fetch(`${lc.url}/api/lessons/${values['<new-lesson>']}`, {headers: {authorization: `Bearer ${lc.token('you')}`}})).json()) as any;
+  const shownIds = learnerView.lesson.blocks.map((b: {id: string}) => b.id);
+  const seen = moves.blocks.find((b: {id: string; arm: string | null}) => b.arm !== null && shownIds.includes(b.id));
+  await fetch(`${lc.url}/api/lessons/${values['<new-lesson>']}/activity`, {
+    method: 'POST',
+    headers: {authorization: `Bearer ${lc.token('you')}`, 'content-type': 'application/json'},
+    body: JSON.stringify({active_seconds: 200, blocks: [{id: seen.id, seen_seconds: 40}]}),
+  });
+  await lc.j(['finish', values['<new-lesson>']!]);
+  const context = (await lc.j(['context'], TUTOR)).json;
+  const rust = context.subjects.find((s: {subject: {id: string}}) => s.subject.id === values['<subject>']);
+  const recent = rust.recent_lessons.find((l: {id: string}) => l.id === values['<new-lesson>']);
+  expect(recent.assigned_arm).toBe(seen.arm);
+  expect(rust.recent_lessons.find((l: {id: string}) => l.id === values['<lesson>']).assigned_arm).toBeNull();
+  const [experiment] = rust.measures.experiments;
+  const other = seen.arm === 'a' ? 'b' : 'a';
+  expect(experiment[seen.arm]).toMatchObject({median_seen_seconds: 40, median_active_seconds: 200, timed_lessons: 1});
+  expect(experiment[other]).toMatchObject({median_seen_seconds: null, median_active_seconds: null, timed_lessons: 0});
 });
 
 test("the examiner's examples run as documented", async () => {

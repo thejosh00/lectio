@@ -13,6 +13,7 @@ import {contractVersion} from './contract.ts';
 import {blocksWithErrors, dueReport, subjectOfFeedback} from './due.ts';
 import {listFeedback, tutorSees, unansweredAsks, unresolvedFlags} from './feedback.ts';
 import {examResults} from './exams.ts';
+import {armOf} from './experiments.ts';
 import {improvementsContext} from './improvements.ts';
 import {lessonDetail, listLessons, readinessOf, unfinishedLessons} from './lessons.ts';
 import {attemptFacts, progressReport} from './measures.ts';
@@ -139,7 +140,11 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
     }),
     recent_lessons: listLessons(ctx, {subjectId: subject.id, limit: 10})
       .filter(l => l.added >= contextSince)
-      .map(l => ({id: l.id, day: l.day, title: l.title, state: l.state, active_seconds: l.active_seconds, estimated_minutes: l.estimated_minutes, hypothesis: l.hypothesis, verdict: l.verdict})),
+      .map(l => ({
+        id: l.id, day: l.day, title: l.title, state: l.state, active_seconds: l.active_seconds, estimated_minutes: l.estimated_minutes, hypothesis: l.hypothesis, verdict: l.verdict,
+        // The arm a finished two-arm lesson showed (#5); null otherwise, so nothing is given away early.
+        assigned_arm: l.experiment !== null && l.state === 'finished' ? armOf(ctx, l.id) : null,
+      })),
     quizzes: visibleQuizzes(ctx, subject.id).map(q => {
       const d = quizDetail(ctx, q);
       return {id: d.id, day: d.day, kind: d.kind, state: d.state, progress: d.progress, blocked: d.blocked};
