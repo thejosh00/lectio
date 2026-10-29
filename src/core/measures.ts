@@ -458,6 +458,12 @@ export interface ArmGroup {
   lessons: number;
   /** Concepts they introduced, as concept ids. */
   introduced: string[];
+  /**
+   * For an experiment that counts every concept taught (M20): each concept a lesson taught, and
+   * the window its reviews count in — after that lesson was finished, and before the experiment's
+   * next lesson on the same concept. Unset, the arm counts `introduced` and all their reviews.
+   */
+  taught?: Array<{concept: string; after: string; before: string | null}>;
   /** First tries on the `new` items of their quizzes. */
   same_day: AttemptFact[];
   /** Per finished lesson: the seconds seen on this arm's blocks, and the lesson's active seconds (#5). */
@@ -500,6 +506,8 @@ export interface ExperimentOutcome {
   name: string;
   status: string;
   verdict: string | null;
+  /** The concepts its retention counts: those its lessons introduced, or every one they taught (M20). */
+  counts: 'new' | 'taught';
   a: ArmOutcome;
   b: ArmOutcome;
   /** Retention of a minus b, with a 90% interval; null until both arms have delayed reviews. */
@@ -520,12 +528,15 @@ export function experimentOutcomes(groups: readonly ExperimentGroup[], attempts:
     for (const c of a.concepts) (reviewsOf.get(c) ?? reviewsOf.set(c, []).get(c)!).push(a);
   }
   const arm = (g: ArmGroup, description: string): ArmOutcome => {
-    const reviews = g.introduced.flatMap(c => reviewsOf.get(c) ?? []);
+    const reviews =
+      g.taught === undefined
+        ? g.introduced.flatMap(c => reviewsOf.get(c) ?? [])
+        : g.taught.flatMap(t => (reviewsOf.get(t.concept) ?? []).filter(a => a.at > t.after && (t.before === null || a.at < t.before)));
     const timed = (g.timing ?? []).filter(t => t.active_seconds > 0 || t.seen_seconds > 0);
     return {
       description,
       lessons: g.lessons,
-      concepts: g.introduced.length,
+      concepts: g.taught === undefined ? g.introduced.length : g.taught.length,
       retention: rate(reviews.filter(retained).length, reviews.length),
       same_day_accuracy: sameDayAccuracy(g.same_day),
       median_seen_seconds: median(timed.map(t => t.seen_seconds)),
@@ -544,7 +555,7 @@ export function experimentOutcomes(groups: readonly ExperimentGroup[], attempts:
       const d = pa - pb;
       difference = {retention: round3(d), low: round3(d - 1.645 * se), high: round3(d + 1.645 * se)};
     }
-    return {name: g.name, status: g.status, verdict: g.verdict, a, b, difference, enough: a.retention.n >= minReviews && b.retention.n >= minReviews};
+    return {name: g.name, status: g.status, verdict: g.verdict, counts: g.a.taught === undefined ? 'new' : 'taught', a, b, difference, enough: a.retention.n >= minReviews && b.retention.n >= minReviews};
   });
 }
 

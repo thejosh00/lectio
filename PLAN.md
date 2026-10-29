@@ -1513,3 +1513,14 @@ terminal and the tutor's context say a question had a picture. A measure beside 
 *Done when:* the learner's view has the figure and not the answer figure, the answer has it; a broken
 figure is refused at its path in a quiz and a fix; and the measure counts it.
 
+**M20 — Fading on evidence.** What helps a novice slows an expert down, so a picture that carried an
+idea should go once the idea holds — and whether it should is a question for an experiment, not a
+rule. Each concept in the tutor's context now says how durable it is (`stability_days`, from FSRS;
+`recall_now` is near 1 the day after any review whatever its stability) and which kinds of block have
+taught it (`taught_with`, the arm the learner saw). An experiment can say `"counts": "taught"`: every
+concept its lessons teach counts, in any role, on the delayed reviews after that lesson and before the
+experiment's next lesson on the same concept, so no review counts twice. The default stays `new`, so
+every existing experiment and measure reads exactly what it did; an experiment keeps what it counts.
+*Done when:* a review lesson in a taught-counting experiment is measured by the review after it, for
+the arm the learner saw; and the context gives stability and the kinds of block per concept.
+

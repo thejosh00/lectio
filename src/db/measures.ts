@@ -224,11 +224,31 @@ function newItemsByLesson(ctx: Ctx, facts: readonly AttemptFact[]): Map<string, 
   return out;
 }
 
+/**
+ * For an experiment counting every concept taught (M20): each concept each finished lesson
+ * taught, in any role, with the window its reviews count in — from that lesson's finish to the
+ * experiment's next finished lesson on the same concept, so no review counts for two lessons.
+ */
+function taughtWindows(ctx: Ctx, experiment: string): Array<{arm: 'a' | 'b'; concept: string; after: string; before: string | null}> {
+  const rows = ctx.db
+    .query(
+      `SELECT lc.concept_id, la.arm, l.finished FROM lessons l JOIN lesson_arms la ON la.lesson_id = l.id JOIN lesson_concepts lc ON lc.lesson_id = l.id
+       WHERE l.experiment = ? AND l.state = 'finished' AND l.finished IS NOT NULL ORDER BY l.finished`,
+    )
+    .all(experiment) as Array<{concept_id: string; arm: 'a' | 'b'; finished: string}>;
+  return rows.map((row, i) => ({
+    arm: row.arm,
+    concept: row.concept_id,
+    after: row.finished,
+    before: rows.slice(i + 1).find(next => next.concept_id === row.concept_id)?.finished ?? null,
+  }));
+}
+
 /** Each experiment's finished lessons, split by the arm the learner saw (M14). */
 function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: string) {
   const experiments = (
     subjectId === undefined ? ctx.db.query('SELECT * FROM experiments ORDER BY opened').all() : ctx.db.query('SELECT * FROM experiments WHERE subject_id = ? ORDER BY opened').all(subjectId)
-  ) as Array<{name: string; arms: string; status: string; verdict: string | null}>;
+  ) as Array<{name: string; arms: string; counts: string; status: string; verdict: string | null}>;
   if (experiments.length === 0) return [];
   const newItems = newItemsByLesson(ctx, facts);
   return experimentOutcomes(
@@ -240,11 +260,18 @@ function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: 
            FROM lessons l JOIN lesson_arms la ON la.lesson_id = l.id WHERE l.experiment = ? AND l.state = 'finished'`,
         )
         .all(e.name) as Array<{id: string; arm: 'a' | 'b'; active_seconds: number; seen_seconds: number}>;
+      const taught = e.counts === 'taught' ? taughtWindows(ctx, e.name) : undefined;
       const arm = (which: 'a' | 'b'): ArmGroup => {
         const mine = lessons.filter(l => l.arm === which);
         const ids = mine.map(l => l.id);
         const introduced = ids.flatMap(id => (ctx.db.query("SELECT concept_id FROM lesson_concepts WHERE lesson_id = ? AND role = 'new'").all(id) as Array<{concept_id: string}>).map(r => r.concept_id));
-        return {lessons: ids.length, introduced, same_day: ids.flatMap(id => newItems.get(id) ?? []), timing: mine.map(l => ({seen_seconds: l.seen_seconds, active_seconds: l.active_seconds}))};
+        return {
+          lessons: ids.length,
+          introduced,
+          ...(taught === undefined ? {} : {taught: taught.filter(t => t.arm === which).map(({arm: _arm, ...t}) => t)}),
+          same_day: ids.flatMap(id => newItems.get(id) ?? []),
+          timing: mine.map(l => ({seen_seconds: l.seen_seconds, active_seconds: l.active_seconds})),
+        };
       };
       return {name: e.name, arms: parseJson<{a: string; b: string}>(e.arms, {a: '', b: ''}), status: e.status, verdict: e.verdict, a: arm('a'), b: arm('b')};
     }),

@@ -10,13 +10,15 @@
  */
 import {randomInt} from 'node:crypto';
 import {failed, notFound, usageError} from '../core/errors.ts';
-import type {ExperimentInput} from '../core/submission.ts';
+import type {ExperimentCounts, ExperimentInput} from '../core/submission.ts';
 import {parseJson, type Ctx} from './context.ts';
 
 export interface Experiment {
   name: string;
   subject_id: string;
   arms: {a: string; b: string};
+  /** Which concepts its retention counts (M20): those introduced, or every one taught. */
+  counts: ExperimentCounts;
   status: 'open' | 'closed';
   verdict: string | null;
   opened: string;
@@ -40,7 +42,7 @@ export function listExperiments(ctx: Ctx, subjectId?: string): Experiment[] {
 export function ensureExperiment(ctx: Ctx, subjectId: string, input: ExperimentInput): Experiment {
   const existing = getExperiment(ctx, input.name);
   if (existing === undefined) {
-    ctx.db.query("INSERT INTO experiments (name, subject_id, arms, status, opened) VALUES (?, ?, ?, 'open', ?)").run(input.name, subjectId, JSON.stringify(input.arms), ctx.now());
+    ctx.db.query("INSERT INTO experiments (name, subject_id, arms, counts, status, opened) VALUES (?, ?, ?, ?, 'open', ?)").run(input.name, subjectId, JSON.stringify(input.arms), input.counts, ctx.now());
     ctx.event('lesson', input.name, {kind: 'experiment_opened', subject_id: subjectId});
     return getExperiment(ctx, input.name)!;
   }
@@ -49,6 +51,7 @@ export function ensureExperiment(ctx: Ctx, subjectId: string, input: ExperimentI
   if (existing.arms.a !== input.arms.a || existing.arms.b !== input.arms.b) {
     throw failed(`experiment "${input.name}" compares a: "${existing.arms.a}" with b: "${existing.arms.b}"; use the same arms, or a new name for a different comparison`);
   }
+  if (existing.counts !== input.counts) throw failed(`experiment "${input.name}" counts the concepts its lessons ${existing.counts === 'new' ? 'introduce' : 'teach'} ("counts": "${existing.counts}"); keep it, or use a new name`);
   return existing;
 }
 

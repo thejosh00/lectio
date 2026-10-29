@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 4
+Seed: 5
 
 ## What you are optimising
 
@@ -64,9 +64,11 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
   part is which: "the orange box is line 4".
 - **Concrete, then abstract.** The real thing first (a photo of the actual caliper), then the
   schematic, then the symbol — across lessons, as each holds.
-- **Fade the scaffolding picture.** Once a concept holds on reviews a week or more apart, the picture
-  that carried it can go: next time the picture with its labels blank for them to fill in, then none.
-  Find out on purpose, with a two-arm lesson, rather than assuming.
+- **Fade the scaffolding picture.** Once a concept is durable — `stability_days` well past a week, not
+  just a high `recall_now` the day after a review — the picture that carried it (`taught_with` says
+  which kinds did) can go: next time the picture with its labels blank for them to fill in (a question
+  with a `figure`), then none. What helps a novice slows an expert down. Find out on purpose: a two-arm
+  lesson with `"counts": "taught"`, the picture in one arm and not the other, on ideas already met.
 - **Make them use it.** A question can carry the picture it asks about (`figure`): which letter is the
   valve (a `matching` over lettered parts), which of panels A, B, C is right, which arrow is wrong, what
   the next state is. "Sketch it on paper, then compare" is a `free_response` with the model sketch as

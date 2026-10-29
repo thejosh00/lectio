@@ -114,11 +114,20 @@ export interface BlockInput {
   arm: 'a' | 'b' | null;
 }
 
-/** A two-arm lesson's experiment (M14): what is being compared, by name, and how each arm teaches. */
+/**
+ * A two-arm lesson's experiment (M14): what is being compared, by name, and how each arm teaches.
+ * `counts` says which concepts its retention is measured on (M20): those the lessons introduce
+ * (`new`, the default), or every concept they teach, in any role (`taught`) — for a comparison
+ * on ideas already met, such as keeping a picture against fading it.
+ */
 export interface ExperimentInput {
   name: string;
   arms: {a: string; b: string};
+  counts: ExperimentCounts;
 }
+
+export const EXPERIMENT_COUNTS = ['new', 'taught'] as const;
+export type ExperimentCounts = (typeof EXPERIMENT_COUNTS)[number];
 
 export interface LessonInput {
   title: string;
@@ -282,16 +291,17 @@ export function readLesson(value: unknown, facts: SubjectFacts, raw?: string): L
   };
 }
 
-/** `experiment: {name, arms: {a, b}}`: a slug naming what is compared, and a line on how each arm teaches. */
+/** `experiment: {name, arms: {a, b}, counts?}`: a slug naming what is compared, a line on how each arm teaches, and which concepts count. */
 function readExperiment(node: Node): ExperimentInput | undefined {
   if (!node.present) return undefined;
-  if (node.object(['name', 'arms']) === undefined) return undefined;
+  if (node.object(['name', 'arms', 'counts']) === undefined) return undefined;
+  const counts = node.get('counts').present ? node.get('counts').oneOf(EXPERIMENT_COUNTS) : 'new';
   const name = node.get('name').string({max: 32, pattern: APPROACH_PATTERN, patternMessage: 'must be a lowercase slug of at most 32 characters, e.g. worked_vs_problem_first'});
   const arms = node.get('arms');
   if (arms.object(['a', 'b']) === undefined) return undefined;
   const a = arms.get('a').string({max: 300});
   const b = arms.get('b').string({max: 300});
-  return name === undefined || a === undefined || b === undefined ? undefined : {name, arms: {a, b}};
+  return name === undefined || a === undefined || b === undefined || counts === undefined ? undefined : {name, arms: {a, b}, counts};
 }
 
 // --- quizzes -----------------------------------------------------------------------

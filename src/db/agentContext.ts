@@ -61,6 +61,20 @@ function feedbackJson(ctx: Ctx, rows: Feedback[]) {
 
 function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince: string) {
   const today = ctx.today();
+  // Which approaches, and which kinds of block, taught each concept: the blocks on it in lessons that included it.
+  const taughtBy = new Map<string, Set<string>>();
+  const taughtWith = new Map<string, Set<string>>();
+  for (const row of ctx.db
+    .query(
+      `SELECT b.approach, b.type, b.concepts FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.subject_id = ? AND l.state IN ('open', 'finished')
+         AND (b.arm IS NULL OR (l.state = 'finished' AND b.arm = (SELECT arm FROM lesson_arms WHERE lesson_id = l.id)))`,
+    )
+    .all(subject.id) as Array<{approach: string; type: string; concepts: string}>) {
+    for (const key of JSON.parse(row.concepts) as string[]) {
+      (taughtBy.get(key) ?? taughtBy.set(key, new Set()).get(key)!).add(row.approach);
+      (taughtWith.get(key) ?? taughtWith.set(key, new Set()).get(key)!).add(row.type);
+    }
+  }
   const concepts = listConcepts(ctx, subject.id).map(c => {
     const memory = memoryOf(ctx, c.id, today);
     return {
@@ -76,19 +90,13 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
       is_due: memory?.is_due ?? false,
       reps: memory?.reps ?? 0,
       lapses: memory?.lapses ?? 0,
+      // Days until recall falls to 90% after a review (FSRS): how durable it is, where recall_now is only how it stands today (M20).
+      stability_days: memory === null ? null : Math.round(memory.stability * 10) / 10,
+      // The kinds of block that have taught it, in lessons the learner opened (the arm they were shown).
+      taught_with: [...(taughtWith.get(c.key) ?? [])].sort(),
     };
   });
   const keyOf = new Map(listConcepts(ctx, subject.id).map(c => [c.id, c.key]));
-  // Which approaches taught each concept: the blocks on it in lessons that included it.
-  const taughtBy = new Map<string, Set<string>>();
-  for (const row of ctx.db
-    .query(
-      `SELECT b.approach, b.concepts FROM blocks b JOIN lessons l ON l.id = b.lesson_id WHERE l.subject_id = ? AND l.state IN ('open', 'finished')
-         AND (b.arm IS NULL OR (l.state = 'finished' AND b.arm = (SELECT arm FROM lesson_arms WHERE lesson_id = l.id)))`,
-    )
-    .all(subject.id) as Array<{approach: string; concepts: string}>) {
-    for (const key of JSON.parse(row.concepts) as string[]) (taughtBy.get(key) ?? taughtBy.set(key, new Set()).get(key)!).add(row.approach);
-  }
   // What the tutor predicted for each quiz first try, to read beside what happened.
   const predictedFor = new Map(
     (

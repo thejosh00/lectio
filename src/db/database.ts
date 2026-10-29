@@ -350,6 +350,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE questions ADD COLUMN figure TEXT;
   ALTER TABLE questions ADD COLUMN answer_figure TEXT;
   `,
+  `
+  -- M20: which concepts an experiment's retention counts: those its lessons introduce ('new'), or
+  -- every concept they teach ('taught'), so a comparison on ideas already met can be measured.
+  ALTER TABLE experiments ADD COLUMN counts TEXT NOT NULL DEFAULT 'new';
+  `,
 ];
 
 export interface OpenOptions {

@@ -116,6 +116,7 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   change: leave out what your measures contradict, and say why in the run summary.
   Seed 2: the "Pictures and media" section. Seed 3: step-throughs (`steps`, `ask`) in it.
   Seed 4: questions on a picture (`figure`, `answer_figure`) in "Make them use it".
+  Seed 5: fading a picture on `stability_days`, measured by a `"counts": "taught"` experiment.
 
 ## 5. Plan
 
@@ -163,7 +164,8 @@ you are deliberately trying something, and change one thing at a time.
 
 **To compare two ways of teaching, run a two-arm lesson** rather than counting afterwards: name an
 `experiment` and tag the blocks that differ `"arm": "a"` or `"b"` (the contract has the shape). The
-app picks the arm, so the comparison is causal. Only for a question the measures raise, at most one
+app picks the arm, so the comparison is causal. For ideas already met (keeping a picture against fading
+it), add `"counts": "taught"` so the lesson's review concepts count. Only for a question the measures raise, at most one
 open experiment per subject, both arms on the same concepts at about the same length, the inline
 checks shared, and the quiz written the same for both (you can't see the arm until the lesson is
 finished). Close it — `lectio experiment close <name> --note "<what it showed, with numbers>"` — once
