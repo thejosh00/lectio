@@ -200,6 +200,11 @@ async function takeQuiz(io: CommandIO, id: string): Promise<void> {
     io.out('');
     io.out(`[${item.position + 1}/${quiz.items.length}]${item.role === 'new' ? '' : ` (${item.role})`}`);
     let outcome = item.answered;
+    // A widget is answered in the web app; its text says so.
+    if (outcome === null && q.type === 'widget') {
+      for (const line of questionText(q)) io.out(line);
+      continue;
+    }
     if (outcome === null) {
       const order = shownOrder(io, q);
       for (const line of questionText(q, order)) io.out(line);

@@ -10,6 +10,7 @@ import {AppError, EXIT_NOT_FOUND} from '../core/errors.ts';
 import {widgetCsp, WIDGET_LIBS, wrapWidget, type WidgetLib} from '../core/widget.ts';
 import type {Ctx} from '../db/context.ts';
 import {getBlock} from '../db/lessons.ts';
+import {getQuestion} from '../db/questions.ts';
 import {errorResponse} from './http.ts';
 
 /** The headers every widget document is served with. */
@@ -54,4 +55,14 @@ export function serveWidgetLib(request: Request): Response {
   const path = widgetLibPath(name);
   if (path === undefined) return new Response('Not found', {status: 404});
   return new Response(Bun.file(path), {headers: {'content-type': 'text/javascript; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'public, max-age=86400'}});
+}
+
+/** `/w/q/<question-id>`: a widget question's document (M22), in the same sandbox. Never a checkup's to an agent that can't see checkups. */
+export function serveWidgetQuestion(ctx: Ctx, request: Request): Response {
+  const url = new URL(request.url);
+  const id = decodeURIComponent(url.pathname.slice('/w/q/'.length));
+  const question = getQuestion(ctx, id);
+  if (question === undefined || question.type !== 'widget' || (question.status === 'exam' && !ctx.seesExams)) return errorResponse(new AppError(`no widget question "${id}"`, EXIT_NOT_FOUND, {}, 404));
+  const html = wrapWidget(String(question.body['html'] ?? ''), {libs: Array.isArray(question.body['libs']) ? (question.body['libs'] as string[]) : []});
+  return new Response(html, {headers: widgetHeaders(url.origin)});
 }

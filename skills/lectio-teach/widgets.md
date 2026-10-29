@@ -37,6 +37,18 @@ itself the idea, or something learnt by acting on it. A step-through first, when
   rises?"): the guess is what makes the result mean something.
 - One idea per widget. If it needs instructions longer than its goal, it is two widgets.
 
+## Widget questions
+
+A `widget` question is answered by doing: set the threshold, route the request, place the kernel. The
+widget scores it and calls `lectio.answer({value, score})` when the learner commits — `value` says
+what they did ("threshold 120"), `score` is 0–1 — and their confidence submits it.
+
+- Give it a "That's it" button that answers; don't answer on every change.
+- Score what the goal asks, generously at the edges: a range, not one exact value.
+- Partial credit only where there are parts (three of four requests routed right is 0.75).
+- `widget check` it like any widget: a frame, and nothing it throws.
+- The terminal quiz can't show one, so keep a quiz from being only widgets.
+
 ## Look before you submit
 
 ```bash

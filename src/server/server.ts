@@ -17,7 +17,7 @@ import {getSetting} from '../db/settings.ts';
 import {handleApi} from './api.ts';
 import {checkRequest, parseAllowedHosts} from './hostCheck.ts';
 import {staticRoutes} from './static.ts';
-import {serveWidget, serveWidgetLib} from './widgets.ts';
+import {serveWidget, serveWidgetLib, serveWidgetQuestion} from './widgets.ts';
 import {errorResponse, json, readBody} from './http.ts';
 import {DEFAULT_PORT} from '../config.ts';
 import {VERSION} from '../version.ts';
@@ -195,6 +195,10 @@ export function startServer(options: ServeOptions): RunningServer {
       },
       '/assets/:id': guard(request => serveAsset(deps, request)),
       '/w/lib/:name': guard(request => serveWidgetLib(request)),
+      '/w/q/:id': guard(request => {
+        const caller = callerOf(db, request);
+        return caller === undefined ? unauthorized() : serveWidgetQuestion(new Ctx(deps, caller.actor), request);
+      }),
       '/w/:id': guard(request => {
         const caller = callerOf(db, request);
         return caller === undefined ? unauthorized() : serveWidget(new Ctx(deps, caller.actor), request);

@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 6
+Seed: 7
 
 ## What you are optimising
 
@@ -76,7 +76,8 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
   step-through, an `ask` on a frame has them guess the next before they see it. A picture they had to
   use is remembered; one they glanced at isn't — and a picture question in a review is retrieval from
   the picture, not only from the words. An interactive is used toward a `goal`, and both kinds of
-  widget can ask a guess (`predict`) before they start.
+  widget can ask a guess (`predict`) before they start. When the goal is to *do* it, ask by doing: a
+  `widget` question the learner works and the widget scores.
 - Richer media (animation, audio, video) earn their place by a two-arm lesson against something
   cheaper, on this learner.
 

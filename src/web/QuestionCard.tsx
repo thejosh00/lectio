@@ -9,6 +9,7 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {FEEDBACK_KINDS, FEEDBACK_LABELS} from '../core/feedbackKinds.ts';
 import {ApiError, enc, post, type LearnerQuestion, type Outcome, type QuestionFigure, type QuizProgress} from './api.ts';
+import {readBridgeMessage} from '../core/widget.ts';
 import {MermaidFigure} from './blocks/Diagram.tsx';
 import {assetUrl, Figure} from './blocks/Figure.tsx';
 import {Markdown} from './markdown.tsx';
@@ -78,6 +79,8 @@ function ready(q: LearnerQuestion, draft: unknown): boolean {
       return typeof draft === 'object' && draft !== null && (q.body['left'] as Part[]).every(l => typeof (draft as Record<string, string>)[l.id] === 'string');
     case 'cloze':
       return typeof draft === 'object' && draft !== null && Object.values(draft as Record<string, string>).some(v => v.trim() !== '');
+    case 'widget':
+      return typeof draft === 'object' && draft !== null && typeof (draft as {score?: unknown}).score === 'number';
     default:
       return typeof draft === 'string' && draft.trim() !== '';
   }
@@ -89,6 +92,36 @@ function initialDraft(q: LearnerQuestion, order: string[] | null): unknown {
   if (q.type === 'matching') return {};
   if (q.type === 'cloze') return Object.fromEntries((q.body['blanks'] as string[]).map(k => [k, '']));
   return undefined;
+}
+
+/**
+ * A widget question (M22): the tutor's widget in the sandbox, served from `/w/q/<id>`. Its
+ * `lectio.answer({value, score})` is the answer; the learner's confidence still submits it.
+ * Only messages from its own frame, in the bridge's shape, are taken.
+ */
+function WidgetAnswer({q, answered, locked, setDraft}: {q: LearnerQuestion; answered: boolean; locked: boolean; setDraft: (d: unknown) => void}) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(Number(q.body['height']) || 300);
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (frame.current === null || event.source !== frame.current.contentWindow) return;
+      const message = readBridgeMessage(event.data);
+      if (message?.type === 'answer' && !locked) setDraft({value: message.value, score: message.score});
+      if (message?.type === 'resize') setHeight(Math.max(120, Math.min(1200, message.height)));
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [locked, setDraft]);
+  return (
+    <div className="figure widget-block" style={{marginTop: 10}}>
+      <div className="figure-paper widget-paper">
+        <iframe ref={frame} src={`/w/q/${enc(q.id)}?v=${q.version}`} sandbox="allow-scripts" title={String(q.body['alt'] ?? '')} style={{height}} inert={locked} />
+      </div>
+      <p className="small-text muted" aria-live="polite">
+        {locked ? '' : answered ? 'Your answer is in. How sure are you?' : 'Answer in the widget, then say how sure you are.'}
+      </p>
+    </div>
+  );
 }
 
 /** A question's picture (M19): the one it asks about, or the one shown with its answer. */
@@ -269,6 +302,8 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
           style={{marginTop: 10}}
         />
       );
+    case 'widget':
+      return <WidgetAnswer q={q} answered={draft !== undefined} locked={locked} setDraft={setDraft} />;
     default:
       return <p className="muted">This kind of question ({q.type}) can't be answered here yet.</p>;
   }
@@ -444,7 +479,7 @@ export function QuestionCard({question, answered, where, kicker, checkup = false
               <div className={`verdict ${verdict ?? ''}`}>
                 {verdict === 'right' ? (outcome.graded_by === 'disputed' ? '✓ Counted as right' : '✓ Right') : verdict === 'partly' ? `~ Partly right (${pct(outcome.score)})` : '✗ Not quite'}
               </div>
-              {verdict !== 'right' && (
+              {verdict !== 'right' && question.type !== 'widget' && (
                 <p className="small-text">
                   The answer: <Markdown text={outcome.answer_text} inline />
                 </p>

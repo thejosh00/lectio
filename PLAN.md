@@ -1546,3 +1546,14 @@ origin and can't call `/api`; a fetch is warned about at submit and flagged by t
 error reaches `widget_errors` with its line and a fix clears it; and the check's frames differ over
 time for an animation.
 
+**M22 — Widget questions.** The `widget` question type of M10: `{html, libs?, height, alt}`, served from
+`/w/q/<question-id>` in the same sandbox as a widget block. The learner works it and it calls
+`lectio.answer({value, score})`; their confidence submits it, so it is asked like every other question.
+The score lands as `graded_by: widget` and counts for memory; `value` (what they did) is kept with it.
+Refused if its HTML never calls `lectio.answer`. The learner's view carries no HTML. Timed at 75 s.
+The terminal quiz shows it and moves on. A checkup can't have one (graded by the app only).
+Not built: a widget question's errors have no block to land on, so they don't reach `widget_errors`;
+the learner's flags on the question are how the tutor hears of a broken one.
+*Done when:* a widget's score lands on the attempt, graded by the widget and counted for memory; a
+score outside 0–1 is refused; and the page takes the answer only from the question's own frame.
+

@@ -15,12 +15,16 @@ export interface QuestionBlockBody {
 /** About 45 seconds to answer a question. */
 export const SECONDS_PER_QUESTION = 45;
 
-/** A question's time: about 45 s to answer, and a look at the picture it asks about (M19). */
-export function questionSeconds(question: {figure: Figure | null}, assetLabels: ReadonlyMap<string, number>): number {
+/** A widget question is worked, not just answered (M22). */
+export const SECONDS_PER_WIDGET_QUESTION = 75;
+
+/** A question's time: about 45 s to answer (a widget's, 75), and a look at the picture it asks about (M19). */
+export function questionSeconds(question: {type?: string; figure: Figure | null}, assetLabels: ReadonlyMap<string, number>): number {
+  const base = question.type === 'widget' ? SECONDS_PER_WIDGET_QUESTION : SECONDS_PER_QUESTION;
   const figure = question.figure;
-  if (figure === null) return SECONDS_PER_QUESTION;
+  if (figure === null) return base;
   const parts = 'asset' in figure ? (assetLabels.get(figure.asset) ?? 0) : diagramElements(figure.mermaid);
-  return SECONDS_PER_QUESTION + SECONDS_TO_LOOK + parts * SECONDS_PER_LABEL;
+  return base + SECONDS_TO_LOOK + parts * SECONDS_PER_LABEL;
 }
 
 export const questionBlock: BlockType<QuestionBlockBody> = {
