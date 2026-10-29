@@ -16,6 +16,9 @@ export interface ToolDeps {
 
 export const realToolDeps = (env: Record<string, string | undefined>): ToolDeps => ({which: command => Bun.which(command), exists: path => existsSync(path), env});
 
+/** Chrome's path on this machine: `CHROME_PATH`, the usual macOS place, or the PATH. */
+export const chromePath = (deps: ToolDeps) => find('chrome', deps);
+
 function find(name: string, deps: ToolDeps): string | null {
   if (name === 'chrome') {
     const configured = deps.env['CHROME_PATH'];

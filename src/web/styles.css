@@ -33,6 +33,9 @@
   --chart-2: #a8371b;
   --chart-soft: #8fb3bc;
   --chart-grid: #e2ded4;
+  /* Pictures sit on paper, light in both themes (src/core/palette.ts). */
+  --paper: #fdfcf9;
+  --paper-line: #e2ded4;
   --shadow: 0 1px 2px rgb(40 30 20 / 0.04);
   --radius: 16px;
   --font: 'Instrument Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -80,6 +83,8 @@
     --chart-2: #f08f72;
     --chart-soft: #3e6a75;
     --chart-grid: #34312c;
+    --paper: #eeebe4;
+    --paper-line: #4a463f;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     --code-bg: #2a2824;
     --codeblock-bg: #0e0e0d;
@@ -988,27 +993,48 @@ h3 {
   line-height: 1.6;
 }
 
-/* A diagram is an <img> of mermaid's SVG: it scales down to the column, never past its own size. */
-.diagram-block {
+/* A figure: a picture on paper, its caption under it, a tap to enlarge (src/web/blocks/Figure.tsx).
+   A picture scales down to the column, never past its own size. */
+.figure {
   margin: 0;
 }
 
-.diagram-block img {
+.figure-paper {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin: 0;
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  border-radius: 12px;
+  cursor: zoom-in;
+  font: inherit;
+  color: #1a1a18;
+}
+
+.figure-paper img {
   display: block;
   max-width: 100%;
   height: auto;
   margin: 0 auto;
+  border-radius: 4px;
 }
 
-.diagram-block .caption {
+.figure .caption {
   font-size: 13px;
   color: var(--muted);
   margin-top: 6px;
   text-align: center;
 }
 
-.diagram-block .diagram-alt,
-.diagram-block .diagram-loading {
+.figure .credit {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.figure .diagram-alt,
+.figure .diagram-loading {
   margin: 0;
   padding: 14px;
   border: 1px dashed var(--line-strong);
@@ -1016,23 +1042,63 @@ h3 {
   font-size: 14px;
 }
 
-.image-block {
+.figure-zoom {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  color: var(--text);
 }
 
-.image-block img {
+.figure-zoom::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.figure-zoom-bar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  z-index: 1;
+}
+
+.figure-zoom-paper {
+  margin: 0 16px;
+  padding: 12px;
+  background: var(--paper);
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.figure-zoom-paper img {
   display: block;
   max-width: 100%;
   height: auto;
   margin: 0 auto;
-  border-radius: 12px;
 }
 
-.image-block .caption {
-  font-size: 13px;
+/* Its own size, or twice the column (set inline): pan by scrolling, pinch for more. */
+.figure-zoom-paper img.zoomed {
+  width: 200%;
+  max-width: none;
+}
+
+.figure-zoom-paper:has(img.zoomed) {
+  overflow: auto;
+}
+
+.figure-zoom .caption {
+  margin: 10px 16px 24px;
   color: var(--muted);
-  margin-top: 6px;
-  text-align: center;
+  font-size: 14px;
 }
 
 .code-block .output {
@@ -1207,6 +1273,24 @@ details.more summary {
 
 .option.wrong .mark {
   color: var(--wrong);
+}
+
+.result-mark {
+  flex: none;
+  font-weight: 700;
+  font-family: var(--font);
+}
+
+.result-mark.right {
+  color: var(--ok);
+}
+
+.result-mark.wrong {
+  color: var(--wrong);
+}
+
+.marked {
+  white-space: nowrap;
 }
 
 .order-item {

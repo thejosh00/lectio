@@ -89,6 +89,15 @@ function initialDraft(q: LearnerQuestion, order: string[] | null): unknown {
   return undefined;
 }
 
+/** Right or wrong in a mark and in words, never only in a border's colour. */
+function Mark({right}: {right: boolean | undefined}) {
+  return (
+    <span className={`result-mark ${right ? 'right' : 'wrong'}`} role="img" aria-label={right ? 'right' : 'wrong'}>
+      {right ? '✓' : '✗'}
+    </span>
+  );
+}
+
 function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order: string[] | null; draft: unknown; setDraft: (d: unknown) => void; outcome: Outcome | null}) {
   const locked = outcome !== null;
   const parts = (key: string): Part[] => {
@@ -159,17 +168,25 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
             const blank = /^\{\{([A-Za-z0-9_-]+)\}\}$/.exec(piece)?.[1];
             if (blank === undefined) return <Markdown key={i} text={piece} inline />;
             const result = outcome?.detail?.[blank];
-            return (
+            const input = (
               <input
                 key={i}
                 value={values[blank] ?? ''}
                 disabled={locked}
                 onChange={e => setDraft({...values, [blank]: e.target.value})}
-                aria-label={`blank ${blank}`}
+                aria-label={`blank ${blank}${result === undefined ? '' : result ? ', right' : ', wrong'}`}
                 autoCapitalize="off"
                 autoComplete="off"
                 style={result === undefined ? undefined : {borderColor: result ? 'var(--ok)' : 'var(--wrong)'}}
               />
+            );
+            return result === undefined ? (
+              input
+            ) : (
+              <span key={i} className="marked">
+                {input}
+                <Mark right={result} />
+              </span>
             );
           })}
         </div>
@@ -189,6 +206,7 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
           {current.map((id, i) => (
             <div key={id} className="order-item" style={outcome?.detail?.[id] === undefined ? undefined : {borderColor: outcome.detail[id] ? 'var(--ok)' : 'var(--wrong)'}}>
               <span className="muted">{i + 1}</span>
+              {outcome?.detail?.[id] !== undefined && <Mark right={outcome.detail[id]} />}
               <Markdown text={items.find(it => it.id === id)!.md} />
               {!locked && (
                 <>
@@ -225,6 +243,7 @@ function Inputs({q, order, draft, setDraft, outcome}: {q: LearnerQuestion; order
                   </option>
                 ))}
               </select>
+              {outcome?.detail?.[l.id] !== undefined && <Mark right={outcome.detail[l.id]} />}
             </label>
           ))}
         </div>

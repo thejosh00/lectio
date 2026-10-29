@@ -12,6 +12,7 @@
  * What it can't: problems that only show up when laying out (rare); the page shows the alt then.
  */
 import {DIAGRAM_MAX_SOURCE} from '../blocks/diagram.ts';
+import {withPalette} from '../core/palette.ts';
 
 type Parser = (source: string) => Promise<unknown>;
 let parser: Promise<Parser> | undefined;
@@ -32,14 +33,14 @@ const firstLine = (error: unknown) =>
     .trim()
     .slice(0, 300);
 
-/** Each source → mermaid's complaint, or null when it parses. */
+/** Each source → mermaid's complaint, or null when it parses — as the page draws it, with the palette's classes. */
 export async function checkMermaid(sources: Iterable<string>): Promise<Map<string, string | null>> {
   const verdicts = new Map<string, string | null>();
   for (const source of sources) {
     if (verdicts.has(source) || source.trim() === '' || source.length > DIAGRAM_MAX_SOURCE) continue;
     parser ??= loadParser();
     try {
-      await (await parser)(source);
+      await (await parser)(withPalette(source));
       verdicts.set(source, null);
     } catch (error) {
       verdicts.set(source, firstLine(error) || 'mermaid refused it');

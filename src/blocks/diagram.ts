@@ -26,6 +26,12 @@ const ID = /^[\p{L}_][\p{L}\p{N}_-]*/u;
  * estimate stays pure; exact for flowcharts and sequence diagrams, near enough for the rest.
  */
 export function diagramElements(source: string): number {
+  const parts = diagramParts(source);
+  return parts.nodes + parts.labels;
+}
+
+/** A diagram's distinct nodes, and the other things in it with text to read. */
+export function diagramParts(source: string): {nodes: number; labels: number} {
   const lines = source
     .split('\n')
     .map(line => line.replace(/%%.*$/, '').trim())
@@ -60,7 +66,7 @@ export function diagramElements(source: string): number {
     // A line with nothing recognisable on it is still one thing to read: a member, an item.
     if (!named && labels === labelsBefore) labels++;
   }
-  return nodes.size + labels;
+  return {nodes: nodes.size, labels};
 }
 
 /**
@@ -73,7 +79,7 @@ export const diagramBlock: BlockType<DiagramBody> = {
   type: 'diagram',
   milestone: 'M8',
   shape: '{mermaid, alt, caption?}',
-  renders: 'a mermaid diagram, drawn as an image that scales to the page; alt if it fails',
+  renders: 'a mermaid diagram on the figure paper, scaled to the page, tap to enlarge; the palette classes `focus`, `muted`, `c1`–`c4` are defined in flowcharts and state diagrams; alt if it fails',
   validate(body, ctx) {
     const node = Node.root(body, ctx.path);
     const o = node.object(['mermaid', 'alt', 'caption']);

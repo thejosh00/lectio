@@ -1447,3 +1447,41 @@ answers with no server.
 **Then, through the queue** (filed once M13 ships, so migrations don't collide): a `find_errors`
 question type, review credit flowing to prerequisites (Math Academy's FIRe), an `audio` block,
 "I'm stuck" answered in minutes, and an extra lesson on request.
+
+## 18. Pictures that teach (M17–M22)
+
+Built in one session, like §17, from the multimedia-learning evidence (Mayer and others): a picture
+helps when it shows the mechanism, with its labels on the parts, one thing pointed at, words beside
+it saying each thing once, a process in steps the learner controls, the same colour for the same
+thing across lessons, concrete before abstract, the scaffolding faded as it holds, and the learner
+made to *use* it. The app's part stays mechanical: it draws, measures and warns; when to use a
+picture stays the tutor's (teaching.md, then its playbook). Warnings are never refusals.
+
+**M17 — Figures that teach.**
+- *Guidance.* `teaching.md` carries a `Seed: N` line and a "Pictures and media" section (seed 2).
+  A running instance's playbook doesn't change when teaching.md does, so the skill tells the tutor to
+  fold a newer seed into its next playbook change, as its own change. `skills/lectio-teach/figures.md`
+  is the craft of making one — the palette, labels, phone width, alt text, photos and credit — and
+  applies at once, being part of the skill.
+- *Paper and palette.* Every picture sits on light paper in both themes, so one palette works for an
+  SVG the tutor draws (which can't see the theme through `<img>`) and a diagram lectio draws. The
+  palette (`src/core/palette.ts`, Okabe–Ito colours) is ink, muted, focus and four kinds. Mermaid
+  flowcharts and state diagrams get it as classes (`class a focus`), defined by `withPalette`, which
+  the server's parse check and the page both use. Diagrams are drawn light always.
+- *Reading.* A tap enlarges a picture: its own size when the column shrank it, the screen otherwise.
+  Captions are tied to their picture. An `image` can carry a `credit`. Reveals mark right and wrong
+  with ✓/✗, never by a border's colour alone. A block taller than the screen can count as seen.
+- *Warnings* (`src/core/figureLint.ts`), on asset put, lesson submit and revise, and block fix: an SVG
+  with no viewBox, no labels, labels under 12 px as a phone shows it, more than six colours, or a link
+  outside itself; a picture block with no concepts; a caption over 40 words or repeating the alt; a
+  left-to-right diagram over five nodes; more than 25 things in one picture.
+- *`lectio figure check <file>`* lints a picture and, with Chrome, draws it as a phone shows it — on
+  the paper, 340 px wide, with the palette — and saves a PNG for the tutor to look at. Local; no
+  server. Chrome runs in a throwaway profile against a throwaway server on 127.0.0.1.
+- Two approaches join the vocabulary: `pretraining` (the parts named before the process) and
+  `prediction` (the learner guesses before being shown).
+
+*Done when:* each warning appears at its path and nothing is refused for one; a diagram using the
+palette's classes parses; figures.md lists the palette lectio draws with, colour for colour; the skill
+lists what each seed added; and `figure check` draws a PNG with Chrome and lints without it.
+

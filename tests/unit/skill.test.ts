@@ -5,15 +5,39 @@
  */
 import {describe, expect, test} from 'bun:test';
 import {matchCommand} from '../../src/commands/index.ts';
+import {FIGURE_PALETTE, PAPER} from '../../src/core/palette.ts';
 
 const read = (path: string) => Bun.file(new URL(`../../skills/${path}`, import.meta.url)).text();
-const LOCAL = new Set(['--version', 'token', 'login', 'serve', 'service', 'backup', 'tools']);
+const LOCAL = new Set(['--version', 'token', 'login', 'serve', 'service', 'backup', 'tools', 'figure']);
 
 function commandsIn(text: string): string[] {
   const blocks = [...text.matchAll(/```bash\n([\s\S]*?)```/g)].flatMap(m => m[1]!.split('\n'));
   const inline = [...text.matchAll(/`(lectio [^`]+)`/g)].map(m => m[1]!);
   return [...blocks, ...inline].map(l => /(?:^|\| |&& )\s*(lectio [^#|]*)/.exec(l.trim())?.[1]?.trim()).filter((l): l is string => l !== undefined);
 }
+
+for (const file of ['lectio-teach/teaching.md', 'lectio-teach/figures.md']) {
+  test(`${file}: every lectio command it names exists`, async () => {
+    for (const line of commandsIn(await read(file))) {
+      const argv = line.split(/\s+/).slice(1);
+      if (LOCAL.has(argv[0]!)) continue;
+      expect({line, known: matchCommand(argv) !== undefined}).toEqual({line, known: true});
+    }
+  });
+}
+
+test("teaching.md names its seed, and the skill lists what each seed after the first added", async () => {
+  const seed = Number(/^Seed: (\d+)$/m.exec(await read('lectio-teach/teaching.md'))?.[1]);
+  expect(seed).toBeGreaterThanOrEqual(2);
+  const skill = await read('lectio-teach/SKILL.md');
+  for (let n = 2; n <= seed; n++) expect(skill).toContain(`Seed ${n}:`);
+});
+
+test('figures.md gives the palette lectio draws with, colour for colour', async () => {
+  const figures = await read('lectio-teach/figures.md');
+  for (const color of FIGURE_PALETTE) expect(figures).toContain(`| ${color.name} | \`${color.hex}\` | \`${color.fill}\` |`);
+  expect(figures).toContain(PAPER);
+});
 
 for (const [skill, name] of [
   ['lectio-teach/SKILL.md', 'lectio-teach'],

@@ -9,6 +9,7 @@ import type {BlockView} from '../api.ts';
 import {highlight, Markdown} from '../markdown.tsx';
 import {QuestionCard, type Answered} from '../QuestionCard.tsx';
 import {DiagramBlock} from './Diagram.tsx';
+import {Figure} from './Figure.tsx';
 
 export interface BlockProps {
   block: BlockView;
@@ -50,15 +51,12 @@ function CodeBlock({block}: BlockProps) {
   );
 }
 
+export const assetUrl = (id: unknown) => `/assets/${encodeURIComponent(String(id ?? ''))}`;
+const text = (value: unknown) => (typeof value === 'string' ? value : null);
+
 /** An SVG is shown only ever through `<img>`, where its scripts don't run. */
 function ImageBlock({block}: BlockProps) {
-  const caption = block.body['caption'];
-  return (
-    <figure className="image-block">
-      <img src={`/assets/${encodeURIComponent(String(block.body['asset'] ?? ''))}`} alt={String(block.body['alt'] ?? '')} loading="lazy" />
-      {typeof caption === 'string' && <figcaption className="caption">{caption}</figcaption>}
-    </figure>
-  );
+  return <Figure src={assetUrl(block.body['asset'])} alt={String(block.body['alt'] ?? '')} caption={text(block.body['caption'])} credit={text(block.body['credit'])} className="image-block" />;
 }
 
 function QuestionBlock({block, lessonId, onAnswered}: BlockProps) {

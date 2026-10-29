@@ -34,6 +34,7 @@ const LOCAL_COMMANDS: Array<[string, string]> = [
   ['login', 'remember the server and a token: lectio login --url … --token … [--default]'],
   ['backup', 'copy the database now: lectio backup [--label …] | lectio backup restore <file> (server stopped)'],
   ['tools', 'what the tutor can make here: the tools on this machine, and which media types they unlock'],
+  ['figure check', 'see a picture as a phone shows it, and what a reader would notice: lectio figure check <file.svg|file.mmd|photo> [--out x.png]'],
 ];
 
 const GROUPS: Array<[Audience, string]> = [
@@ -227,6 +228,23 @@ export async function run(options: RunOptions): Promise<number> {
     if (json) emitJson({ok: true, ...report});
     else for (const line of toolsText(report)) out(line);
     return EXIT_OK;
+  }
+
+  if (name === 'figure') {
+    const args = parseArgs(rest);
+    const [sub, file] = args.positional;
+    if (sub !== 'check' || file === undefined) return fail('usage: lectio figure check <file.svg|file.mmd|photo> [--out x.png]', EXIT_USAGE);
+    let data: Uint8Array;
+    try {
+      data = new Uint8Array(readFileSync(file));
+    } catch (error) {
+      return fail(`can't read ${file}: ${error instanceof Error ? error.message : String(error)}`, EXIT_USAGE);
+    }
+    const [{figureCheck, figureCheckText}, {chromePath, realToolDeps}] = await Promise.all([import('./local/figure.ts'), import('./local/tools.ts')]);
+    const check = await figureCheck(data, {chrome: chromePath(options.tools ?? realToolDeps(env)), out: flagValue(args, 'out')});
+    if (json) emitJson(check);
+    else for (const line of figureCheckText(check)) out(line);
+    return check.ok ? EXIT_OK : EXIT_USAGE;
   }
 
   if (name === 'service') {

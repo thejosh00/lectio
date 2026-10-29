@@ -7,6 +7,7 @@ import {existsSync, mkdirSync, readFileSync, renameSync, writeFileSync} from 'no
 import {join} from 'node:path';
 import {ASSET_EXTENSIONS, ASSET_ID, sniffImage, svgLabels, type AssetMime} from '../core/assets.ts';
 import {AppError, EXIT_ERROR, notFound, usageError} from '../core/errors.ts';
+import {svgLint} from '../core/figureLint.ts';
 import {ASSETS_DIR} from './backup.ts';
 import type {Ctx} from './context.ts';
 import {numberSetting} from './settings.ts';
@@ -32,8 +33,11 @@ export function findAsset(ctx: Ctx, id: string): Asset | undefined {
   return (ctx.db.query('SELECT * FROM assets WHERE id = ?').get(id) as Asset | null) ?? undefined;
 }
 
-/** Store an image. Refused unless the bytes are an image type lectio shows and within `asset_max_bytes`. */
-export function putAsset(ctx: Ctx, data: Uint8Array): {asset: Asset; existing: boolean} {
+/**
+ * Store an image. Refused unless the bytes are an image type lectio shows and within
+ * `asset_max_bytes`. `warnings` are what a reader at phone width would notice (M17).
+ */
+export function putAsset(ctx: Ctx, data: Uint8Array): {asset: Asset; existing: boolean; warnings: string[]} {
   const max = numberSetting(ctx.db, 'asset_max_bytes');
   if (data.length === 0) throw usageError('the asset is empty');
   if (data.length > max) throw usageError(`the asset is ${data.length} bytes; the limit is ${max} (asset_max_bytes)`);
@@ -51,16 +55,31 @@ export function putAsset(ctx: Ctx, data: Uint8Array): {asset: Asset; existing: b
     renameSync(partial, path);
   }
   const labels = labelsIn(mime, data);
+  const warnings = mime === 'image/svg+xml' ? svgLint(new TextDecoder().decode(data)) : [];
   const existing = findAsset(ctx, id);
   if (existing !== undefined) {
     // Stored before labels were counted: putting it again counts them.
     if (existing.labels === null) ctx.db.query('UPDATE assets SET labels = ? WHERE id = ?').run(labels, id);
-    return {asset: {...existing, labels}, existing: true};
+    return {asset: {...existing, labels}, existing: true, warnings};
   }
   const asset: Asset = {id, mime, bytes: data.length, labels, added_by: ctx.actor, added: ctx.now()};
   ctx.db.query('INSERT INTO assets (id, mime, bytes, labels, added_by, added) VALUES (?, ?, ?, ?, ?, ?)').run(asset.id, asset.mime, asset.bytes, asset.labels, asset.added_by, asset.added);
   ctx.event('asset', id, {mime, bytes: asset.bytes});
-  return {asset, existing: false};
+  return {asset, existing: false, warnings};
+}
+
+/** The SVG warnings (`svgLint`) of the given assets, read from their bytes; assets with none are left out. */
+export function svgWarnings(ctx: Ctx, ids: Iterable<string>): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const id of new Set(ids)) {
+    const asset = ASSET_ID.test(id) ? findAsset(ctx, id) : undefined;
+    if (asset === undefined || asset.mime !== 'image/svg+xml' || ctx.dataDir === undefined) continue;
+    const path = join(ctx.dataDir, ASSETS_DIR, assetFileName(asset));
+    if (!existsSync(path)) continue;
+    const warnings = svgLint(readFileSync(path, 'utf8'));
+    if (warnings.length > 0) out.set(id, warnings);
+  }
+  return out;
 }
 
 const labelsIn = (mime: AssetMime, data: Uint8Array) => (mime === 'image/svg+xml' ? svgLabels(new TextDecoder().decode(data)) : 0);

@@ -110,6 +110,11 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
 - **An empty playbook** (version 0): seed it from `teaching.md` next to this file, unchanged —
   `lectio playbook set --file <path to teaching.md> --note "seeded from teaching.md" --json`. The seed
   doesn't count against the wait.
+- **A newer seed.** `teaching.md` says `Seed: N`; your playbook says which seed it holds (no line
+  means 1). When the seed is newer, fold in what it added — the list below — as your next playbook
+  change, keeping the `Seed:` line up to date, with the note `merged seed N: <what>`. It is your
+  change: leave out what your measures contradict, and say why in the run summary.
+  Seed 2: the "Pictures and media" section.
 
 ## 5. Plan
 
@@ -163,6 +168,10 @@ checks shared, and the quiz written the same for both (you can't see the arm unt
 finished). Close it — `lectio experiment close <name> --note "<what it showed, with numbers>"` — once
 `measures.experiments` says `enough`, or when you stop; then put what it showed in your playbook.
 
+**Before you make a picture**, read `figures.md` (next to this file): the palette, labels on the
+parts, sizes that read on a phone, alt text. Look at each one with `lectio figure check <file>` before
+it goes in a lesson.
+
 Check facts you aren't sure of and list `sources`. Write your own explanations; never paste
 copyrighted text.
 
@@ -195,7 +204,8 @@ target. Placement probes take none.
 - `"existing": true` means today was already written (perhaps by a crashed run): fine, move on.
 - Exit 1 with `why` (not ready): skip the subject.
 - Exit 2: fix every listed problem and submit again.
-- The response's `warnings` say when the blocks run long or the estimate is off: shorten.
+- The response's `warnings` say when the blocks run long or the estimate is off (shorten), and what a
+  reader at phone width would notice about a picture (fix it, or say in the run summary why not).
 
 ## 9. Reflect on lectio itself
 

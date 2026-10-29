@@ -24,17 +24,19 @@ function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number)
 
   useEffect(() => {
     if (!enabled) return;
+    // On screen means 40% of the block showing, or most of the screen for a block taller than it.
     const observer = new IntersectionObserver(
       entries => {
         for (const entry of entries) {
           const id = (entry.target as HTMLElement).dataset['blockId']!;
-          if (entry.isIntersecting) {
+          const share = Math.min(0.4, (0.6 * window.innerHeight) / Math.max(1, entry.boundingClientRect.height));
+          if (entry.isIntersecting && entry.intersectionRatio >= share - 0.001) {
             visible.current.add(id);
             onSeen(Number((entry.target as HTMLElement).dataset['index']));
           } else visible.current.delete(id);
         }
       },
-      {threshold: 0.4},
+      {threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.4]},
     );
     for (const el of document.querySelectorAll('[data-block-id]')) observer.observe(el);
     const touch = () => (lastInput.current = Date.now());

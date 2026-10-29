@@ -227,6 +227,13 @@ by hand with `lectio proposal shipped <n> --commit <sha>`, as you would for a bi
 accepts it or asks for another change, which goes back to the builder (`lectio proposal review <n>
 accept|changes`). Until then the Improvements page lists it under *With your tutor*.
 
+**Pictures that teach.** Every picture sits on light paper in both themes, drawn from one palette,
+so a colour means the same thing in every lesson; a tap enlarges it. When the tutor stores or uses a
+picture, lectio warns about what a reader on a phone would notice — labels too small, a diagram too
+wide, a caption doing the picture's job — and `lectio figure check <file>` shows the tutor the picture
+as your phone will. When to use one is the tutor's craft (`skills/lectio-teach/teaching.md` and
+`figures.md`).
+
 **Media types are a ladder.** Images and diagrams exist; step-throughs, animations, audio and video are
 added one at a time, when the tutor shows the need: ideas of one kind that keep failing however it
 teaches them with what it has. Its proposal names the media type, and `lectio tools` says whether this

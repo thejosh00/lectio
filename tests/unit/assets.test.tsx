@@ -29,7 +29,8 @@ const ctx = (assets: string[]) => ({path: 'blocks[2].body', conceptKeys: new Set
 const ID = 'a'.repeat(64);
 
 test('an image block needs an asset that exists and a non-empty alt', () => {
-  expect(imageBlock.validate({asset: ID, alt: 'a cat'}, ctx([ID]))).toEqual({ok: true, value: {asset: ID, alt: 'a cat', caption: null}} as never);
+  expect(imageBlock.validate({asset: ID, alt: 'a cat'}, ctx([ID]))).toEqual({ok: true, value: {asset: ID, alt: 'a cat', caption: null, credit: null}} as never);
+  expect(imageBlock.validate({asset: ID, alt: 'a cat', credit: 'Photo: A. Person, CC BY-SA 4.0'}, ctx([ID]))).toEqual({ok: true, value: {asset: ID, alt: 'a cat', caption: null, credit: 'Photo: A. Person, CC BY-SA 4.0'}} as never);
   const missing = imageBlock.validate({asset: 'b'.repeat(64), alt: 'a cat', caption: 'c'}, ctx([ID]));
   expect(JSON.stringify(missing)).toContain('blocks[2].body.asset');
   expect(JSON.stringify(missing)).toContain('asset put');
@@ -39,12 +40,18 @@ test('an image block needs an asset that exists and a non-empty alt', () => {
   }
   expect(JSON.stringify(imageBlock.validate({asset: ID, alt: 'x', src: 'http://evil'}, ctx([ID])))).toContain('blocks[2].body.src');
   expect(imageBlock.plainText({asset: ID, alt: 'a cat', caption: 'Figure 1'})).toBe('[Image: a cat]\nFigure 1');
+  expect(imageBlock.plainText({asset: ID, alt: 'a cat', caption: null, credit: 'CC0'})).toBe('[Image: a cat]\n(CC0)');
 });
 
 test('an image block renders as a figure with a lazy <img>, never inlined SVG', () => {
   const block = {id: 'b1', type: 'image', approach: 'visual', concepts: [], body: {asset: ID, alt: 'two boxes, "s1" and s2', caption: 'After the move'}} as unknown as BlockView;
   const html = renderToStaticMarkup(<Block block={block} lessonId="l1" />);
-  expect(html).toBe(`<figure class="image-block"><img src="/assets/${ID}" alt="two boxes, &quot;s1&quot; and s2" loading="lazy"/><figcaption class="caption">After the move</figcaption></figure>`);
+  // On the figure paper, tap to enlarge; the caption describes the picture; the enlarged copy loads only when opened.
+  expect(html).toContain(`<button type="button" class="figure-paper" aria-label="Enlarge: two boxes, &quot;s1&quot; and s2"><img src="/assets/${ID}" alt="two boxes, &quot;s1&quot; and s2" loading="lazy" aria-describedby="`);
+  expect(html).toContain('<figcaption class="caption" id="');
+  expect(html).toContain('After the move</figcaption>');
+  expect(html.match(/<img /g)?.length).toBe(1);
+  expect(html).not.toContain('preload');
   const bare = renderToStaticMarkup(<Block block={{...block, body: {asset: ID, alt: 'x'}} as BlockView} lessonId="l1" />);
   expect(bare).not.toContain('figcaption');
   expect(bare).not.toContain('<svg');

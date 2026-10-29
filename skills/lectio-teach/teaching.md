@@ -2,6 +2,8 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
+Seed: 2
+
 ## What you are optimising
 
 **Retention**: whether they can still answer about an idea days after meeting it — first try, no
@@ -30,12 +32,44 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   from this learner's own misconception tags: which line is wrong, and why? (a `multiple_choice` over
   the lines). Explaining someone else's mistake is strong practice.
 - **Pair words with a picture only when the picture shows the mechanism** — a trace of who owns a
-  buffer, a diagram of a cycle. Never as decoration. Richer media (animation, audio, video) earn their
-  place the same way: by a two-arm lesson against something cheaper, on this learner.
+  buffer, a diagram of a cycle. Never as decoration. More under "Pictures and media".
 - **Short.** Fit the budget. If it doesn't fit, cut the least important idea, not the examples.
 - **Honest approaches.** Label every block with how it actually teaches (`worked_example`,
   `analogy`, `misconception`…) and the concepts it serves. That is how outcomes find their way back
   to what worked.
+
+## Pictures and media
+
+There are no visual learners, only visual ideas: pick the medium for the idea.
+
+- **Which medium.** Where things are and how they connect: a picture or a diagram. How something
+  changes, one step after another: a sequence of pictures the learner steps through. Motion that is
+  itself the idea (a wave, a gear train, a sort): an animation. Something learnt by acting on it (set
+  the threshold, make the queue overflow): an interactive with a goal. Definitions, arguments and
+  anything without a shape: words. Use the cheapest one that shows it.
+- **It shows the mechanism, or it goes.** A picture nobody needs costs the attention the idea needed.
+- **Names before the process.** Before a picture of how parts interact, the learner knows the parts —
+  from the picture's own labels or a line before it ("this is the stack; this is the heap").
+- **Point at what matters.** One part in `focus`, the part the text beside it is about; the rest
+  plainer.
+- **Words beside the picture, each saying it once.** The text that explains a picture sits next to it
+  and names what it shows. The caption says what to look for, in a sentence. Labels, caption and text
+  don't repeat each other.
+- **One change at a time.** A process goes in frames, each changing one thing, the words saying what
+  changed. An animation only when the motion is the content, and then with pause and step.
+- **Link the pictures.** The same colour and shape for the same thing in every lesson of a subject.
+  When two representations show one idea (code and its memory, an equation and its graph), say which
+  part is which: "the orange box is line 4".
+- **Concrete, then abstract.** The real thing first (a photo of the actual caliper), then the
+  schematic, then the symbol — across lessons, as each holds.
+- **Fade the scaffolding picture.** Once a concept holds on reviews a week or more apart, the picture
+  that carried it can go: next time the picture with its labels blank for them to fill in, then none.
+  Find out on purpose, with a two-arm lesson, rather than assuming.
+- **Make them use it.** Right after a picture, an inline check on it: which part does X, which letter
+  is the valve (a `matching` over lettered parts), what happens next, which of these is wrong. A
+  picture they had to use is remembered; one they glanced at isn't.
+- Richer media (animation, audio, video) earn their place by a two-arm lesson against something
+  cheaper, on this learner.
 
 ## Spacing and review
 

@@ -190,7 +190,7 @@ export const tutorCommands: CommandDef[] = [
     },
     human: body => {
       const asset = body['asset'] as {id: string; mime: string; bytes: number};
-      return [`${body['existing'] === true ? 'already stored' : 'stored'}: ${asset.id} (${asset.mime}, ${asset.bytes} bytes)`];
+      return [`${body['existing'] === true ? 'already stored' : 'stored'}: ${asset.id} (${asset.mime}, ${asset.bytes} bytes)`, ...warnings(body)];
     },
   },
   {
@@ -232,7 +232,7 @@ export const tutorCommands: CommandDef[] = [
       path: `/api/blocks/${enc(need(args.positional[0], 'lectio block fix <block> --file block.json'))}/fix`,
       body: {block: await jsonInput(args, io, 'block'), resolve: flagList(args, 'resolve'), reply: flagValue(args, 'reply')},
     }),
-    human: body => `fixed block ${(body['block'] as {id: string; version: number}).id} (v${(body['block'] as {version: number}).version}); resolved ${(body['resolved'] as string[]).length}`,
+    human: body => [`fixed block ${(body['block'] as {id: string; version: number}).id} (v${(body['block'] as {version: number}).version}); resolved ${(body['resolved'] as string[]).length}`, ...warnings(body)],
   },
   {
     name: 'quiz submit',

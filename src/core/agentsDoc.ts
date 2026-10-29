@@ -9,6 +9,8 @@
 import {APPROACHES, BLOCK_TYPES, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
 import {CAPTION_MAX, SECONDS_PER_LABEL, SECONDS_TO_LOOK} from '../blocks/types.ts';
 import {PLANNED_QUESTION_TYPES, QUESTION_TYPES} from '../questions/index.ts';
+import {CAPTION_WORDS_MAX, FIGURE_ELEMENTS_MAX, MAX_COLORS, MIN_LABEL_PX, PHONE_FIGURE_WIDTH, ROW_NODES_MAX} from './figureLint.ts';
+import {FIGURE_PALETTE} from './palette.ts';
 import {AREAS, OUTCOMES} from './proposals.ts';
 import {AIMS, DAILY_ROLES} from './types.ts';
 
@@ -59,11 +61,11 @@ const FIXED_QUESTION = {
 
 /** A picture for the lesson's image block: drawn as SVG, stored with `asset put`. */
 const MOVE_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" width="320" height="120" font-family="sans-serif" font-size="14">\n' +
-  '  <rect x="10" y="20" width="60" height="30" fill="none" stroke="#999"/><text x="22" y="40" fill="#999">s1</text>\n' +
-  '  <rect x="10" y="70" width="60" height="30" fill="none" stroke="#c60"/><text x="22" y="90" fill="#c60">s2</text>\n' +
-  '  <rect x="200" y="45" width="110" height="30" fill="none" stroke="#c60"/><text x="212" y="65" fill="#c60">"hi" (heap)</text>\n' +
-  '  <line x1="70" y1="85" x2="200" y2="60" stroke="#c60" stroke-width="2"/>\n' +
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 120" font-family="sans-serif" font-size="14">\n' +
+  '  <rect x="10" y="20" width="60" height="30" fill="#f2f0eb" stroke="#b9b4aa"/><text x="22" y="40" fill="#8a857b">s1</text>\n' +
+  '  <rect x="10" y="70" width="60" height="30" fill="#fbe3d3" stroke="#d55e00" stroke-width="3"/><text x="22" y="90" fill="#1a1a18">s2</text>\n' +
+  '  <rect x="200" y="45" width="130" height="30" fill="#ffffff" stroke="#1a1a18"/><text x="212" y="65" fill="#1a1a18">"hi" (heap)</text>\n' +
+  '  <line x1="70" y1="85" x2="200" y2="60" stroke="#d55e00" stroke-width="3"/>\n' +
   '</svg>\n';
 
 const LESSON = {
@@ -538,7 +540,16 @@ export function agentsDocument(options: ContractOptions): string {
     `   WebP), at most ${L['asset_max_bytes']} bytes; the same bytes give the same id, so putting twice is harmless.`,
     "   `asset.labels` is how many labels it counted in an SVG: its `<text>` elements with words in them.",
     '   Use a `diagram` block for flows and boxes-and-arrows; draw an SVG image where position matters (a',
-    `   labelled parts layout). Give every image an \`alt\` that says what it shows. A caption is at most ${CAPTION_MAX} characters.`,
+    `   labelled parts layout). Give every image an \`alt\` that says what it shows. A caption is at most ${CAPTION_MAX} characters;`,
+    '   `credit` names the maker and licence of a picture from elsewhere. Every picture is shown on light paper in',
+    `   both themes, about ${PHONE_FIGURE_WIDTH} px wide on a phone, and enlarges on a tap. Draw with the figure palette (`,
+    `   ${FIGURE_PALETTE.map(c => `${c.name} ${c.hex}`).join(', ')}); in mermaid flowcharts and state diagrams its`,
+    `   names are classes already (\`class a focus\`). \`lectio figure check <file.svg|file.mmd|photo>\` (local, no server)`,
+    '   draws a picture as a phone shows it and saves a PNG to look at. Submit, revise, block fix and asset put',
+    '   return `warnings` for what a reader at phone width would notice: labels under',
+    `   ${MIN_LABEL_PX} px as shown, a left-to-right diagram over ${ROW_NODES_MAX} nodes, more than ${FIGURE_ELEMENTS_MAX} things in one picture, a caption`,
+    `   over ${CAPTION_WORDS_MAX} words or repeating the alt, an SVG with no labels, no viewBox or more than ${MAX_COLORS} colours, and a picture`,
+    '   block with no concepts. The skill\'s `figures.md` has the craft.',
     '   **Two-arm lessons** answer which of two ways of teaching works better for this learner, by cause rather',
     '   than by counting. Name an `experiment` (a slug, and a line on how each arm teaches) and tag the blocks that',
     '   differ `"arm": "a"` or `"b"`; untagged blocks are shared. Both arms teach the same concepts, at about the',
@@ -554,7 +565,7 @@ export function agentsDocument(options: ContractOptions): string {
     `   (the block table's "Timed as"): ${SECONDS_TO_LOOK} s to look, ${SECONDS_PER_LABEL} s per label of an SVG or element of a diagram, and the`,
     '   caption. Labels count, so a labelled drawing balances a fuller description than its caption alone would.',
     ...shown('experiment'),
-    '7. **Check** every visual before submitting: read `steps` frames and SVG back once.',
+    '7. **Check** every visual before submitting: look at each picture with `figure check`, and read SVG back once.',
     "8. **Keep the bank healthy.** `questions` gives each question's record: first-try share, picks per",
     '   choice, flags, and difficulty guessed vs observed. Retire what is broken, ambiguous or too easy.',
     ...shown('bank'),

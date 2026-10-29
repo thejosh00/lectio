@@ -45,6 +45,8 @@ export const APPROACHES = [
   'video',
   'code',
   'misconception',
+  'pretraining',
+  'prediction',
   'retrieval',
   'summary',
   'connection',
