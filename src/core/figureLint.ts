@@ -9,6 +9,7 @@
 import {diagramParts} from '../blocks/diagram.ts';
 import {svgLabels} from './assets.ts';
 import {diagramHeader} from './palette.ts';
+import {networkReach} from './widget.ts';
 
 /** How wide a figure shows on a phone: a 390 px screen, less the page's margins and the paper's. */
 export const PHONE_FIGURE_WIDTH = 340;
@@ -23,7 +24,9 @@ export const ROW_NODES_MAX = 5;
 export const FIGURE_ELEMENTS_MAX = 25;
 
 /** Block types that are a picture, and so must show something a concept needs. */
-export const PICTURE_TYPES: ReadonlySet<string> = new Set(['image', 'diagram', 'steps']);
+export const PICTURE_TYPES: ReadonlySet<string> = new Set(['image', 'diagram', 'steps', 'widget']);
+/** An animation longer than this needs steps, so the learner can jump to the moments that matter. */
+export const ANIMATION_SECONDS_WITHOUT_STEPS = 10;
 /** A step-through past this many frames is usually two processes. */
 export const STEP_FRAMES_MAX = 8;
 
@@ -142,6 +145,16 @@ export function blockFigureWarnings(block: BlockLike, path: string, svgWarnings:
   if (!PICTURE_TYPES.has(block.type)) return [];
   const out: string[] = [];
   if (block.concepts.length === 0) out.push(`${path}: a picture that serves no concept is decoration, and decoration costs the reader attention; name the concept it shows, or cut it`);
+  if (block.type === 'widget') {
+    for (const reach of networkReach(String(block.body['html'] ?? ''))) out.push(`${path}.body.html reaches for the network (${reach}): the sandbox blocks it, so the widget will break; run lectio widget check on it`);
+    const steps = Array.isArray(block.body['steps']) ? block.body['steps'].length : 0;
+    const duration = typeof block.body['duration'] === 'number' ? block.body['duration'] : 0;
+    if (block.body['kind'] === 'animation' && steps === 0 && duration > ANIMATION_SECONDS_WITHOUT_STEPS) {
+      out.push(`${path}.body.steps: a ${duration} s animation with no steps; give it steps, so Step jumps to the moments that matter and each has its caption`);
+    }
+    out.push(...figureWarnings({caption: block.body['caption'], alt: block.body['alt']}, `${path}.body`, svgWarnings));
+    return out;
+  }
   if (block.type !== 'steps') {
     out.push(...figureWarnings(block.body, `${path}.body`, svgWarnings));
     return out;

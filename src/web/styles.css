@@ -1199,6 +1199,61 @@ h3 {
   inset: 10px 5px;
 }
 
+/* A widget: the tutor's sandboxed frame on the paper; the page owns an animation's controls. */
+.widget-paper {
+  position: relative;
+  cursor: default;
+  padding: 0;
+  overflow: hidden;
+}
+
+.widget-paper iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+.widget-goal {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.widget-predict {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  color: #1a1a18;
+  font-size: 16px;
+}
+
+.widget-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.widget-controls input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.widget-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 3.5em;
+  text-align: right;
+}
+
 .code-block .output {
   margin-top: 4px;
   font-size: 13px;

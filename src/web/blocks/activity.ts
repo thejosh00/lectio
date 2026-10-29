@@ -5,7 +5,7 @@
  */
 import {createContext, useContext} from 'react';
 
-export type ReportActivity = (blockId: string, what: {interactions?: number; completed?: boolean}) => void;
+export type ReportActivity = (blockId: string, what: {interactions?: number; completed?: boolean; errors?: number; last_error?: string}) => void;
 
 export const ActivityContext = createContext<ReportActivity>(() => undefined);
 

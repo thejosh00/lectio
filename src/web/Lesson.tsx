@@ -21,9 +21,11 @@ interface BlockActivity {
   seen_seconds: number;
   interactions: number;
   completed: boolean;
+  errors: number;
+  last_error: string | null;
 }
 
-const noActivity = (): BlockActivity => ({seen_seconds: 0, interactions: 0, completed: false});
+const noActivity = (): BlockActivity => ({seen_seconds: 0, interactions: 0, completed: false, errors: 0, last_error: null});
 
 /**
  * Reading time per block, and what was done with it (a step taken, the end reached), sent to
@@ -35,7 +37,13 @@ function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number)
   const pending = useRef({seconds: 0, blocks: new Map<string, BlockActivity>()});
   const report = useCallback<ReportActivity>((id, what) => {
     const block = pending.current.blocks.get(id) ?? noActivity();
-    pending.current.blocks.set(id, {...block, interactions: block.interactions + (what.interactions ?? 0), completed: block.completed || what.completed === true});
+    pending.current.blocks.set(id, {
+      ...block,
+      interactions: block.interactions + (what.interactions ?? 0),
+      completed: block.completed || what.completed === true,
+      errors: block.errors + (what.errors ?? 0),
+      last_error: what.last_error ?? block.last_error,
+    });
   }, []);
 
   useEffect(() => {
@@ -60,11 +68,17 @@ function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number)
     for (const e of events) window.addEventListener(e, touch, {passive: true});
     const payload = () => {
       const {seconds, blocks} = pending.current;
-      if (seconds === 0 && ![...blocks.values()].some(b => b.interactions > 0 || b.completed)) return undefined;
+      if (seconds === 0 && ![...blocks.values()].some(b => b.interactions > 0 || b.completed || b.errors > 0)) return undefined;
       pending.current = {seconds: 0, blocks: new Map()};
       return JSON.stringify({
         active_seconds: seconds,
-        blocks: [...blocks].map(([id, b]) => ({id, seen_seconds: b.seen_seconds, ...(b.interactions > 0 ? {interactions: b.interactions} : {}), ...(b.completed ? {completed: true} : {})})),
+        blocks: [...blocks].map(([id, b]) => ({
+          id,
+          seen_seconds: b.seen_seconds,
+          ...(b.interactions > 0 ? {interactions: b.interactions} : {}),
+          ...(b.completed ? {completed: true} : {}),
+          ...(b.errors > 0 ? {errors: b.errors, last_error: b.last_error} : {}),
+        })),
       });
     };
     const flush = () => {

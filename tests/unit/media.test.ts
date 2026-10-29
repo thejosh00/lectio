@@ -10,7 +10,10 @@ describe('the media ladder', () => {
     const none = mediaStatus(new Set());
     expect(none.map(m => m.type)).toEqual(['image', 'diagram', 'steps', 'widget', 'audio', 'video']);
     expect(none.find(m => m.type === 'image')).toMatchObject({lectio: 'available', ready: true, missing: []});
-    expect(none.find(m => m.type === 'widget')).toMatchObject({lectio: 'planned', milestone: 'M9', missing: [['chrome']], ready: false});
+    // Built, but making one needs Chrome here (to look at its frames).
+    expect(none.find(m => m.type === 'widget')).toMatchObject({lectio: 'available', milestone: null, missing: [['chrome']], ready: false});
+    expect(mediaStatus(new Set(['chrome'])).find(m => m.type === 'widget')).toMatchObject({ready: true});
+    expect(none.find(m => m.type === 'video')).toMatchObject({lectio: 'planned', milestone: 'M10'});
     expect(none.find(m => m.type === 'audio')).toMatchObject({lectio: 'not_planned', milestone: null});
     expect(mediaStatus(new Set(['ffmpeg'])).find(m => m.type === 'video')!.missing).toEqual([['manim', 'chrome']]);
     expect(mediaStatus(new Set(['ffmpeg', 'chrome'])).find(m => m.type === 'video')!.missing).toEqual([]);

@@ -11,6 +11,7 @@ import {CAPTION_MAX, SECONDS_PER_LABEL, SECONDS_TO_LOOK} from '../blocks/types.t
 import {PLANNED_QUESTION_TYPES, QUESTION_TYPES} from '../questions/index.ts';
 import {CAPTION_WORDS_MAX, FIGURE_ELEMENTS_MAX, MAX_COLORS, MIN_LABEL_PX, PHONE_FIGURE_WIDTH, ROW_NODES_MAX} from './figureLint.ts';
 import {FIGURE_PALETTE} from './palette.ts';
+import {WIDGET_LIB_NAMES} from './widget.ts';
 import {AREAS, OUTCOMES} from './proposals.ts';
 import {AIMS, DAILY_ROLES} from './types.ts';
 
@@ -575,6 +576,16 @@ export function agentsDocument(options: ContractOptions): string {
     '   labelled parts layout); a `steps` block for a process — frames the learner steps through, each changing',
     '   one thing, its caption saying what; a frame\'s `ask` has them guess before the next. Build a diagram up',
     '   frame by frame by moving `focus`. Picture frames take an asset id or mermaid; text frames take `md`.',
+    '   A `widget` is HTML you write, run in a sandbox: no network, no cookie, no `/api`, so draw everything from',
+    `   the page itself; \`libs\` loads ${WIDGET_LIB_NAMES.map(l => `\`${l}\``).join(' or ')}. It sits on the figure paper, with the palette as \`lectio.theme\``,
+    '   and CSS variables (`--lectio-focus`, `--lectio-focus-fill`, …). An `animation` draws a moment:',
+    '   `lectio.animate(draw, {duration})`, `draw(t)` for t in seconds. The page owns play, pause, Step and the',
+    '   scrubber and shows each of `steps` captions as it reaches it, never autoplaying. An `interactive` or a',
+    '   `simulation` has a `goal`, shown above it: call `lectio.done()` when the learner reaches it, and',
+    '   `lectio.event(name)` for each thing they do. `predict` has them guess before it starts. Errors it throws',
+    '   reach you in `widget_errors`, with their line. `lectio widget check <file> --kind animation --frames 0,2,5`',
+    '   (local) draws it at phone width, saves a PNG per moment and lists what it throws: look at each.',
+    '   The skill\'s `widgets.md` has the craft.',
     `   Give every picture an \`alt\` that says what it shows. A caption is at most ${CAPTION_MAX} characters;`,
     '   `credit` names the maker and licence of a picture from elsewhere. Every picture is shown on light paper in',
     `   both themes, about ${PHONE_FIGURE_WIDTH} px wide on a phone, and enlarges on a tap. Draw with the figure palette (`,
@@ -604,7 +615,7 @@ export function agentsDocument(options: ContractOptions): string {
     `   (the block table's "Timed as"): ${SECONDS_TO_LOOK} s to look, ${SECONDS_PER_LABEL} s per label of an SVG or element of a diagram, and the`,
     '   caption. Labels count, so a labelled drawing balances a fuller description than its caption alone would.',
     ...shown('experiment'),
-    '7. **Check** every visual before submitting: look at each picture with `figure check` (a mermaid frame too: save it as a .mmd), and read `steps` frames and SVG back once.',
+    '7. **Check** every visual before submitting: look at each picture with `figure check` (a mermaid frame too: save it as a .mmd) and each widget\'s frames with `widget check`, and read `steps` frames and SVG back once.',
     "8. **Keep the bank healthy.** `questions` gives each question's record: first-try share, picks per",
     '   choice, flags, and difficulty guessed vs observed. Retire what is broken, ambiguous or too easy.',
     ...shown('bank'),

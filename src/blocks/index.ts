@@ -12,13 +12,13 @@ import {imageBlock} from './image.ts';
 import {markdownBlock} from './markdown.ts';
 import {questionBlock} from './question.ts';
 import {stepsBlock} from './steps.ts';
+import {widgetBlock} from './widget.ts';
 import type {BlockType} from './types.ts';
 
-export const BLOCK_TYPES: ReadonlyArray<BlockType<any>> = [markdownBlock, calloutBlock, codeBlock, questionBlock, imageBlock, diagramBlock, stepsBlock];
+export const BLOCK_TYPES: ReadonlyArray<BlockType<any>> = [markdownBlock, calloutBlock, codeBlock, questionBlock, imageBlock, diagramBlock, stepsBlock, widgetBlock];
 
 /** Types the plan names that haven't shipped yet, so a refusal can say when they will. */
 export const PLANNED_BLOCK_TYPES: Readonly<Record<string, string>> = {
-  widget: 'M9',
   video: 'M10',
 };
 

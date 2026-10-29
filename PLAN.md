@@ -1524,3 +1524,25 @@ every existing experiment and measure reads exactly what it did; an experiment k
 *Done when:* a review lesson in a taught-counting experiment is measured by the review after it, for
 the arm the learner saw; and the context gives stability and the kinds of block per concept.
 
+**M21 — Widgets.** §5, built, with these changes for the evidence on animation:
+- *The page owns the timeline.* An animation draws a moment, `lectio.animate(draw, {duration})`, and the
+  page gives every animation the same learner-paced controls — play, pause, Step to the next of its
+  `steps`, a scrubber, replay — with each step's caption shown as it is reached, never autoplaying.
+  `draw(t)` is a function of time, so the scrubber and the check draw any moment exactly.
+- *An interactive or a simulation has a `goal`*, shown above it (refused without one), and calls
+  `lectio.done()` on reaching it. Any widget can have `predict`: a guess before it starts.
+- *Widgets sit on the figure paper* with the palette as `lectio.theme` and `--lectio-*` variables,
+  rather than following the page's theme, so they match the subject's pictures.
+- *Libraries*: d3 7.9.0 and p5 1.11.13 (the 1.x line, whose API most p5 code is written in), pinned in
+  package.json and served from node_modules at `/w/lib/`. three is left out: its builds are ES modules
+  only now; add it when widgets need 3D.
+- *Checking*: `lectio widget check` drives headless Chrome over the DevTools protocol, which gives a true
+  358 px viewport (a headless window can't be narrower than about 500 px) at twice the density. The
+  bridge reports errors and sandbox violations with lines counted in the widget's own HTML.
+  `--virtual-time-budget` is not used: a screenshot never comes back under virtual time.
+- The served CSP adds `frame-ancestors 'self'` to §5's.
+*Done when:* a widget opened directly in a signed-in tab reads no cookie or storage, has a null
+origin and can't call `/api`; a fetch is warned about at submit and flagged by the check; a thrown
+error reaches `widget_errors` with its line and a fix clears it; and the check's frames differ over
+time for an animation.
+

@@ -117,6 +117,7 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   Seed 2: the "Pictures and media" section. Seed 3: step-throughs (`steps`, `ask`) in it.
   Seed 4: questions on a picture (`figure`, `answer_figure`) in "Make them use it".
   Seed 5: fading a picture on `stability_days`, measured by a `"counts": "taught"` experiment.
+  Seed 6: an interactive's goal and a widget's guess, in "Make them use it".
 
 ## 5. Plan
 
@@ -173,7 +174,8 @@ finished). Close it — `lectio experiment close <name> --note "<what it showed,
 
 **Before you make a picture**, read `figures.md` (next to this file): the palette, labels on the
 parts, sizes that read on a phone, alt text. Look at each one with `lectio figure check <file>` before
-it goes in a lesson.
+it goes in a lesson. **Before you make a widget**, read `widgets.md`, and look at its frames with
+`lectio widget check <file>`.
 
 Check facts you aren't sure of and list `sources`. Write your own explanations; never paste
 copyrighted text.

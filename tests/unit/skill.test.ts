@@ -8,7 +8,7 @@ import {matchCommand} from '../../src/commands/index.ts';
 import {FIGURE_PALETTE, PAPER} from '../../src/core/palette.ts';
 
 const read = (path: string) => Bun.file(new URL(`../../skills/${path}`, import.meta.url)).text();
-const LOCAL = new Set(['--version', 'token', 'login', 'serve', 'service', 'backup', 'tools', 'figure']);
+const LOCAL = new Set(['--version', 'token', 'login', 'serve', 'service', 'backup', 'tools', 'figure', 'widget']);
 
 function commandsIn(text: string): string[] {
   const blocks = [...text.matchAll(/```bash\n([\s\S]*?)```/g)].flatMap(m => m[1]!.split('\n'));
@@ -16,7 +16,7 @@ function commandsIn(text: string): string[] {
   return [...blocks, ...inline].map(l => /(?:^|\| |&& )\s*(lectio [^#|]*)/.exec(l.trim())?.[1]?.trim()).filter((l): l is string => l !== undefined);
 }
 
-for (const file of ['lectio-teach/teaching.md', 'lectio-teach/figures.md']) {
+for (const file of ['lectio-teach/teaching.md', 'lectio-teach/figures.md', 'lectio-teach/widgets.md']) {
   test(`${file}: every lectio command it names exists`, async () => {
     for (const line of commandsIn(await read(file))) {
       const argv = line.split(/\s+/).slice(1);

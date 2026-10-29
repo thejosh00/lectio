@@ -35,6 +35,7 @@ const LOCAL_COMMANDS: Array<[string, string]> = [
   ['backup', 'copy the database now: lectio backup [--label …] | lectio backup restore <file> (server stopped)'],
   ['tools', 'what the tutor can make here: the tools on this machine, and which media types they unlock'],
   ['figure check', 'see a picture as a phone shows it, and what a reader would notice: lectio figure check <file.svg|file.mmd|photo> [--out x.png]'],
+  ['widget check', 'look at a widget before it ships: lectio widget check <file.html> [--kind animation] [--libs d3,p5] [--frames 0,2,5] [--height 300] [--out dir]'],
 ];
 
 const GROUPS: Array<[Audience, string]> = [
@@ -244,6 +245,27 @@ export async function run(options: RunOptions): Promise<number> {
     const check = await figureCheck(data, {chrome: chromePath(options.tools ?? realToolDeps(env)), out: flagValue(args, 'out')});
     if (json) emitJson(check);
     else for (const line of figureCheckText(check)) out(line);
+    return check.ok ? EXIT_OK : EXIT_USAGE;
+  }
+
+  if (name === 'widget') {
+    const args = parseArgs(rest);
+    const [sub, file] = args.positional;
+    if (sub !== 'check' || file === undefined) return fail('usage: lectio widget check <file.html> [--kind animation] [--libs d3,p5] [--frames 0,2,5] [--height 300] [--out dir]', EXIT_USAGE);
+    let html: string;
+    try {
+      html = readFileSync(file, 'utf8');
+    } catch (error) {
+      return fail(`can't read ${file}: ${error instanceof Error ? error.message : String(error)}`, EXIT_USAGE);
+    }
+    const list = (flag: string) => (flagValue(args, flag) ?? '').split(',').map(v => v.trim()).filter(v => v !== '');
+    const frames = list('frames').map(Number);
+    if (frames.some(t => !Number.isFinite(t) || t < 0)) return fail('--frames is a list of times in seconds: --frames 0,1.5,3', EXIT_USAGE);
+    const height = flagValue(args, 'height') === undefined ? undefined : Number(flagValue(args, 'height'));
+    const [{widgetCheck, widgetCheckText}, {chromePath, realToolDeps}] = await Promise.all([import('./local/widget.ts'), import('./local/tools.ts')]);
+    const check = await widgetCheck(html, {libs: list('libs'), frames: frames.length === 0 ? [0] : frames, kind: flagValue(args, 'kind'), height, chrome: chromePath(options.tools ?? realToolDeps(env)), out: flagValue(args, 'out')});
+    if (json) emitJson(check);
+    else for (const line of widgetCheckText(check)) out(line);
     return check.ok ? EXIT_OK : EXIT_USAGE;
   }
 

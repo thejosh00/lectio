@@ -11,6 +11,7 @@ import {QuestionCard, type Answered} from '../QuestionCard.tsx';
 import {DiagramBlock} from './Diagram.tsx';
 import {assetUrl, Figure} from './Figure.tsx';
 import {StepsBlock} from './Steps.tsx';
+import {WidgetBlock} from './Widget.tsx';
 
 export interface BlockProps {
   block: BlockView;
@@ -72,6 +73,7 @@ export const BLOCK_RENDERERS: Record<string, ComponentType<BlockProps>> = {
   diagram: DiagramBlock,
   image: ImageBlock,
   steps: StepsBlock,
+  widget: WidgetBlock,
 };
 
 export function Block(props: BlockProps) {
