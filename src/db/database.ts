@@ -345,6 +345,11 @@ const MIGRATIONS: string[] = [
   -- estimate. NULL until counted: assets stored before this are counted from their bytes.
   ALTER TABLE assets ADD COLUMN labels INTEGER;
   `,
+  `
+  -- M19: a picture a question asks about, and one shown with its answer: JSON {asset|mermaid, alt}.
+  ALTER TABLE questions ADD COLUMN figure TEXT;
+  ALTER TABLE questions ADD COLUMN answer_figure TEXT;
+  `,
 ];
 
 export interface OpenOptions {

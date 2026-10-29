@@ -115,6 +115,7 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   change, keeping the `Seed:` line up to date, with the note `merged seed N: <what>`. It is your
   change: leave out what your measures contradict, and say why in the run summary.
   Seed 2: the "Pictures and media" section. Seed 3: step-throughs (`steps`, `ask`) in it.
+  Seed 4: questions on a picture (`figure`, `answer_figure`) in "Make them use it".
 
 ## 5. Plan
 

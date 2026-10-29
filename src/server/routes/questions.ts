@@ -5,6 +5,7 @@ import {questionBank} from '../../db/measures.ts';
 import {resolveQuestion, retireQuestion} from '../../db/questions.ts';
 import {resolveSubject} from '../../db/subjects.ts';
 import {bool, q, str, strList, type Route} from '../http.ts';
+import {diagramVerdicts} from '../diagrams.ts';
 
 export const questionRoutes: Route[] = [
   {
@@ -28,8 +29,9 @@ export const questionRoutes: Route[] = [
     path: '/api/questions/:ref/fix',
     allow: ['tutor', 'examiner'],
     what: 'fixing questions',
-    handler: (ctx, req) =>
-      ctx.write(() => {
+    handler: async (ctx, req) => {
+      const diagrams = await diagramVerdicts(req.body['question']);
+      return ctx.write(() => {
         if (req.body['question'] === undefined) throw usageError('send the question JSON: --file q.json');
         const question = resolveQuestion(ctx, req.params['ref']);
         // The examiner fixes its own checkup questions and nothing else (the tutor can't even see them).
@@ -40,9 +42,11 @@ export const questionRoutes: Route[] = [
             voidAttempts: bool(req.body, 'void_attempts') === true,
             resolve: strList(req.body, 'resolve'),
             reply: str(req.body, 'reply'),
+            diagrams,
           }),
         };
-      }),
+      });
+    },
   },
   {
     method: 'POST',

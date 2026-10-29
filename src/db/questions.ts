@@ -5,15 +5,20 @@
  */
 import {AppError, EXIT_USAGE, notFound} from '../core/errors.ts';
 import type {QuestionInput} from '../core/submission.ts';
+import type {Figure} from '../blocks/picture.ts';
 import type {Question} from '../core/types.ts';
 import {questionType} from '../questions/index.ts';
 import {parseJson, type Ctx} from './context.ts';
 import {resolveId} from './refs.ts';
 
-interface QuestionRow extends Omit<Question, 'body' | 'hints' | 'concepts'> {
+interface QuestionRow extends Omit<Question, 'body' | 'hints' | 'concepts' | 'figure' | 'answer_figure'> {
   body: string;
   hints: string;
+  figure: string | null;
+  answer_figure: string | null;
 }
+
+const figureJson = (figure: Figure | null) => (figure === null ? null : JSON.stringify(figure));
 
 function conceptKeysOf(ctx: Ctx, questionId: string): string[] {
   return (
@@ -24,7 +29,14 @@ function conceptKeysOf(ctx: Ctx, questionId: string): string[] {
 }
 
 export function questionFromRow(ctx: Ctx, row: QuestionRow): Question {
-  return {...row, body: parseJson<Record<string, unknown>>(row.body, {}), hints: parseJson<string[]>(row.hints, []), concepts: conceptKeysOf(ctx, row.id)};
+  return {
+    ...row,
+    body: parseJson<Record<string, unknown>>(row.body, {}),
+    hints: parseJson<string[]>(row.hints, []),
+    concepts: conceptKeysOf(ctx, row.id),
+    figure: row.figure === null ? null : parseJson<Figure | null>(row.figure, null),
+    answer_figure: row.answer_figure === null ? null : parseJson<Figure | null>(row.answer_figure, null),
+  };
 }
 
 export function getQuestion(ctx: Ctx, id: string): Question | undefined {
@@ -76,8 +88,8 @@ export function insertQuestion(
   const now = ctx.now();
   ctx.db
     .query(
-      `INSERT INTO questions (id, subject_id, lesson_id, type, aim, prompt, body, explanation, hints, difficulty, variant_of, run_id, added_by, status, added, changed)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+      `INSERT INTO questions (id, subject_id, lesson_id, type, aim, prompt, body, explanation, hints, difficulty, variant_of, run_id, added_by, status, added, changed, figure, answer_figure)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -95,6 +107,8 @@ export function insertQuestion(
       ctx.actor,
       now,
       now,
+      figureJson(input.figure),
+      figureJson(input.answer_figure),
     );
   linkConcepts(ctx, id, input.concepts, where.conceptIds);
   return getQuestion(ctx, id)!;
@@ -102,12 +116,25 @@ export function insertQuestion(
 
 /** Replace a question's content. Its version goes up only if something changed. */
 export function rewriteQuestion(ctx: Ctx, question: Question, input: QuestionInput, conceptIds: ReadonlyMap<string, string>): {question: Question; changed: boolean} {
-  const before = {type: question.type, aim: question.aim, prompt: question.prompt, body: question.body, explanation: question.explanation, hints: question.hints, difficulty: question.difficulty, concepts: question.concepts};
-  const after = {type: input.type, aim: input.aim, prompt: input.prompt, body: input.body, explanation: input.explanation, hints: input.hints, difficulty: input.difficulty, concepts: input.concepts};
+  const before = {type: question.type, aim: question.aim, prompt: question.prompt, body: question.body, explanation: question.explanation, hints: question.hints, difficulty: question.difficulty, concepts: question.concepts, figure: question.figure, answer_figure: question.answer_figure};
+  const after = {type: input.type, aim: input.aim, prompt: input.prompt, body: input.body, explanation: input.explanation, hints: input.hints, difficulty: input.difficulty, concepts: input.concepts, figure: input.figure, answer_figure: input.answer_figure};
   if (JSON.stringify(before) === JSON.stringify(after)) return {question, changed: false};
   ctx.db
-    .query('UPDATE questions SET type = ?, aim = ?, prompt = ?, body = ?, explanation = ?, hints = ?, difficulty = ?, version = version + 1, changed = ?, status = ? WHERE id = ?')
-    .run(input.type, input.aim, input.prompt, JSON.stringify(input.body), input.explanation, JSON.stringify(input.hints), input.difficulty, ctx.now(), question.status === 'exam' ? 'exam' : 'active', question.id);
+    .query('UPDATE questions SET type = ?, aim = ?, prompt = ?, body = ?, explanation = ?, hints = ?, difficulty = ?, figure = ?, answer_figure = ?, version = version + 1, changed = ?, status = ? WHERE id = ?')
+    .run(
+      input.type,
+      input.aim,
+      input.prompt,
+      JSON.stringify(input.body),
+      input.explanation,
+      JSON.stringify(input.hints),
+      input.difficulty,
+      figureJson(input.figure),
+      figureJson(input.answer_figure),
+      ctx.now(),
+      question.status === 'exam' ? 'exam' : 'active',
+      question.id,
+    );
   linkConcepts(ctx, question.id, input.concepts, conceptIds);
   ctx.event('question', question.id, {kind: 'rewritten', version: question.version + 1, before});
   return {question: getQuestion(ctx, question.id)!, changed: true};
@@ -131,6 +158,8 @@ export interface LearnerQuestion {
   disputable: boolean;
   version: number;
   concepts: string[];
+  /** The picture it asks about; its answer's picture comes only with the answer. */
+  figure: Figure | null;
 }
 
 export function learnerView(question: Question): LearnerQuestion {
@@ -145,6 +174,7 @@ export function learnerView(question: Question): LearnerQuestion {
     disputable: type?.disputable ?? false,
     version: question.version,
     concepts: question.concepts,
+    figure: question.figure,
   };
 }
 

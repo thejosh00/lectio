@@ -11,7 +11,7 @@
 import {blockType} from '../blocks/index.ts';
 import {SECONDS_PER_WORD} from '../blocks/types.ts';
 import {AppError, EXIT_ERROR, EXIT_USAGE, failed, notFound, usageError} from '../core/errors.ts';
-import {blockFigureWarnings, figureAssets, lessonFigureWarnings} from '../core/figureLint.ts';
+import {blockFigureWarnings, figureAssets, lessonFigureWarnings, questionFigureAssets, questionFigureWarnings} from '../core/figureLint.ts';
 import {LESSON_RATINGS, SKIP_REASONS} from '../core/feedbackKinds.ts';
 import {lessonReadiness, type Readiness} from '../core/schedule.ts';
 import {armEstimates, Invalid, readBlock, readLesson, type LessonInput, type SubjectFacts} from '../core/submission.ts';
@@ -150,7 +150,8 @@ function readLessonOrThrow(value: unknown, facts: SubjectFacts, raw?: string): L
 
 /** Things worth saying about a valid lesson: it runs long, its estimate is off, or a picture won't read at phone width (M17). */
 function lessonWarnings(ctx: Ctx, input: LessonInput, subject: Subject): string[] {
-  return [...budgetWarnings(input, subject), ...lessonFigureWarnings(input.blocks, svgWarnings(ctx, figureAssets(input.blocks)))];
+  const svg = svgWarnings(ctx, [...figureAssets(input.blocks), ...questionFigureAssets(input.questions)]);
+  return [...budgetWarnings(input, subject), ...lessonFigureWarnings(input.blocks, svg), ...input.questions.flatMap((q, i) => questionFigureWarnings(q, `questions[${i}]`, svg))];
 }
 
 function budgetWarnings(input: LessonInput, subject: Subject): string[] {

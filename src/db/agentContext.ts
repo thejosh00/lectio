@@ -110,7 +110,7 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
         at: a.at,
         context: a.context,
         role: a.role,
-        question: {id: q.id, type: q.type, aim: q.aim, prompt: clip(q.prompt), version: q.version, difficulty: q.difficulty, lesson_id: q.lesson_id},
+        question: {id: q.id, type: q.type, aim: q.aim, prompt: clip(q.prompt), figure: q.figure === null ? null : clip(q.figure.alt), version: q.version, difficulty: q.difficulty, lesson_id: q.lesson_id},
         concepts: keys,
         taught_by: Object.fromEntries(keys.map(k => [k, [...(taughtBy.get(k) ?? [])]])),
         answer: a.answer,
@@ -200,7 +200,7 @@ export function agentContext(ctx: Ctx, subjectId?: string) {
       .filter(a => subjectId === undefined || getQuestion(ctx, a.question_id)?.subject_id === subjectId)
       .map(a => {
         const q = getQuestion(ctx, a.question_id)!;
-        return {attempt_id: a.id, at: a.at, question_id: q.id, subject_id: q.subject_id, prompt: q.prompt, model_answer: q.body['model_answer'], rubric: q.body['rubric'], answer: a.answer, self_score: a.score};
+        return {attempt_id: a.id, at: a.at, question_id: q.id, subject_id: q.subject_id, prompt: q.prompt, model_answer: q.body['model_answer'], answer_figure: q.answer_figure, rubric: q.body['rubric'], answer: a.answer, self_score: a.score};
       }),
     feedback_since_last_run: feedbackJson(ctx, inScope(listFeedback(ctx, {since}))),
     unresolved_flags: feedbackJson(ctx, inScope(unresolvedFlags(ctx))),

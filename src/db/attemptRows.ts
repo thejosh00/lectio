@@ -2,6 +2,7 @@
  * Attempts as rows and as JSON, and what the reveal shows for one. Shared by the lesson
  * and quiz views (which show earlier answers again) and by answering itself.
  */
+import type {Figure} from '../blocks/picture.ts';
 import type {Attempt, Question} from '../core/types.ts';
 import {questionType} from '../questions/index.ts';
 import {parseJson, type Ctx} from './context.ts';
@@ -47,6 +48,8 @@ export interface Outcome {
   key: Record<string, unknown>;
   answer_text: string;
   explanation: string;
+  /** The picture shown with the answer (M19). */
+  answer_figure: Figure | null;
   agent_score: number | null;
   agent_note: string | null;
   /**
@@ -94,6 +97,7 @@ export function outcomeOf(ctx: Ctx, attempt: Attempt, question: Question): Outco
     key: reveal.key,
     answer_text: reveal.answer_text,
     explanation: reveal.explanation,
+    answer_figure: question.answer_figure,
     agent_score: attempt.agent_score,
     agent_note: attempt.agent_note,
     predicted: predictionFor(ctx, attempt),

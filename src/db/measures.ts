@@ -44,6 +44,7 @@ interface AttemptJoin {
   question_id: string;
   question_type: string;
   aim: string;
+  figure: number;
   context: 'lesson' | 'quiz' | 'practice';
   role: string | null;
   attempt_no: number;
@@ -81,7 +82,7 @@ export function attemptFacts(ctx: Ctx, filter: {subjectId?: string; since?: stri
   }
   const rows = ctx.db
     .query(
-      `SELECT a.id, a.question_id, q.type AS question_type, q.aim, a.context, a.role, a.attempt_no, a.score, a.confidence, a.hints_used, a.seconds,
+      `SELECT a.id, a.question_id, q.type AS question_type, q.aim, q.figure IS NOT NULL AS figure, a.context, a.role, a.attempt_no, a.score, a.confidence, a.hints_used, a.seconds,
          a.misconception, a.gap_hours, a.counts_for_memory, a.void, a.at, a.answer
        FROM attempts a JOIN questions q ON q.id = a.question_id ${where.length === 0 ? '' : `WHERE ${where.join(' AND ')}`} ORDER BY a.at`,
     )
@@ -93,6 +94,7 @@ export function attemptFacts(ctx: Ctx, filter: {subjectId?: string; since?: stri
   return rows.map(row => ({
     ...row,
     concepts: conceptsOf.get(row.question_id) ?? [],
+    figure: row.figure === 1,
     counts_for_memory: row.counts_for_memory === 1,
     void: row.void === 1,
     day: ctx.dayOf(row.at),
@@ -369,6 +371,8 @@ export interface ProgressReport {
   misconceptions: Array<ReturnType<typeof misconceptions>[number] & {concept_keys: string[]}>;
   approaches: ReturnType<typeof approachOutcomes>;
   question_types: ReturnType<typeof outcomesBy>;
+  /** Questions that carried a picture against those that didn't (M19): `with_figure`, `without_figure`. */
+  question_figures: ReturnType<typeof outcomesBy>;
   aims: ReturnType<typeof outcomesBy>;
   load: ReturnType<typeof load> | null;
   hypotheses: ReturnType<typeof openHypotheses>;
@@ -441,6 +445,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     misconceptions: misconceptions(recent).map(m => ({...m, concept_keys: m.concepts.map(c => conceptKey(ctx, c))})),
     approaches: approachOutcomes(intros, blocks, facts, gap),
     question_types: outcomesBy(facts, a => a.question_type, gap),
+    question_figures: outcomesBy(facts, a => (a.figure === true ? 'with_figure' : 'without_figure'), gap),
     aims: outcomesBy(facts, a => a.aim, gap),
     load: loadReport,
     hypotheses: openHypotheses(ctx, subjectId),

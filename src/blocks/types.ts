@@ -26,6 +26,8 @@ export interface ValidateCtx {
 export interface EstimateCtx {
   /** Asset id → its labels (an SVG's text elements). An asset not here has none. */
   assetLabels: ReadonlyMap<string, number>;
+  /** An inline check's question → its time, when it carries a picture (M19). */
+  questionSeconds?: ReadonlyMap<string, number>;
 }
 
 export const NO_ESTIMATE_FACTS: EstimateCtx = {assetLabels: new Map()};

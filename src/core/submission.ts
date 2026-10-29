@@ -7,6 +7,8 @@
  * comes in as a `SubjectFacts`.
  */
 import {APPROACH_PATTERN, blockType, blockTypeNames, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
+import {readFigure, type Figure} from '../blocks/picture.ts';
+import {questionSeconds} from '../blocks/question.ts';
 import {questionType, questionTypeNames, PLANNED_QUESTION_TYPES} from '../questions/index.ts';
 import {AIMS, CONCEPT_ROLES, DAILY_ROLES, type Aim, type ConceptRole, type ConceptStatus, type ItemRole, type QuizKind} from './types.ts';
 import {Node, SLUG, byteLength, formatIssue, type Issue} from './validate.ts';
@@ -44,9 +46,13 @@ export interface QuestionInput {
   explanation: string;
   hints: string[];
   variant_of: string | null;
+  /** A picture asked about, shown with the prompt (M19). */
+  figure: Figure | null;
+  /** A picture shown with the answer: the labelled diagram, the model sketch. */
+  answer_figure: Figure | null;
 }
 
-const QUESTION_FIELDS = ['ref', 'type', 'aim', 'difficulty', 'concepts', 'prompt', 'body', 'explanation', 'hints', 'variant_of'];
+const QUESTION_FIELDS = ['ref', 'type', 'aim', 'difficulty', 'concepts', 'prompt', 'figure', 'body', 'explanation', 'answer_figure', 'hints', 'variant_of'];
 
 function conceptList(node: Node, facts: SubjectFacts, min: number): string[] {
   if (min === 0 && !node.present) return [];
@@ -81,6 +87,9 @@ export function readQuestion(node: Node, facts: SubjectFacts, options: {needsRef
   const explanation = node.get('explanation').string({max: 4000});
   const hints = node.get('hints').present ? (node.get('hints').stringArray({max: 5, item: {max: 1000}}) ?? []) : [];
   const variantOf = node.get('variant_of').optionalString({max: 40});
+  const pictures = {assets: facts.assets, diagrams: facts.diagrams ?? new Map()};
+  const figure = node.get('figure').present ? readFigure(node.get('figure'), pictures) : null;
+  const answerFigure = node.get('answer_figure').present ? readFigure(node.get('answer_figure'), pictures) : null;
   let body: Record<string, unknown> | undefined;
   if (type !== undefined) {
     const checked = type.validate(node.get('body').value, `${node.path === '' ? '' : `${node.path}.`}body`);
@@ -89,7 +98,8 @@ export function readQuestion(node: Node, facts: SubjectFacts, options: {needsRef
   }
   if (typeName === undefined || type === undefined || aim === undefined || difficulty === undefined || prompt === undefined || explanation === undefined || body === undefined) return undefined;
   if (options.needsRef && ref === undefined) return undefined;
-  return {ref: ref ?? null, type: typeName, aim, difficulty, concepts, prompt, body, explanation, hints, variant_of: variantOf?.trim() || null};
+  if (figure === undefined || answerFigure === undefined) return undefined;
+  return {ref: ref ?? null, type: typeName, aim, difficulty, concepts, prompt, body, explanation, hints, variant_of: variantOf?.trim() || null, figure, answer_figure: answerFigure};
 }
 
 // --- lessons -----------------------------------------------------------------------
@@ -144,7 +154,7 @@ export function readSources(node: Node): Array<{title: string; url: string}> {
   return out;
 }
 
-export function readBlock(node: Node, facts: SubjectFacts, questionRefs: ReadonlySet<string>, options: {arms?: boolean} = {}): BlockInput | undefined {
+export function readBlock(node: Node, facts: SubjectFacts, questionRefs: ReadonlySet<string>, options: {arms?: boolean; questionSeconds?: ReadonlyMap<string, number>} = {}): BlockInput | undefined {
   const o = node.object(options.arms === true ? ['type', 'approach', 'concepts', 'body', 'arm'] : ['type', 'approach', 'concepts', 'body']);
   if (o === undefined) return undefined;
   const arm = node.get('arm').present ? (node.get('arm').oneOf(['a', 'b'] as const) ?? null) : null;
@@ -175,7 +185,7 @@ export function readBlock(node: Node, facts: SubjectFacts, questionRefs: Readonl
     node.get('arm').fail('an inline check is shared by both arms: a check in one arm only would be extra practice for that arm');
     return undefined;
   }
-  return {type: type.type, approach, concepts, body: checked.value as Record<string, unknown>, estimate_seconds: type.estimateSeconds(checked.value, {assetLabels: facts.assetLabels ?? new Map()}), arm};
+  return {type: type.type, approach, concepts, body: checked.value as Record<string, unknown>, estimate_seconds: type.estimateSeconds(checked.value, {assetLabels: facts.assetLabels ?? new Map(), ...(options.questionSeconds === undefined ? {} : {questionSeconds: options.questionSeconds})}), arm};
 }
 
 /** A whole lesson submission. `raw` is the JSON as sent, for the size limit. */
@@ -227,12 +237,13 @@ export function readLesson(value: unknown, facts: SubjectFacts, raw?: string): L
     questions.push(question);
   }
 
+  const secondsOf = new Map(questions.map(q => [q.ref!, questionSeconds(q, facts.assetLabels ?? new Map())]));
   const experiment = readExperiment(node.get('experiment'));
   const blockNodes = node.get('blocks').array({min: 1, max: facts.limits.lesson_max_blocks}) ?? [];
   const blocks: BlockInput[] = [];
   const usedRefs = new Set<string>();
   for (const b of blockNodes) {
-    const block = readBlock(b, facts, refs, {arms: true});
+    const block = readBlock(b, facts, refs, {arms: true, questionSeconds: secondsOf});
     if (block !== undefined && block.arm !== null && !node.get('experiment').present) b.get('arm').fail('arms belong to an experiment: name it in "experiment"');
     if (block === undefined) continue;
     if (block.type === 'question') {

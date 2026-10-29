@@ -1498,3 +1498,18 @@ taken) and `completed` (the last frame reached), so the media measure has its co
 *Done when:* a broken frame is refused at `blocks[i].body.frames[j].mermaid`; steps taken and the end
 reached land in the block and in `measures.media`; and the ladder says steps are available.
 
+**M19 — Pictures in practice.** A question can carry `figure`, a picture it asks about shown under its
+prompt, and `answer_figure`, one shown only with the answer — each `{asset, alt}` or `{mermaid, alt}`.
+They sit on the envelope rather than in a body, so every type can use them: lettered parts matched to
+names, panels A/B/C, the wrong arrow, the next state; "sketch it, then compare" is a free response with
+the model sketch as its answer figure, shown with the comparison before the self-grade. Grading never
+sees them. A question's figures are checked (assets exist, mermaid parses) on every path a question is
+written — lesson, quiz, checkup, fix — since the server's mermaid check now collects every `mermaid`
+source in a submission, and when one doesn't parse it says what is wrong with the source as written, not
+with the palette lines after it. A fix that changes a figure is a new version. A question with a figure is
+timed 45 s and a look; quizzes are timed per item. Warnings as for any picture (lesson, quiz, fix). The
+terminal and the tutor's context say a question had a picture. A measure beside the question types:
+`question_figures`, retention and same-day accuracy with a figure and without (counted, not caused).
+*Done when:* the learner's view has the figure and not the answer figure, the answer has it; a broken
+figure is refused at its path in a quiz and a fix; and the measure counts it.
+

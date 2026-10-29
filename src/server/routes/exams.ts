@@ -1,6 +1,7 @@
 import {examDue, startExam, submitExam} from '../../db/exams.ts';
 import {resolveSubject} from '../../db/subjects.ts';
 import {str, type Route} from '../http.ts';
+import {diagramVerdicts} from '../diagrams.ts';
 
 const EXAMINER = ['examiner'] as const;
 
@@ -19,6 +20,9 @@ export const examRoutes: Route[] = [
     path: '/api/subjects/:ref/exams',
     allow: EXAMINER,
     what: 'writing checkups',
-    handler: (ctx, req) => ctx.write(() => ({...submitExam(ctx, resolveSubject(ctx, req.params['ref']), {run: str(req.body, 'run'), exam: req.body['exam']})})),
+    handler: async (ctx, req) => {
+      const diagrams = await diagramVerdicts(req.body['exam']);
+      return ctx.write(() => ({...submitExam(ctx, resolveSubject(ctx, req.params['ref']), {run: str(req.body, 'run'), exam: req.body['exam'], diagrams})}));
+    },
   },
 ];

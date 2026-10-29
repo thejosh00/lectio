@@ -17,6 +17,8 @@ export interface AttemptFact {
   question_id: string;
   question_type: string;
   aim: string;
+  /** The question carried a picture (M19). */
+  figure?: boolean;
   /** The question's concepts, as concept ids. */
   concepts: string[];
   /** `exam`: a checkup answer (M12), only ever in the checkup measure. */

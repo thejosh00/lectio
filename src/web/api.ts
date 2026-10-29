@@ -24,6 +24,15 @@ export interface LearnerQuestion {
   disputable: boolean;
   version: number;
   concepts: string[];
+  /** The picture it asks about (M19). */
+  figure?: QuestionFigure | null;
+}
+
+/** A question's picture: an asset or mermaid source, and its alt. */
+export interface QuestionFigure {
+  asset?: string;
+  mermaid?: string;
+  alt: string;
 }
 
 export interface Outcome {
@@ -43,6 +52,8 @@ export interface Outcome {
   key: Record<string, unknown>;
   answer_text: string;
   explanation: string;
+  /** The picture shown with the answer (M19). */
+  answer_figure?: QuestionFigure | null;
   agent_score: number | null;
   agent_note: string | null;
   /** The tutor's prediction for this quiz item, once the answer is graded. */

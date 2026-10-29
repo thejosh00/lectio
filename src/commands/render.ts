@@ -30,6 +30,7 @@ interface LearnerQuestionLike {
   type: string;
   prompt: string;
   body: Record<string, unknown>;
+  figure?: {alt: string} | null;
 }
 
 type Part = {id: string; md: string};
@@ -37,6 +38,7 @@ type Part = {id: string; md: string};
 /** A question as the learner sees it, from its learner view. `order` is the shown order of its parts. */
 export function questionText(q: LearnerQuestionLike, order?: readonly string[]): string[] {
   const lines = [q.prompt];
+  if (q.figure !== null && q.figure !== undefined) lines.push(`  [figure: ${q.figure.alt}] (open it in the web app to see it)`);
   const ordered = (parts: Part[]) => (order === undefined ? parts : order.map(id => parts.find(p => p.id === id)!).filter(Boolean));
   switch (q.type) {
     case 'multiple_choice':

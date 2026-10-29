@@ -2,6 +2,7 @@ import {usageError} from '../../core/errors.ts';
 import {activeSubjects, resolveSubject} from '../../db/subjects.ts';
 import {assemblePractice, listQuizzes, openQuiz, quizDetail, resolveQuiz, submitQuiz} from '../../db/quizzes.ts';
 import {int, q, str, type Route} from '../http.ts';
+import {diagramVerdicts} from '../diagrams.ts';
 
 export const quizRoutes: Route[] = [
   {
@@ -18,11 +19,13 @@ export const quizRoutes: Route[] = [
     path: '/api/subjects/:ref/quizzes',
     allow: ['learner', 'tutor'],
     what: 'writing quizzes',
-    handler: (ctx, req) =>
-      ctx.write(() => {
+    handler: async (ctx, req) => {
+      const diagrams = await diagramVerdicts(req.body['quiz']);
+      return ctx.write(() => {
         if (req.body['quiz'] === undefined) throw usageError('send the quiz JSON: --file quiz.json or --stdin');
-        return {...submitQuiz(ctx, resolveSubject(ctx, req.params['ref']), {day: str(req.body, 'day'), run: str(req.body, 'run'), kind: str(req.body, 'kind'), quiz: req.body['quiz']})};
-      }),
+        return {...submitQuiz(ctx, resolveSubject(ctx, req.params['ref']), {day: str(req.body, 'day'), run: str(req.body, 'run'), kind: str(req.body, 'kind'), quiz: req.body['quiz'], diagrams})};
+      });
+    },
   },
   {
     method: 'POST',

@@ -8,7 +8,9 @@
  */
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {FEEDBACK_KINDS, FEEDBACK_LABELS} from '../core/feedbackKinds.ts';
-import {ApiError, enc, post, type LearnerQuestion, type Outcome, type QuizProgress} from './api.ts';
+import {ApiError, enc, post, type LearnerQuestion, type Outcome, type QuestionFigure, type QuizProgress} from './api.ts';
+import {MermaidFigure} from './blocks/Diagram.tsx';
+import {assetUrl, Figure} from './blocks/Figure.tsx';
 import {Markdown} from './markdown.tsx';
 import {pct, shuffle, useShared} from './state.ts';
 
@@ -87,6 +89,12 @@ function initialDraft(q: LearnerQuestion, order: string[] | null): unknown {
   if (q.type === 'matching') return {};
   if (q.type === 'cloze') return Object.fromEntries((q.body['blanks'] as string[]).map(k => [k, '']));
   return undefined;
+}
+
+/** A question's picture (M19): the one it asks about, or the one shown with its answer. */
+function QuestionPicture({figure, className}: {figure: QuestionFigure; className: string}) {
+  if (typeof figure.mermaid === 'string') return <MermaidFigure source={figure.mermaid} alt={figure.alt} className={className} />;
+  return <Figure src={assetUrl(figure.asset)} alt={figure.alt} className={className} />;
 }
 
 /** Right or wrong in a mark and in words, never only in a border's colour. */
@@ -370,6 +378,7 @@ export function QuestionCard({question, answered, where, kicker, checkup = false
     <div className="question">
       {kicker !== undefined && <div className="kicker">{kicker}</div>}
       <Markdown className="prompt" text={question.prompt} />
+      {question.figure != null && <QuestionPicture figure={question.figure} className="question-figure" />}
       <Inputs q={question} order={order} draft={draft} setDraft={setDraft} outcome={outcome} />
       {outcome === null && (
         <>
@@ -409,6 +418,7 @@ export function QuestionCard({question, answered, where, kicker, checkup = false
           {outcome.needs_self_grade ? (
             <>
               <div className="verdict">Compare with the model answer</div>
+              {outcome.answer_figure != null && <QuestionPicture figure={outcome.answer_figure} className="answer-figure" />}
               <Markdown text={String(outcome.key['model_answer'] ?? '')} />
               <ul className="rubric">
                 {((outcome.key['rubric'] as string[] | undefined) ?? []).map((r, i) => (
@@ -445,6 +455,7 @@ export function QuestionCard({question, answered, where, kicker, checkup = false
                   <Markdown text={outcome.why} inline />
                 </div>
               )}
+              {outcome.answer_figure != null && <QuestionPicture figure={outcome.answer_figure} className="answer-figure" />}
               {question.type === 'free_response' && <Markdown text={String(outcome.key['model_answer'] ?? '')} />}
               <Markdown text={outcome.explanation} />
               {outcome.predicted !== null && <Prediction predicted={outcome.predicted} score={outcome.score} />}

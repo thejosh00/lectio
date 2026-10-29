@@ -6,6 +6,8 @@
  * `null` in JSON, never absent, so an agent can rely on every key being there.
  */
 
+import type {Figure} from '../blocks/picture.ts';
+
 // --- actors ------------------------------------------------------------------------
 
 /** `you`, or `agent:<name>`. */
@@ -187,6 +189,10 @@ export interface Question {
   added: string;
   changed: string;
   concepts: string[];
+  /** A picture asked about, shown with the prompt (M19); null for none. */
+  figure: Figure | null;
+  /** A picture shown with the answer; null for none. */
+  answer_figure: Figure | null;
 }
 
 export interface Quiz {

@@ -10,7 +10,9 @@ import {AppError, EXIT_USAGE, failed, notFound, usageError} from '../core/errors
 import {Invalid, readQuiz, type QuizItemInput} from '../core/submission.ts';
 import {daysBetween, isDay} from '../core/time.ts';
 import {isQuizKind, type ItemRole, type Lesson, type Question, type Quiz, type QuizKind, type Subject} from '../core/types.ts';
-import {SECONDS_PER_QUESTION} from '../blocks/question.ts';
+import {questionSeconds} from '../blocks/question.ts';
+import {questionFigureAssets, questionFigureWarnings} from '../core/figureLint.ts';
+import {assetLabels, svgWarnings} from './assets.ts';
 import {attemptFromRow, outcomeOf, type AttemptRow, type Outcome} from './attemptRows.ts';
 import {conceptIds} from './concepts.ts';
 import type {Ctx} from './context.ts';
@@ -137,6 +139,7 @@ export function quizDetail(ctx: Ctx, quiz: Quiz): QuizDetail {
       ...(ctx.isAgent ? {predicted: item.predicted} : {}),
     });
   }
+  const labels = assetLabels(ctx);
   const concepts = ctx.db
     .query(
       `SELECT DISTINCT c.key, c.title, c.position FROM quiz_items qi JOIN question_concepts qc ON qc.question_id = qi.question_id
@@ -150,7 +153,7 @@ export function quizDetail(ctx: Ctx, quiz: Quiz): QuizDetail {
     items,
     progress: progressOf(ctx, quiz),
     blocked: openBlocker(ctx, quiz) ?? null,
-    estimate_minutes: Math.max(1, Math.round((items.length * SECONDS_PER_QUESTION) / 60)),
+    estimate_minutes: Math.max(1, Math.round(items.reduce((total, item) => total + questionSeconds(item.question, labels), 0) / 60)),
     concepts: concepts.map(c => ({key: c.key, title: c.title})),
   };
 }
@@ -183,6 +186,13 @@ export interface QuizSubmitResult {
   warnings: string[];
 }
 
+/** What a reader at phone width would notice about the new questions' pictures (M19). */
+function figureWarningsOf(ctx: Ctx, items: readonly QuizItemInput[]): string[] {
+  const questions = items.flatMap((item, i) => (item.question === undefined ? [] : [{question: item.question, path: `items[${i}].question`}]));
+  const svg = svgWarnings(ctx, questionFigureAssets(questions.map(q => q.question)));
+  return questions.flatMap(q => questionFigureWarnings(q.question, q.path, svg));
+}
+
 /** Things worth saying about a valid quiz's predictions: missing ones, and new items aimed off target. */
 function predictionWarnings(items: readonly QuizItemInput[], kind: QuizKind, target: number): string[] {
   if (kind === 'placement') return [];
@@ -199,7 +209,8 @@ function predictionWarnings(items: readonly QuizItemInput[], kind: QuizKind, tar
   return warnings;
 }
 
-export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; kind: string | undefined; quiz: unknown}): QuizSubmitResult {
+/** `diagrams`: the mermaid check's verdicts for the quiz's figures (`src/server/diagrams.ts`). */
+export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; kind: string | undefined; quiz: unknown; diagrams?: ReadonlyMap<string, string | null>}): QuizSubmitResult {
   const runId = runFor(ctx, input.run);
   const kind = (input.kind ?? 'daily') as QuizKind;
   if (!isQuizKind(kind) || kind === 'practice' || kind === 'exam') throw usageError('--kind must be daily or placement (practice quizzes are assembled by the app; checkups are the examiner\'s)');
@@ -213,7 +224,7 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
 
   let quizInput;
   try {
-    quizInput = readQuiz(input.quiz, subjectFacts(ctx, subject.id), kind);
+    quizInput = readQuiz(input.quiz, subjectFacts(ctx, subject.id, input.diagrams), kind);
   } catch (error) {
     if (error instanceof Invalid) throw invalid(error);
     throw error;
@@ -287,7 +298,7 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
     existing: false,
     question_ids: questionIds,
     superseded: kind === 'daily' ? superseded : [],
-    warnings: predictionWarnings(quizInput.items, kind, numberSetting(ctx.db, 'target_accuracy')),
+    warnings: [...predictionWarnings(quizInput.items, kind, numberSetting(ctx.db, 'target_accuracy')), ...figureWarningsOf(ctx, quizInput.items)],
   };
 }
 

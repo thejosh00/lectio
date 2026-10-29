@@ -302,7 +302,7 @@ export const tutorCommands: CommandDef[] = [
       path: `/api/questions/${enc(need(args.positional[0], 'lectio question fix <question> --file q.json'))}/fix`,
       body: {question: await jsonInput(args, io, 'question'), void_attempts: hasFlag(args, 'void-attempts'), resolve: flagList(args, 'resolve'), reply: flagValue(args, 'reply')},
     }),
-    human: body => `fixed question ${(body['question'] as {id: string}).id}${body['changed'] === true ? '' : ' (no change)'}; voided ${String(body['voided'])} attempts; resolved ${(body['resolved'] as string[]).length}`,
+    human: body => [`fixed question ${(body['question'] as {id: string}).id}${body['changed'] === true ? '' : ' (no change)'}; voided ${String(body['voided'])} attempts; resolved ${(body['resolved'] as string[]).length}`, ...warnings(body)],
   },
   {
     name: 'question retire',

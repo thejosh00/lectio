@@ -39,34 +39,42 @@ export async function checkMermaid(sources: Iterable<string>): Promise<Map<strin
   for (const source of sources) {
     if (verdicts.has(source) || source.trim() === '' || source.length > DIAGRAM_MAX_SOURCE) continue;
     parser ??= loadParser();
+    const parse = await parser;
     try {
-      await (await parser)(withPalette(source));
+      await parse(withPalette(source));
       verdicts.set(source, null);
     } catch (error) {
-      verdicts.set(source, firstLine(error) || 'mermaid refused it');
+      // Say what is wrong with the source as written, not with the palette lines after it.
+      const own = await parse(source).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      verdicts.set(source, firstLine(own ?? error) || 'mermaid refused it');
     }
   }
   return verdicts;
 }
 
-const record = (v: unknown) => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined);
-const mermaidOf = (v: unknown) => {
-  const source = record(v)?.['mermaid'];
-  return typeof source === 'string' ? [source] : [];
-};
-
-/** The mermaid sources in a lesson (`{blocks: […]}`) or a single block: diagram blocks and step-through frames. */
+/**
+ * Every mermaid source in a submission — a lesson, a block, a quiz, a checkup, a question:
+ * each string under a `mermaid` key, wherever it sits (a diagram block, a step-through's
+ * frame, a question's figure). Nothing else in a submission uses that key.
+ */
 export function diagramSources(value: unknown): string[] {
-  const root = record(value);
-  if (root === undefined) return [];
-  const blocks = Array.isArray(root['blocks']) ? root['blocks'] : [root];
-  return blocks.flatMap(block => {
-    const b = record(block);
-    const body = record(b?.['body']);
-    if (b?.['type'] === 'diagram') return mermaidOf(body);
-    if (b?.['type'] === 'steps' && Array.isArray(body?.['frames'])) return body['frames'].flatMap(mermaidOf);
-    return [];
-  });
+  const out: string[] = [];
+  const walk = (v: unknown, depth: number): void => {
+    if (depth > 12 || typeof v !== 'object' || v === null) return;
+    if (Array.isArray(v)) {
+      for (const item of v) walk(item, depth + 1);
+      return;
+    }
+    for (const [key, item] of Object.entries(v)) {
+      if (key === 'mermaid' && typeof item === 'string') out.push(item);
+      else walk(item, depth + 1);
+    }
+  };
+  walk(value, 0);
+  return out;
 }
 
 /** What the validator needs to know about a submission's diagrams. */

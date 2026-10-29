@@ -161,3 +161,21 @@ export function figureAssets(blocks: readonly BlockLike[]): string[] {
   const asset = (v: unknown) => (typeof v === 'string' ? [v] : []);
   return blocks.flatMap(block => (block.type === 'steps' ? framesOf(block).flatMap(frame => asset(frame['asset'])) : PICTURE_TYPES.has(block.type) ? asset(block.body['asset']) : []));
 }
+
+/** What a question carries: a picture with its prompt and one with its answer (M19). */
+export interface QuestionLike {
+  figure: FigureFields | null;
+  answer_figure: FigureFields | null;
+}
+
+/** The warnings for a question's pictures; `path` is the question's (`questions[2]`). */
+export function questionFigureWarnings(question: QuestionLike, path: string, svgWarnings: ReadonlyMap<string, readonly string[]>): string[] {
+  return [
+    ...(question.figure === null ? [] : figureWarnings(question.figure, `${path}.figure`, svgWarnings)),
+    ...(question.answer_figure === null ? [] : figureWarnings(question.answer_figure, `${path}.answer_figure`, svgWarnings)),
+  ];
+}
+
+/** The assets questions' pictures show, for looking up their SVG warnings. */
+export const questionFigureAssets = (questions: readonly QuestionLike[]) =>
+  questions.flatMap(q => [q.figure, q.answer_figure].flatMap(f => (f !== null && typeof f.asset === 'string' ? [f.asset] : [])));

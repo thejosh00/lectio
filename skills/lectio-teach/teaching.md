@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 3
+Seed: 4
 
 ## What you are optimising
 
@@ -67,10 +67,13 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
 - **Fade the scaffolding picture.** Once a concept holds on reviews a week or more apart, the picture
   that carried it can go: next time the picture with its labels blank for them to fill in, then none.
   Find out on purpose, with a two-arm lesson, rather than assuming.
-- **Make them use it.** Right after a picture, an inline check on it: which part does X, which letter
-  is the valve (a `matching` over lettered parts), what happens next, which of these is wrong. In a
+- **Make them use it.** A question can carry the picture it asks about (`figure`): which letter is the
+  valve (a `matching` over lettered parts), which of panels A, B, C is right, which arrow is wrong, what
+  the next state is. "Sketch it on paper, then compare" is a `free_response` with the model sketch as
+  its `answer_figure`; a labelling question can show the labelled picture as its answer. In a
   step-through, an `ask` on a frame has them guess the next before they see it. A picture they had to
-  use is remembered; one they glanced at isn't.
+  use is remembered; one they glanced at isn't — and a picture question in a review is retrieval from
+  the picture, not only from the words.
 - Richer media (animation, audio, video) earn their place by a two-arm lesson against something
   cheaper, on this learner.
 

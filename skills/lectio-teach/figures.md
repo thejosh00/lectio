@@ -59,6 +59,22 @@ A `steps` block is a process in frames the learner moves through.
 - `alt` describes the whole process; each frame's caption is read as it shows.
 - To look at a mermaid frame, save it as a `.mmd` file and run `figure check` on it.
 
+## Questions on a picture
+
+A question's `figure` is shown under its prompt; its `answer_figure` only with the answer.
+
+- **Letter the parts** (A, B, C on the picture) and ask with the types there are: `matching` letters to
+  names, `cloze` for "the valve is {{1}}", `multiple_choice` over panels A, B, C drawn side by side or
+  stacked.
+- **The question's picture must not give the answer away**: no names where the letters are asked, no
+  `focus` on the part in question. The answer's picture can label everything.
+- **Spot the error**: draw it with one wrong arrow or label, and ask which; tag the wrong choices with
+  the misconception each would come from.
+- **Sketch, then compare**: a `free_response` asking for a sketch on paper, the model sketch as
+  `answer_figure`, and a rubric of what the sketch must show.
+- In a review, a fresh picture of the same idea (a different layout, a different example) is a better
+  variant than the same picture again.
+
 ## Alt text, caption, credit
 
 - **`alt`** is the picture in words for someone who can't see it: the mechanism, not the looks —

@@ -176,7 +176,7 @@ export function startExam(ctx: Ctx, subject: Subject, run: string | undefined): 
 }
 
 /** The examiner's checkup for today's draw: new, app-graded questions, every drawn concept covered and no other. */
-export function submitExam(ctx: Ctx, subject: Subject, input: {run: string | undefined; exam: unknown}): {quiz: Quiz; existing: boolean; question_ids: string[]} {
+export function submitExam(ctx: Ctx, subject: Subject, input: {run: string | undefined; exam: unknown; diagrams?: ReadonlyMap<string, string | null>}): {quiz: Quiz; existing: boolean; question_ids: string[]} {
   const runId = runFor(ctx, input.run);
   const plan = planFor(ctx, subject.id, ctx.today());
   if (plan === undefined) throw failed(`draw today's checkup first: lectio exam start ${subject.id} --run <run>`);
@@ -186,7 +186,7 @@ export function submitExam(ctx: Ctx, subject: Subject, input: {run: string | und
   const keyOf = new Map([...ids].map(([key, id]) => [id, key]));
   let exam;
   try {
-    exam = readExam(input.exam, subjectFacts(ctx, subject.id), plan.concepts.map(id => keyOf.get(id)!), numberSetting(ctx.db, 'exam_max_questions'));
+    exam = readExam(input.exam, subjectFacts(ctx, subject.id, input.diagrams), plan.concepts.map(id => keyOf.get(id)!), numberSetting(ctx.db, 'exam_max_questions'));
   } catch (error) {
     if (error instanceof Invalid) throw invalid(error);
     throw error;

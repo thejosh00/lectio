@@ -1373,6 +1373,12 @@ details.more summary {
   color: var(--wrong);
 }
 
+/* A question's picture sits between its prompt and its answers; the answer's picture opens the reveal. */
+.question-figure,
+.answer-figure {
+  margin: 10px 0;
+}
+
 .result-mark {
   flex: none;
   font-weight: 700;

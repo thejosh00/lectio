@@ -231,7 +231,8 @@ accept|changes`). Until then the Improvements page lists it under *With your tut
 so a colour means the same thing in every lesson; a tap enlarges it. When the tutor stores or uses a
 picture, lectio warns about what a reader on a phone would notice — labels too small, a diagram too
 wide, a caption doing the picture's job — and `lectio figure check <file>` shows the tutor the picture
-as your phone will. When to use one is the tutor's craft (`skills/lectio-teach/teaching.md` and
+as your phone will. A question can show the picture it asks about, and another with its answer (the
+labelled diagram, the model sketch to compare yours with). When to use one is the tutor's craft (`skills/lectio-teach/teaching.md` and
 `figures.md`).
 
 **Media types are a ladder.** Images, diagrams and step-throughs exist; animations, audio and video are
