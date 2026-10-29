@@ -1,4 +1,5 @@
 import {Node, result} from '../core/validate.ts';
+import {readMermaid} from './picture.ts';
 import {CAPTION_MAX, readingSeconds, SECONDS_PER_LABEL, SECONDS_TO_LOOK, type BlockType} from './types.ts';
 
 export interface DiagramBody {
@@ -7,8 +8,7 @@ export interface DiagramBody {
   caption: string | null;
 }
 
-/** Mermaid source is small by nature; a page-long one would not read at phone width either. */
-export const DIAGRAM_MAX_SOURCE = 4000;
+export {DIAGRAM_MAX_SOURCE} from './picture.ts';
 
 /** Lines that arrange or style a diagram, or open a section of one, and give the reader nothing to read. */
 const ARRANGES = /^(end|style|classDef|class|linkStyle|click|direction|accTitle|accDescr|autonumber|activate|deactivate|loop|alt|else|opt|par|and|rect|critical|break|option|dateFormat|axisFormat|excludes|todayMarker|tickInterval)\b/;
@@ -83,15 +83,9 @@ export const diagramBlock: BlockType<DiagramBody> = {
   validate(body, ctx) {
     const node = Node.root(body, ctx.path);
     const o = node.object(['mermaid', 'alt', 'caption']);
-    const sourceNode = node.get('mermaid');
-    const source = sourceNode.string({max: DIAGRAM_MAX_SOURCE});
+    const source = readMermaid(node.get('mermaid'), ctx);
     const alt = node.get('alt').string({max: 2000});
     const caption = node.get('caption').optionalString({max: CAPTION_MAX});
-    if (source !== undefined) {
-      const verdict = ctx.diagrams.get(source);
-      if (verdict === undefined) sourceNode.fail("couldn't be checked against mermaid; try again");
-      else if (verdict !== null) sourceNode.fail(`doesn't parse as mermaid: ${verdict}`);
-    }
     return result(node.issues, o && source !== undefined && alt !== undefined ? {mermaid: source, alt, caption: caption ?? null} : undefined);
   },
   plainText: body => `[Diagram${body.caption === null ? '' : `: ${body.caption}`}] ${body.alt}`,

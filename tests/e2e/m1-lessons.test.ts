@@ -106,7 +106,7 @@ describe('lessons', () => {
       {type: 'callout', approach: 'explanation', concepts: ['ownership'], body: {kind: 'warning', md: ''}},
       {type: 'markdown', approach: 'Explanation!', concepts: ['garbage-collection'], body: {md: 'x', extra: 1}},
       {type: 'question', approach: 'retrieval', concepts: [], body: {ref: 'q1'}},
-      {type: 'steps', approach: 'visual', concepts: [], body: {}},
+      {type: 'widget', approach: 'visual', concepts: [], body: {}},
     ] as never;
     const result = await submitLesson(lc, id, run, lesson);
     expect(result.code).toBe(2);
@@ -115,7 +115,7 @@ describe('lessons', () => {
     expect(paths).toEqual(['blocks[0].type', 'blocks[1].body.kind', 'blocks[1].body.md', 'blocks[2].approach', 'blocks[2].concepts[0]', 'blocks[2].body.extra', 'blocks[4].type']);
     expect(result.json.error).toContain('unknown block type "hologram"');
     expect(result.json.error).toContain('no concept "garbage-collection" in this subject; upsert it first');
-    expect(result.json.error).toContain('"steps" blocks arrive in M8');
+    expect(result.json.error).toContain('"widget" blocks arrive in M9');
     // Nothing was written.
     expect((await lc.j(['lessons'])).json.lessons).toEqual([]);
   });

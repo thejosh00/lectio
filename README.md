@@ -234,7 +234,7 @@ wide, a caption doing the picture's job — and `lectio figure check <file>` sho
 as your phone will. When to use one is the tutor's craft (`skills/lectio-teach/teaching.md` and
 `figures.md`).
 
-**Media types are a ladder.** Images and diagrams exist; step-throughs, animations, audio and video are
+**Media types are a ladder.** Images, diagrams and step-throughs exist; animations, audio and video are
 added one at a time, when the tutor shows the need: ideas of one kind that keep failing however it
 teaches them with what it has. Its proposal names the media type, and `lectio tools` says whether this
 machine can make it (Chrome, ffmpeg, manim, `say`…; installing them is yours to do). Once shipped, the

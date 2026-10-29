@@ -49,16 +49,23 @@ export async function checkMermaid(sources: Iterable<string>): Promise<Map<strin
   return verdicts;
 }
 
-/** The mermaid sources of the diagram blocks in a lesson (`{blocks: […]}`) or a single block. */
+const record = (v: unknown) => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined);
+const mermaidOf = (v: unknown) => {
+  const source = record(v)?.['mermaid'];
+  return typeof source === 'string' ? [source] : [];
+};
+
+/** The mermaid sources in a lesson (`{blocks: […]}`) or a single block: diagram blocks and step-through frames. */
 export function diagramSources(value: unknown): string[] {
-  const record = (v: unknown) => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined);
   const root = record(value);
   if (root === undefined) return [];
   const blocks = Array.isArray(root['blocks']) ? root['blocks'] : [root];
   return blocks.flatMap(block => {
     const b = record(block);
     const body = record(b?.['body']);
-    return b?.['type'] === 'diagram' && typeof body?.['mermaid'] === 'string' ? [body['mermaid']] : [];
+    if (b?.['type'] === 'diagram') return mermaidOf(body);
+    if (b?.['type'] === 'steps' && Array.isArray(body?.['frames'])) return body['frames'].flatMap(mermaidOf);
+    return [];
   });
 }
 

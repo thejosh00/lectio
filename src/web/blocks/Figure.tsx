@@ -9,6 +9,9 @@
  */
 import {useId, useRef, useState, type ReactNode} from 'react';
 
+/** Where an asset's bytes are served, for an `<img>`. */
+export const assetUrl = (id: unknown) => `/assets/${encodeURIComponent(String(id ?? ''))}`;
+
 export function Figure({src, alt, caption, credit, className, children}: {src: string | null; alt: string; caption?: string | null; credit?: string | null; className?: string; children?: ReactNode}) {
   const captionId = useId();
   const dialog = useRef<HTMLDialogElement>(null);

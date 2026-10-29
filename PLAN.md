@@ -1485,3 +1485,16 @@ picture stays the tutor's (teaching.md, then its playbook). Warnings are never r
 palette's classes parses; figures.md lists the palette lectio draws with, colour for colour; the skill
 lists what each seed added; and `figure check` draws a PNG with Chrome and lints without it.
 
+**M18 — Step-throughs.** The `steps` block: `{frames: [{asset | mermaid | md, caption, ask?}] (2–16),
+alt, autoplay_ms?}`, each frame one picture or a few lines, its caption saying what changed. It departs
+from §4's inline `svg` frames: an SVG is an asset like any other picture, and `mermaid` frames let a
+diagram build up as `focus` moves. `ask` on a frame is a guess at the next ("Show me" instead of Next).
+All frames are drawn up front on paper of one height, picture at the top, so the page holds still and
+what stayed stays put. It plays on its own only when the learner presses play, never past an ask, and
+never under reduced motion. Timed as the first frame in full, 3 s for each later picture, a text frame's
+words, every caption, and 5 s per ask. Mermaid frames are checked with the lesson's diagrams and linted
+like any picture, with a warning past 8 frames. The page now sends each block's `interactions` (steps
+taken) and `completed` (the last frame reached), so the media measure has its completion.
+*Done when:* a broken frame is refused at `blocks[i].body.frames[j].mermaid`; steps taken and the end
+reached land in the block and in `measures.media`; and the ladder says steps are available.
+

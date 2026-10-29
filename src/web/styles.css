@@ -1101,6 +1101,104 @@ h3 {
   font-size: 14px;
 }
 
+/* A step-through: every frame stacked in one cell, so the page holds still; only the current one shows. */
+.steps-stage {
+  display: grid;
+}
+
+/* Every frame's paper is the tallest frame's height, its picture at the top: a diagram that builds up
+   keeps what was there in place, so the eye finds what changed. */
+.steps-frame {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.steps-frame > .figure {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.steps-frame .figure-paper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.steps-frame.current {
+  visibility: visible;
+}
+
+.steps-text {
+  cursor: default;
+  text-align: left;
+  padding: 14px 16px;
+}
+
+.steps-caption {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.steps-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 13px;
+  margin-right: 4px;
+}
+
+.steps-ask {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  font-size: 15px;
+}
+
+.steps-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.steps-dots {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* A dot is small to look at and a full finger to tap. */
+.steps-dots button {
+  width: 22px;
+  height: 32px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  position: relative;
+}
+
+.steps-dots button::after {
+  content: '';
+  position: absolute;
+  inset: 11px 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.steps-dots button.on::after {
+  background: var(--accent);
+  inset: 10px 5px;
+}
+
 .code-block .output {
   margin-top: 4px;
   font-size: 13px;

@@ -23,7 +23,9 @@ export const ROW_NODES_MAX = 5;
 export const FIGURE_ELEMENTS_MAX = 25;
 
 /** Block types that are a picture, and so must show something a concept needs. */
-export const PICTURE_TYPES: ReadonlySet<string> = new Set(['image', 'diagram']);
+export const PICTURE_TYPES: ReadonlySet<string> = new Set(['image', 'diagram', 'steps']);
+/** A step-through past this many frames is usually two processes. */
+export const STEP_FRAMES_MAX = 8;
 
 const attr = (tag: string, name: string) => new RegExp(`\\s${name}\\s*=\\s*["']([^"']*)["']`, 'i').exec(tag)?.[1];
 
@@ -140,13 +142,22 @@ export function blockFigureWarnings(block: BlockLike, path: string, svgWarnings:
   if (!PICTURE_TYPES.has(block.type)) return [];
   const out: string[] = [];
   if (block.concepts.length === 0) out.push(`${path}: a picture that serves no concept is decoration, and decoration costs the reader attention; name the concept it shows, or cut it`);
-  out.push(...figureWarnings(block.body, `${path}.body`, svgWarnings));
+  if (block.type !== 'steps') {
+    out.push(...figureWarnings(block.body, `${path}.body`, svgWarnings));
+    return out;
+  }
+  const frames = framesOf(block);
+  if (frames.length > STEP_FRAMES_MAX) out.push(`${path}.body.frames: ${frames.length} frames is a long process to hold; split it at a natural pause, ${STEP_FRAMES_MAX} frames or fewer each`);
+  frames.forEach((frame, i) => out.push(...figureWarnings({asset: frame['asset'], mermaid: frame['mermaid']}, `${path}.body.frames[${i}]`, svgWarnings)));
   return out;
 }
+
+const framesOf = (block: BlockLike) => (Array.isArray(block.body['frames']) ? (block.body['frames'] as Array<Record<string, unknown>>) : []);
 
 export const lessonFigureWarnings = (blocks: readonly BlockLike[], svgWarnings: ReadonlyMap<string, readonly string[]>) => blocks.flatMap((block, i) => blockFigureWarnings(block, `blocks[${i}]`, svgWarnings));
 
 /** The assets a block's pictures show, for looking up their SVG warnings. */
 export function figureAssets(blocks: readonly BlockLike[]): string[] {
-  return blocks.flatMap(block => (PICTURE_TYPES.has(block.type) && typeof block.body['asset'] === 'string' ? [block.body['asset']] : []));
+  const asset = (v: unknown) => (typeof v === 'string' ? [v] : []);
+  return blocks.flatMap(block => (block.type === 'steps' ? framesOf(block).flatMap(frame => asset(frame['asset'])) : PICTURE_TYPES.has(block.type) ? asset(block.body['asset']) : []));
 }

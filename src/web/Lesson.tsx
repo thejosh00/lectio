@@ -6,9 +6,10 @@
  * minute — and sent in batches, so the tutor knows which blocks were read and for how
  * long, not just that the page was open.
  */
-import {useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {FEEDBACK_LABELS, LESSON_RATINGS, SKIP_REASONS} from '../core/feedbackKinds.ts';
 import {enc, post, type BlockView, type Feedback, type LessonDetail} from './api.ts';
+import {ActivityContext, type ReportActivity} from './blocks/activity.ts';
 import {Block} from './blocks/index.tsx';
 import {Markdown} from './markdown.tsx';
 import {dayLabel, go, useLoad, useShared} from './state.ts';
@@ -16,11 +17,26 @@ import {dayLabel, go, useLoad, useShared} from './state.ts';
 const IDLE_MS = 60_000;
 const FLUSH_MS = 15_000;
 
-/** Reading time per block, sent to the server in batches and on leaving the page. */
-function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number) => void) {
+interface BlockActivity {
+  seen_seconds: number;
+  interactions: number;
+  completed: boolean;
+}
+
+const noActivity = (): BlockActivity => ({seen_seconds: 0, interactions: 0, completed: false});
+
+/**
+ * Reading time per block, and what was done with it (a step taken, the end reached), sent to
+ * the server in batches and on leaving the page. Returns how a block reports what it did.
+ */
+function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number) => void): ReportActivity {
   const visible = useRef(new Set<string>());
   const lastInput = useRef(Date.now());
-  const pending = useRef({seconds: 0, blocks: new Map<string, number>()});
+  const pending = useRef({seconds: 0, blocks: new Map<string, BlockActivity>()});
+  const report = useCallback<ReportActivity>((id, what) => {
+    const block = pending.current.blocks.get(id) ?? noActivity();
+    pending.current.blocks.set(id, {...block, interactions: block.interactions + (what.interactions ?? 0), completed: block.completed || what.completed === true});
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -44,9 +60,12 @@ function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number)
     for (const e of events) window.addEventListener(e, touch, {passive: true});
     const payload = () => {
       const {seconds, blocks} = pending.current;
-      if (seconds === 0) return undefined;
+      if (seconds === 0 && ![...blocks.values()].some(b => b.interactions > 0 || b.completed)) return undefined;
       pending.current = {seconds: 0, blocks: new Map()};
-      return JSON.stringify({active_seconds: seconds, blocks: [...blocks].map(([id, s]) => ({id, seen_seconds: s}))});
+      return JSON.stringify({
+        active_seconds: seconds,
+        blocks: [...blocks].map(([id, b]) => ({id, seen_seconds: b.seen_seconds, ...(b.interactions > 0 ? {interactions: b.interactions} : {}), ...(b.completed ? {completed: true} : {})})),
+      });
     };
     const flush = () => {
       const body = payload();
@@ -55,7 +74,10 @@ function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number)
     const tick = setInterval(() => {
       if (document.visibilityState !== 'visible' || Date.now() - lastInput.current > IDLE_MS) return;
       pending.current.seconds++;
-      for (const id of visible.current) pending.current.blocks.set(id, (pending.current.blocks.get(id) ?? 0) + 1);
+      for (const id of visible.current) {
+        const block = pending.current.blocks.get(id) ?? noActivity();
+        pending.current.blocks.set(id, {...block, seen_seconds: block.seen_seconds + 1});
+      }
     }, 1000);
     const flusher = setInterval(flush, FLUSH_MS);
     const onHide = () => {
@@ -73,6 +95,7 @@ function useActivity(lessonId: string, enabled: boolean, onSeen: (index: number)
       flush();
     };
   }, [lessonId, enabled]);
+  return report;
 }
 
 function BlockMenu({block, feedback}: {block: BlockView; feedback: Feedback[]}) {
@@ -257,7 +280,7 @@ export function LessonView({id}: {id: string}) {
   useEffect(() => {
     if (lesson?.state === 'ready') void post(`/api/lessons/${enc(id)}/open`).catch(() => undefined);
   }, [lesson?.state, id]);
-  useActivity(id, readable && lesson.state !== 'finished', index => setSeen(s => Math.max(s, index)));
+  const report = useActivity(id, readable && lesson.state !== 'finished', index => setSeen(s => Math.max(s, index)));
 
   if (error !== undefined) return <p className="error">{error}</p>;
   if (lesson === undefined) return <p className="loading">…</p>;
@@ -300,12 +323,14 @@ export function LessonView({id}: {id: string}) {
           )}
         </div>
       </details>
-      {lesson.blocks.map((block, index) => (
-        <section key={block.id} className="block" data-block-id={block.id} data-index={index}>
-          <Block block={block} lessonId={lesson.id} />
-          {block.type !== 'question' && <BlockMenu block={block} feedback={lesson.feedback} />}
-        </section>
-      ))}
+      <ActivityContext.Provider value={report}>
+        {lesson.blocks.map((block, index) => (
+          <section key={block.id} className="block" data-block-id={block.id} data-index={index}>
+            <Block block={block} lessonId={lesson.id} />
+            {block.type !== 'question' && <BlockMenu block={block} feedback={lesson.feedback} />}
+          </section>
+        ))}
+      </ActivityContext.Provider>
       {lesson.sources.length > 0 && (
         <>
           <div className="section">Sources</div>

@@ -44,6 +44,21 @@ The learner reads on a phone: about 340 px for the picture.
   in the lesson.
 - Tapping a picture enlarges it, but write it to be read without that.
 
+## Step-throughs
+
+A `steps` block is a process in frames the learner moves through.
+
+- **One change per frame**, and the caption says what changed ("s2 owns it now; s1 owns nothing"), not
+  what the frame shows.
+- **Build it up.** The same diagram from frame to frame with one more part, or with `focus` moved to
+  what just changed; keep everything else where it was, so the eye finds the change.
+- **Eight frames or fewer.** A longer process splits at a natural pause into two.
+- **Ask before the frame that answers it**: `ask` on a frame has the learner guess the next before
+  they see it. One or two per step-through, at the step that matters.
+- A text frame (`md`) suits a derivation revealed a line at a time; keep it to a few lines.
+- `alt` describes the whole process; each frame's caption is read as it shows.
+- To look at a mermaid frame, save it as a `.mmd` file and run `figure check` on it.
+
 ## Alt text, caption, credit
 
 - **`alt`** is the picture in words for someone who can't see it: the mechanism, not the looks —

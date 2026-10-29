@@ -9,7 +9,8 @@ import type {BlockView} from '../api.ts';
 import {highlight, Markdown} from '../markdown.tsx';
 import {QuestionCard, type Answered} from '../QuestionCard.tsx';
 import {DiagramBlock} from './Diagram.tsx';
-import {Figure} from './Figure.tsx';
+import {assetUrl, Figure} from './Figure.tsx';
+import {StepsBlock} from './Steps.tsx';
 
 export interface BlockProps {
   block: BlockView;
@@ -51,7 +52,6 @@ function CodeBlock({block}: BlockProps) {
   );
 }
 
-export const assetUrl = (id: unknown) => `/assets/${encodeURIComponent(String(id ?? ''))}`;
 const text = (value: unknown) => (typeof value === 'string' ? value : null);
 
 /** An SVG is shown only ever through `<img>`, where its scripts don't run. */
@@ -71,6 +71,7 @@ export const BLOCK_RENDERERS: Record<string, ComponentType<BlockProps>> = {
   question: QuestionBlock,
   diagram: DiagramBlock,
   image: ImageBlock,
+  steps: StepsBlock,
 };
 
 export function Block(props: BlockProps) {

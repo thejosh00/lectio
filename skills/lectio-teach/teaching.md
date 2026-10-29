@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 2
+Seed: 3
 
 ## What you are optimising
 
@@ -55,8 +55,10 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
 - **Words beside the picture, each saying it once.** The text that explains a picture sits next to it
   and names what it shows. The caption says what to look for, in a sentence. Labels, caption and text
   don't repeat each other.
-- **One change at a time.** A process goes in frames, each changing one thing, the words saying what
-  changed. An animation only when the motion is the content, and then with pause and step.
+- **One change at a time.** A process goes in a step-through (`steps`): frames the learner moves
+  through at their own pace, each changing one thing, the caption saying what changed. Build a diagram
+  up by moving `focus` from frame to frame. An animation only when the motion is the content, and then
+  with pause and step.
 - **Link the pictures.** The same colour and shape for the same thing in every lesson of a subject.
   When two representations show one idea (code and its memory, an equation and its graph), say which
   part is which: "the orange box is line 4".
@@ -66,8 +68,9 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
   that carried it can go: next time the picture with its labels blank for them to fill in, then none.
   Find out on purpose, with a two-arm lesson, rather than assuming.
 - **Make them use it.** Right after a picture, an inline check on it: which part does X, which letter
-  is the valve (a `matching` over lettered parts), what happens next, which of these is wrong. A
-  picture they had to use is remembered; one they glanced at isn't.
+  is the valve (a `matching` over lettered parts), what happens next, which of these is wrong. In a
+  step-through, an `ask` on a frame has them guess the next before they see it. A picture they had to
+  use is remembered; one they glanced at isn't.
 - Richer media (animation, audio, video) earn their place by a two-arm lesson against something
   cheaper, on this learner.
 

@@ -114,7 +114,7 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   means 1). When the seed is newer, fold in what it added — the list below — as your next playbook
   change, keeping the `Seed:` line up to date, with the note `merged seed N: <what>`. It is your
   change: leave out what your measures contradict, and say why in the run summary.
-  Seed 2: the "Pictures and media" section.
+  Seed 2: the "Pictures and media" section. Seed 3: step-throughs (`steps`, `ask`) in it.
 
 ## 5. Plan
 

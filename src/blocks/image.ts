@@ -1,4 +1,5 @@
 import {Node, result} from '../core/validate.ts';
+import {readAsset} from './picture.ts';
 import {CAPTION_MAX, readingSeconds, SECONDS_PER_LABEL, SECONDS_TO_LOOK, type BlockType} from './types.ts';
 
 /** A picture: an asset stored with `lectio asset put`, named by the id that returned. */
@@ -20,8 +21,7 @@ export const imageBlock: BlockType<ImageBody> = {
   validate(body, ctx) {
     const node = Node.root(body, ctx.path);
     const o = node.object(['asset', 'alt', 'caption', 'credit']);
-    const asset = node.get('asset').string({max: 64});
-    if (asset !== undefined && !ctx.assets.has(asset)) node.get('asset').fail(`no asset "${asset}"; store it first with "lectio asset put <file>" and use the id it returns`);
+    const asset = readAsset(node.get('asset'), ctx);
     const alt = node.get('alt').string({max: 1000});
     const caption = node.get('caption').optionalString({max: CAPTION_MAX});
     const credit = node.get('credit').optionalString({max: CREDIT_MAX});
