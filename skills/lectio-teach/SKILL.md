@@ -119,6 +119,7 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   Seed 5: fading a picture on `stability_days`, measured by a `"counts": "taught"` experiment.
   Seed 6: an interactive's goal and a widget's guess, in "Make them use it".
   Seed 7: widget questions, asked by doing, in "Make them use it".
+  Seed 8: show every new physical thing the first time it's named, in "A lesson" and "Pictures and media".
 
 ## 5. Plan
 

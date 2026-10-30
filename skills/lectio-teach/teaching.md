@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 7
+Seed: 8
 
 ## What you are optimising
 
@@ -31,8 +31,11 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
 - **Make them find the error.** A made-up learner's explanation or code with one planted error, taken
   from this learner's own misconception tags: which line is wrong, and why? (a `multiple_choice` over
   the lines). Explaining someone else's mistake is strong practice.
-- **Pair words with a picture only when the picture shows the mechanism** — a trace of who owns a
-  buffer, a diagram of a cycle. Never as decoration. More under "Pictures and media".
+- **Show every new thing that has a look.** The first time a lesson names a physical thing the
+  learner may not have seen (a tool, a part, an organism, a place, a screen), show it: a photo of the
+  real thing, labeled where its parts matter. That's showing what the word means, not decoration.
+  Beyond that, a picture earns its place by showing the mechanism — a trace of who owns a buffer, a
+  diagram of a cycle. Never just for looks. More under "Pictures and media".
 - **Short.** Fit the budget. If it doesn't fit, cut the least important idea, not the examples.
 - **Honest approaches.** Label every block with how it actually teaches (`worked_example`,
   `analogy`, `misconception`…) and the concepts it serves. That is how outcomes find their way back
@@ -47,7 +50,8 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
   itself the idea (a wave, a gear train, a sort): an animation. Something learned by acting on it (set
   the threshold, make the queue overflow): an interactive with a goal. Definitions, arguments and
   anything without a shape: words. Use the cheapest one that shows it.
-- **It shows the mechanism, or it goes.** A picture nobody needs costs the attention the idea needed.
+- **It shows the thing or the mechanism, or it goes.** A new thing with a look gets a picture of
+  it the first time it's named; past that, a picture nobody needs costs the attention the idea needed.
 - **Names before the process.** Before a picture of how parts interact, the learner knows the parts —
   from the picture's own labels or a line before it ("this is the stack; this is the heap").
 - **Point at what matters.** One part in `focus`, the part the text beside it is about; the rest

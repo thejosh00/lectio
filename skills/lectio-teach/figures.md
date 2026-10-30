@@ -88,6 +88,8 @@ A question's `figure` is shown under its prompt; its `answer_figure` only with t
   Wikimedia Commons has many under CC0, CC BY or CC BY-SA: download it, `lectio asset put` it, and
   credit it ("Photo: <author>, CC BY-SA 4.0, Wikimedia Commons"). Never use a picture whose license you
   can't name.
+- **No photo with a license you can name?** Draw it: a plain line drawing in the palette, its parts
+  labeled. A drawing of the thing beats no picture of it.
 - **To label a photo**, make an SVG with the photo inside it as a data URI
   (`<image href="data:image/jpeg;base64,…" width=… height=…/>`) and the labels on top. Shrink the photo
   first (on macOS `sips -Z 1000 photo.jpg`), so the SVG stays small.
