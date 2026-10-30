@@ -1,7 +1,7 @@
 # Widgets
 
 How to make an animation or an interactive that teaches. Your playbook says when: motion that is
-itself the idea, or something learnt by acting on it. A step-through first, when frames would do.
+itself the idea, or something learned by acting on it. A step-through first, when frames would do.
 
 ## The box
 
@@ -11,7 +11,7 @@ itself the idea, or something learnt by acting on it. A step-through first, when
   `draw`). Nothing else loads.
 - **On the paper**, like every picture: draw with `lectio.theme` (`ink`, `muted`, `focus`, `c1`–`c4`,
   `paper`, and `focus_fill` and the like) or the CSS variables `--lectio-focus`, `--lectio-focus-fill`, ….
-  The same colour means the same thing as in the subject's pictures.
+  The same color means the same thing as in the subject's pictures.
 - **About 358 px wide on a phone.** Lay out to `lectio.width` (a `lectio:resize` event says when it
   changes); text 14 px or more; anything to tap 40 px or more. Set the block's `height`; ask for
   another with `lectio.resize(px)`.
@@ -31,7 +31,7 @@ itself the idea, or something learnt by acting on it. A step-through first, when
 
 - **One goal**, in `goal`: "Set the threshold so only the edges are left." An interactive without a
   goal teaches little.
-- Show the result of each change at once, labelled. Call `lectio.event(name)` for each thing the
+- Show the result of each change at once, labeled. Call `lectio.event(name)` for each thing the
   learner does and `lectio.done()` when the goal is reached.
 - **`predict`** has them guess before it starts ("What happens to the edges as the threshold
   rises?"): the guess is what makes the result mean something.

@@ -44,7 +44,7 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
 
 - **Which medium.** Where things are and how they connect: a picture or a diagram. How something
   changes, one step after another: a sequence of pictures the learner steps through. Motion that is
-  itself the idea (a wave, a gear train, a sort): an animation. Something learnt by acting on it (set
+  itself the idea (a wave, a gear train, a sort): an animation. Something learned by acting on it (set
   the threshold, make the queue overflow): an interactive with a goal. Definitions, arguments and
   anything without a shape: words. Use the cheapest one that shows it.
 - **It shows the mechanism, or it goes.** A picture nobody needs costs the attention the idea needed.
@@ -59,7 +59,7 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
   through at their own pace, each changing one thing, the caption saying what changed. Build a diagram
   up by moving `focus` from frame to frame. An animation only when the motion is the content, and then
   with pause and step.
-- **Link the pictures.** The same colour and shape for the same thing in every lesson of a subject.
+- **Link the pictures.** The same color and shape for the same thing in every lesson of a subject.
   When two representations show one idea (code and its memory, an equation and its graph), say which
   part is which: "the orange box is line 4".
 - **Concrete, then abstract.** The real thing first (a photo of the actual caliper), then the
@@ -72,7 +72,7 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
 - **Make them use it.** A question can carry the picture it asks about (`figure`): which letter is the
   valve (a `matching` over lettered parts), which of panels A, B, C is right, which arrow is wrong, what
   the next state is. "Sketch it on paper, then compare" is a `free_response` with the model sketch as
-  its `answer_figure`; a labelling question can show the labelled picture as its answer. In a
+  its `answer_figure`; a labeling question can show the labeled picture as its answer. In a
   step-through, an `ask` on a frame has them guess the next before they see it. A picture they had to
   use is remembered; one they glanced at isn't — and a picture question in a review is retrieval from
   the picture, not only from the words. An interactive is used toward a `goal`, and both kinds of

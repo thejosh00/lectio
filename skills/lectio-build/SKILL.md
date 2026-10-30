@@ -76,7 +76,7 @@ build is in `main`: start the branch from `main` and build the change on top.
   example) — that is how the tutor finds out about it. The contract test must run it.
 - **Append migrations; never edit one.**
 - **Add tests for the change. Never delete or loosen an existing test to make it pass.** If the
-  proposal changes behaviour a test encodes, keep the test failing-then-updated in one visible commit
+  proposal changes behavior a test encodes, keep the test failing-then-updated in one visible commit
   and say so in the hand-back.
 - Never edit `tests/guard/` (what agents may never do, and the measures' fixed values) or this
   skill unless the proposal is about exactly that; say so in the hand-back.

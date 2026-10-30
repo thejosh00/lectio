@@ -76,6 +76,7 @@ big. Ask what the learner should be able to *do* with the idea, given their goal
   No free responses, no widgets, no hints.
 - **Never repeat** a past prompt; come at the concept from a new side.
 - An honest `difficulty` (1–5), and an `explanation` of a sentence or two.
+- **American English** spelling (color, labeled, analyze), unless the learner's notes ask otherwise.
 
 ## 6. Check
 

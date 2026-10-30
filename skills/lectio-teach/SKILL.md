@@ -11,7 +11,7 @@ lectio is the classroom and the gradebook; you are the tutor. Each run:
 Read `rules.md` (next to this file) before anything else, every session. Read your **playbook**
 (`playbook` in the context) once per session, before you plan or write: it is how you teach this
 learner, and it is yours to change (step 4). The contract (`lectio agents`) has every JSON shape and a
-runnable example of every command; this skill is the judgement around them.
+runnable example of every command; this skill is the judgment around them.
 
 Every command takes `--json`; success and failure both come back as JSON on stdout with `ok`. Exit
 codes: `1` failed or refused (read `error`, and `why` when a subject isn't ready — move on), `2` usage,
@@ -180,6 +180,9 @@ it goes in a lesson. **Before you make a widget**, read `widgets.md`, and look a
 
 Check facts you aren't sure of and list `sources`. Write your own explanations; never paste
 copyrighted text.
+
+Write in **American English** — color, labeled, analyze, center — in lessons, questions, feedback and
+replies, unless the learner's notes ask for another spelling.
 
 ## 7. Check
 

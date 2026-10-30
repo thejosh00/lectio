@@ -5,8 +5,8 @@ make one that works at phone width. Read it before you make one.
 
 ## The paper and the palette
 
-Every picture sits on light paper (`#fdfcf9`) in both themes, so the same colours work everywhere.
-Use these, and only these, so a colour means the same thing in every lesson:
+Every picture sits on light paper (`#fdfcf9`) in both themes, so the same colors work everywhere.
+Use these, and only these, so a color means the same thing in every lesson:
 
 | name | stroke / text | fill | for |
 |---|---|---|---|
@@ -20,9 +20,9 @@ Use these, and only these, so a colour means the same thing in every lesson:
 
 - In mermaid **flowcharts and state diagrams** these are already classes: `class a focus` or
   `a:::focus`. Don't redefine them. Other diagram kinds have none.
-- **One `focus` per picture**, and never by colour alone: a thicker stroke (the class has one), an
-  arrow, or a label that says it. The other colours sort things into kinds; keep the same kind the same
-  colour across a subject's lessons, and write down which is which in the subject plan.
+- **One `focus` per picture**, and never by color alone: a thicker stroke (the class has one), an
+  arrow, or a label that says it. The other colors sort things into kinds; keep the same kind the same
+  color across a subject's lessons, and write down which is which in the subject plan.
 
 ## Labels
 
@@ -80,13 +80,13 @@ A question's `figure` is shown under its prompt; its `answer_figure` only with t
 - **`alt`** is the picture in words for someone who can't see it: the mechanism, not the looks —
   "the borrow points at s1's buffer; s1 still owns it", not "a diagram of a borrow".
 - **`caption`** is one sentence on what to look at, under 40 words, and not the alt again.
-- **`credit`** (images): the maker and licence of a picture from elsewhere.
+- **`credit`** (images): the maker and license of a picture from elsewhere.
 
 ## Real things
 
 - **A photo of the real thing** makes it concrete: the actual brake caliper, the actual breaker panel.
   Wikimedia Commons has many under CC0, CC BY or CC BY-SA: download it, `lectio asset put` it, and
-  credit it ("Photo: <author>, CC BY-SA 4.0, Wikimedia Commons"). Never use a picture whose licence you
+  credit it ("Photo: <author>, CC BY-SA 4.0, Wikimedia Commons"). Never use a picture whose license you
   can't name.
 - **To label a photo**, make an SVG with the photo inside it as a data URI
   (`<image href="data:image/jpeg;base64,…" width=… height=…/>`) and the labels on top. Shrink the photo
