@@ -13,6 +13,7 @@ import {flagValue, parseArgs} from '../core/args.ts';
 import {EXIT_ERROR, EXIT_OK, EXIT_USAGE} from '../core/errors.ts';
 import {DEFAULT_DIR_NAME} from '../config.ts';
 import {latestBackup} from '../db/backup.ts';
+import {tokenFileWarnings} from '../client.ts';
 
 export function serviceLabel(dataDir: string): string {
   const name = basename(dataDir).replace(/^\./, '');
@@ -97,7 +98,7 @@ const USAGE = [
   '  install [--host h] [--port p]   run the server in the background, now and at login',
   '  uninstall                       stop it and remove the launch agent',
   '  start | stop | restart          start, stop (until next login), or restart it',
-  '  status                          whether it is running, and the last backup',
+  '  status                          whether it is running, the last backup, and token-file warnings',
   '  logs                            follow the server log',
 ].join('\n');
 
@@ -196,6 +197,8 @@ export function serviceCommand(ctx: ServiceContext, argv: readonly string[]): nu
       return EXIT_OK;
     }
     case 'status': {
+      // The nearest thing lectio has to a doctor: also say what is wrong with the token files (R5).
+      for (const warning of tokenFileWarnings(ctx.dataDir)) ctx.err(warning);
       if (!existsSync(plistPath)) {
         ctx.out('not installed');
         return EXIT_OK;

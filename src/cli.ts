@@ -16,7 +16,7 @@ import {join} from 'node:path';
 import {flagValue, hasFlag, parseArgs, type ParsedArgs} from './core/args.ts';
 import {AppError, EXIT_ERROR, EXIT_OK, EXIT_UNAVAILABLE, EXIT_USAGE, describe, failure} from './core/errors.ts';
 import {nowIso} from './core/time.ts';
-import {callApi, CLIENT_FILE, clientConfig, Unreachable, writeClientToken, type Fetch} from './client.ts';
+import {callApi, CLIENT_FILE, clientConfig, tokenFileWarnings, Unreachable, writeClientToken, type Fetch} from './client.ts';
 import {dataDirFrom, DEFAULT_PORT} from './config.ts';
 import {COMMANDS, matchCommand} from './commands/index.ts';
 import {CommandUsage, type Audience, type CommandDef, type CommandIO} from './commands/types.ts';
@@ -310,9 +310,19 @@ export async function run(options: RunOptions): Promise<number> {
       if (!(error instanceof Unreachable)) throw error;
       return fail(`cannot reach a lectio server at ${url}: ${error.message}`, EXIT_UNAVAILABLE, {}, 'start it with "lectio serve", then log in again');
     }
-    const path = writeClientToken(dataDir, {url, actor, token, makeDefault: hasFlag(args, 'default')});
-    if (json) emitJson({ok: true, url, actor, path});
-    else out(`logged in to ${url} as ${actor} (saved to ${path})`);
+    let path: string;
+    try {
+      path = writeClientToken(dataDir, {url, actor, token, makeDefault: hasFlag(args, 'default')});
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      return fail(error.message, error.code, {actor});
+    }
+    const warnings = tokenFileWarnings(dataDir);
+    if (json) emitJson({ok: true, url, actor, path, warnings});
+    else {
+      out(`logged in to ${url} as ${actor} (saved to ${path})`);
+      for (const warning of warnings) err(warning);
+    }
     return EXIT_OK;
   }
 
