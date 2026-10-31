@@ -150,6 +150,8 @@ function memoryModel(ctx: Ctx, conceptIds: readonly string[]): (ids: readonly st
  * knowing only what the tutor knew when it wrote the quiz: FSRS recall that day, replayed
  * from the reviews counted before the quiz was added (the lowest over the question's
  * concepts), or, for an idea with no memory yet, the subject's recent same-day accuracy.
+ * Widget questions score themselves with code the tutor wrote, so they are left out (R5):
+ * a tutor could otherwise match its own predictions. They still count for memory.
  */
 export function predictionFacts(ctx: Ctx, subjectId?: string): Array<PredictionFact & {answer: unknown}> {
   const rows = ctx.db
@@ -157,7 +159,7 @@ export function predictionFacts(ctx: Ctx, subjectId?: string): Array<PredictionF
       `SELECT a.id, a.question_id, q.subject_id, a.at, a.score, a.answer, qi.role, qi.predicted, z.added AS quiz_added
        FROM attempts a JOIN quiz_items qi ON qi.quiz_id = a.quiz_id AND qi.question_id = a.question_id
        JOIN quizzes z ON z.id = a.quiz_id JOIN questions q ON q.id = a.question_id
-       WHERE a.attempt_no = 1 AND a.void = 0 AND a.score IS NOT NULL AND qi.predicted IS NOT NULL ${subjectId === undefined ? '' : 'AND q.subject_id = ?'}
+       WHERE a.attempt_no = 1 AND a.void = 0 AND a.score IS NOT NULL AND qi.predicted IS NOT NULL AND q.type != 'widget' ${subjectId === undefined ? '' : 'AND q.subject_id = ?'}
        ORDER BY a.at, a.id`,
     )
     .all(...(subjectId === undefined ? [] : [subjectId])) as PredictionJoin[];
@@ -244,8 +246,9 @@ function taughtWindows(ctx: Ctx, experiment: string): Array<{arm: 'a' | 'b'; con
   }));
 }
 
-/** Each experiment's finished lessons, split by the arm the learner saw (M14). */
-function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: string) {
+/** Each experiment's finished lessons, split by the arm the learner saw (M14). Widget-scored attempts are left out (R5). */
+function experimentsReport(ctx: Ctx, allFacts: readonly AttemptFact[], subjectId?: string) {
+  const facts = withoutSelfScored(allFacts);
   const experiments = (
     subjectId === undefined ? ctx.db.query('SELECT * FROM experiments ORDER BY opened').all() : ctx.db.query('SELECT * FROM experiments WHERE subject_id = ? ORDER BY opened').all(subjectId)
   ) as Array<{name: string; arms: string; counts: string; status: string; verdict: string | null}>;
@@ -278,6 +281,21 @@ function experimentsReport(ctx: Ctx, facts: readonly AttemptFact[], subjectId?: 
     facts,
     numberSetting(ctx.db, 'memory_gap_hours'),
   );
+}
+
+/** Attempts scored by something other than a widget the tutor wrote (R5): what the tutor-graded measures use. */
+export const withoutSelfScored = (facts: readonly AttemptFact[]): AttemptFact[] => facts.filter(f => f.question_type !== 'widget');
+
+/** How many attempts a subject has that the predictions and experiment measures leave out, and why (R5). */
+function selfScoredReport(ctx: Ctx, subjectId?: string) {
+  const row = ctx.db
+    .query(`SELECT COUNT(*) AS n FROM attempts a JOIN questions q ON q.id = a.question_id WHERE q.type = 'widget' AND a.void = 0 AND a.score IS NOT NULL ${subjectId === undefined ? '' : 'AND q.subject_id = ?'}`)
+    .get(...(subjectId === undefined ? [] : [subjectId])) as {n: number};
+  return {
+    widget_attempts: row.n,
+    excluded_from: ['predictions', 'experiments'],
+    note: 'Widget questions score themselves, so their attempts are left out of the predictions and experiment measures (they still count for memory). Figures from before this change may shift.',
+  };
 }
 
 /** Each experiment's outcome with the block types its arms used, for the media measure (M16). */
@@ -412,6 +430,8 @@ export interface ProgressReport {
   playbook_versions: ReturnType<typeof playbookReport>;
   /** Two-arm experiments: per arm, retention and same-day accuracy, and the difference with an interval (M14). */
   experiments: ReturnType<typeof experimentsReport>;
+  /** Widget-scored attempts the predictions and experiment measures leave out, and why (R5). */
+  self_scored: ReturnType<typeof selfScoredReport>;
   /** Week by week: concepts introduced, minutes, their later retention, and retained concepts per hour (M15). */
   throughput: ReturnType<typeof throughputReport>;
   /** What each block type does for the learner: retention with and without it, engagement, and the experiments that tested it (M16). */
@@ -480,6 +500,7 @@ export function progressReport(ctx: Ctx, subjectId?: string): ProgressReport {
     exams: examsReport(ctx, subjectId),
     playbook_versions: playbookReport(ctx, facts, subjectId),
     experiments,
+    self_scored: selfScoredReport(ctx, subjectId),
     throughput: throughputReport(ctx, facts, subjectId),
     media: mediaOutcomes(intros, blocks, facts, gap, experimentMedia(ctx, experiments)),
     concepts: {
