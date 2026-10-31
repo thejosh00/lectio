@@ -41,11 +41,15 @@ service, below).
 ```bash
 lectio serve                                       # the server and web app, on 127.0.0.1:7780
 lectio token you                                   # a token for you (in another terminal)
-lectio login --url http://127.0.0.1:7780 --token <it>
+export LECTIO_TOKEN=<it>                           # in your own shell only, never in client.json
 lectio subject add "Rust" --goal "read and change our Rust services" --minutes 15
 ```
 
-Open `http://localhost:7780` and sign in with the same `you` token.
+Open `http://localhost:7780` and sign in with the same `you` token. The browser is your way in.
+`client.json` holds agents' tokens only: `lectio login` refuses to save your `you` token beside an
+agent's (and an agent's beside yours), so `--as you` from the CLI is no longer supported — an agent
+running as you on this machine could otherwise answer your quizzes. To use the CLI as yourself, set
+`LECTIO_TOKEN` in your own shell.
 
 The server listens on this machine only (`127.0.0.1`) and answers only to `localhost`,
 `127.0.0.1` and `[::1]`; any other `Host`, and any write whose `Origin` is not one of those,
@@ -178,12 +182,18 @@ directly.
 ```bash
 ln -s "$PWD/skills/lectio-examine" ~/.claude/skills/lectio-examine
 lectio token agent:examiner
-lectio login --url http://127.0.0.1:7780 --token <it>      # added to client.json; the tutor stays the default
+lectio login --url http://127.0.0.1:7780 --token <it>      # saved to $LECTIO_DIR/examiner.json, apart from the tutor's client.json
 otto run --skill lectio-examine \
   --goal "Write each of my lectio subjects an independent weekly checkup from the syllabus alone" \
   --perpetual --period 6h
 otto check <run> --script "$PWD/skills/lectio-examine/check.sh"
 ```
+
+The examiner's token lives in its own file, not beside the tutor's, so the tutor's default token file
+can't write checkups. If a launcher sets the environment, pass it to the examiner's run as
+`LECTIO_TOKEN` instead. `lectio service status` warns if one token file holds both the tutor's and
+the examiner's token (an older setup put them both in `client.json`): log the examiner in again
+and delete `agent:examiner` from `client.json`.
 
 For more independence, run the examiner on a different model from the tutor.
 
@@ -242,6 +252,12 @@ teaches them with what it has. Its proposal names the media type, and `lectio to
 machine can make it (Chrome, ffmpeg, manim, `say`…; installing them is yours to do). Once shipped, the
 tutor tries the new type in two-arm lessons against the best alternative, and its outcome waits for
 that evidence. Progress shows, per media type, how what it taught was retained.
+
+**Widgets don't grade the tutor.** A widget question scores itself with code the tutor wrote, so
+its attempts count for memory but are left out of the predictions measure and the two-arm
+experiment measures; Progress says how many (`self_scored` in `lectio progress --json`). Those
+measures' history shifts once widget attempts are excluded: figures from before this change may
+differ from what was shown at the time.
 
 **Guardrails.** People sit at both ends: nothing is built until you approve it and nothing runs
 until you ship it. `tests/guard/` pins what an agent's token can never do and what the measures

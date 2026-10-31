@@ -97,3 +97,17 @@ test('the builder never pushes, passes --as on every command, and treats proposa
     expect(skill).toContain(phrase);
   }
 });
+
+test("R5: the examiner's token is documented apart from the tutor's, in its own file or LECTIO_TOKEN", async () => {
+  const skill = await read('lectio-examine/SKILL.md');
+  const plan = await Bun.file(new URL('../../PLAN.md', import.meta.url)).text();
+  const readme = await Bun.file(new URL('../../README.md', import.meta.url)).text();
+  for (const text of [skill, plan, readme]) {
+    expect(text).toContain('examiner.json');
+    expect(text).toContain('LECTIO_TOKEN');
+  }
+  expect(skill).not.toContain("the tutor's token is the default");
+  expect(skill).not.toMatch(/without `--default`/);
+  expect(readme).not.toMatch(/agent:examiner\nlectio login[^\n]*added to client\.json/);
+  expect(readme).toContain('`--as you` from the CLI is no longer supported');
+});

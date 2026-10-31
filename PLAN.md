@@ -774,6 +774,12 @@ for it. `--as <actor>` picks a token. Without `--as`, the CLI uses the only toke
 one, else the one marked `default` (`lectio login --default`). The tutor's token is the
 default. The builder's skill passes `--as agent:builder` on every command.
 
+The examiner's token is **not** stored beside the tutor's (R5): `lectio login` with it writes
+`$LECTIO_DIR/examiner.json`, its own file, and `--as agent:examiner` reads that (or the
+examiner's own run passes it as `LECTIO_TOKEN`, which wins). `lectio service status` warns
+when one file holds both a tutor's and the examiner's token. `client.json` never holds the
+learner's `you` token beside an agent's; `lectio login` refuses either way round.
+
 ### Commands for the learner (actor `you`)
 
 ```

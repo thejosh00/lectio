@@ -14,7 +14,8 @@ questions; the tutor never sees them until the learner has finished. Each run:
 Read `rules.md` (next to this file) before anything else, every session. The contract
 (`lectio agents --as agent:examiner`, section "Checkups: the examiner") has the shapes and a
 runnable example of each command. Every command takes `--json`; pass `--as agent:examiner` on every
-one (the tutor's token is the default).
+one. Your token is kept apart from the tutor's: in `$LECTIO_DIR/examiner.json`, or in `LECTIO_TOKEN`
+when your own run sets it — never in the tutor's `client.json`.
 
 ## 1. Preflight
 
@@ -26,7 +27,9 @@ lectio exam due --as agent:examiner --json
 - The command is missing: stop and say lectio is not installed here.
 - Exit `4`: the server is down. Say so and **stop**.
 - Exit `2` about a token: tell the learner to run `lectio token agent:examiner` then
-  `lectio login --url http://127.0.0.1:7780 --token <it>` (without `--default`).
+  `lectio login --url http://127.0.0.1:7780 --token <it>`, which saves it to its own file,
+  `$LECTIO_DIR/examiner.json` (or to pass it to your run as `LECTIO_TOKEN`). Never look for
+  it in `client.json`.
 - `"due": false`: **stop without starting a run**, and say why from `waiting`.
 
 ## 2. Start
