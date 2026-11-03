@@ -12,6 +12,8 @@ import {daysBetween, isDay} from '../core/time.ts';
 import {isQuizKind, type ItemRole, type Lesson, type Question, type Quiz, type QuizKind, type Subject} from '../core/types.ts';
 import {questionSeconds} from '../blocks/question.ts';
 import {questionFigureAssets, questionFigureWarnings} from '../core/figureLint.ts';
+import {dayBudgetWarning, learnerQuizEstimate, type QuizLearnerEstimate} from '../core/estimate.ts';
+import {calibrationOf, dayLessonEstimate, quizSeconds} from './estimate.ts';
 import {assetLabels, svgWarnings} from './assets.ts';
 import {attemptFromRow, outcomeOf, type AttemptRow, type Outcome} from './attemptRows.ts';
 import {conceptIds} from './concepts.ts';
@@ -183,8 +185,14 @@ export interface QuizSubmitResult {
   existing: boolean;
   question_ids: string[];
   superseded: string[];
+  /** Its questions' generic estimate, added up. */
+  estimate_minutes: number;
+  /** At this learner's pace in the subject (#6); null when the day was already there. */
+  learner_estimate: QuizLearnerEstimate | null;
   warnings: string[];
 }
+
+const genericMinutes = (seconds: number) => Math.max(1, Math.round(seconds / 60));
 
 /** What a reader at phone width would notice about the new questions' pictures (M19). */
 function figureWarningsOf(ctx: Ctx, items: readonly QuizItemInput[]): string[] {
@@ -217,7 +225,9 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
   const day = input.day ?? ctx.today();
   if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
   const existing = ctx.db.query("SELECT * FROM quizzes WHERE subject_id = ? AND day = ? AND kind IN ('daily', 'placement')").get(subject.id, day) as Quiz | null;
-  if (existing !== null) return {quiz: existing, existing: true, question_ids: quizItems(ctx, existing.id).map(i => i.question_id), superseded: [], warnings: []};
+  if (existing !== null) {
+    return {quiz: existing, existing: true, question_ids: quizItems(ctx, existing.id).map(i => i.question_id), superseded: [], estimate_minutes: genericMinutes(quizSeconds(ctx, existing.id).generic_seconds), learner_estimate: null, warnings: []};
+  }
   const today = ctx.today();
   if (day !== today) throw failed(`quizzes are written for today (${today}), not ${day}`, {today});
   if (subject.status !== 'active') throw failed(`${subject.title} is ${subject.status}`);
@@ -293,12 +303,19 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
     }
   }
   ctx.event('quiz', id, {kind: 'added', subject_id: subject.id, day, quiz_kind: kind, items: questionIds.length});
+  // The quiz and the day's lesson at this learner's pace, against the day's budget (#6).
+  const timing = quizSeconds(ctx, id);
+  const calibration = calibrationOf(ctx, subject.id);
+  const learner = learnerQuizEstimate(timing, calibration);
+  const overDay = dayBudgetWarning({minutes_per_day: subject.minutes_per_day, lesson: dayLessonEstimate(ctx, subject.id, day, calibration), quiz: learner});
   return {
     quiz: getQuiz(ctx, id)!,
     existing: false,
     question_ids: questionIds,
     superseded: kind === 'daily' ? superseded : [],
-    warnings: [...predictionWarnings(quizInput.items, kind, numberSetting(ctx.db, 'target_accuracy')), ...figureWarningsOf(ctx, quizInput.items)],
+    estimate_minutes: genericMinutes(timing.generic_seconds),
+    learner_estimate: learner,
+    warnings: [...predictionWarnings(quizInput.items, kind, numberSetting(ctx.db, 'target_accuracy')), ...(overDay === null ? [] : [overDay]), ...figureWarningsOf(ctx, quizInput.items)],
   };
 }
 

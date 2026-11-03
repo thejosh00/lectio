@@ -8,6 +8,8 @@
  */
 import {APPROACHES, BLOCK_TYPES, PLANNED_BLOCK_TYPES} from '../blocks/index.ts';
 import {CAPTION_MAX, SECONDS_PER_LABEL, SECONDS_TO_LOOK} from '../blocks/types.ts';
+import {SECONDS_PER_QUESTION} from '../blocks/question.ts';
+import {ANSWER_SECONDS_MAX, CALIBRATION_ANSWERS, CALIBRATION_LESSONS, MIN_CALIBRATION_ANSWERS, MIN_CALIBRATION_LESSONS} from './estimate.ts';
 import {PLANNED_QUESTION_TYPES, QUESTION_TYPES} from '../questions/index.ts';
 import {CAPTION_WORDS_MAX, FIGURE_ELEMENTS_MAX, MAX_COLORS, MIN_LABEL_PX, PHONE_FIGURE_WIDTH, ROW_NODES_MAX} from './figureLint.ts';
 import {FIGURE_PALETTE} from './palette.ts';
@@ -564,10 +566,20 @@ export function agentsDocument(options: ContractOptions): string {
     '   same-day accuracy is well under target or reviews are piling up). Every four weeks (`last_placement`),',
     '   a frontier day: that day\'s quiz is `--kind placement`, probing past the edge. Then reviews: due concepts with the lowest recall',
     `   first, recent misconceptions, anything rated \`confusing\`. Fit \`budget\`: about 60% lesson, 40% quiz.`,
+    '   Fit it at this learner\'s pace, not the generic one: `calibration` has the subject\'s `ratio` of active to',
+    `   estimated seconds (the median over its last ${CALIBRATION_LESSONS} finished lessons, \`n\` of them; 1 and \`calibrated: false\` under ${MIN_CALIBRATION_LESSONS})`,
+    `   and \`seconds_per_question\` (the median first try in its quizzes over the last ${CALIBRATION_ANSWERS}, \`question_n\`; ${SECONDS_PER_QUESTION} and`,
+    `   \`question_calibrated: false\` under ${MIN_CALIBRATION_ANSWERS}, and an answer over ${ANSWER_SECONDS_MAX} s is not counted).`,
     "6. **Write** the lesson and the quiz (shapes below). Today's lesson is refused (exit 1) unless the",
     '   subject is ready: no lesson today, every earlier one finished or skipped, scheduled today, and past',
     `   ${String(L['lesson_ready_hour']).padStart(2, '0')}:00. Submitting a day twice returns \`"existing": true\` and changes nothing.`,
     ...shown('write'),
+    '   Submitting or revising a lesson returns `learner_estimate` beside `estimate_minutes`: `{minutes, ratio, n,',
+    '   calibrated}`, the blocks\' estimate times `calibration.ratio`. A quiz submit returns `estimate_minutes` and',
+    '   `learner_estimate`: `{minutes, seconds_per_question, n, calibrated}`, its questions at this learner\'s median.',
+    '   Uncalibrated, each is the generic estimate. When either is calibrated and the day\'s lesson and quiz at this',
+    '   pace (the quiz\'s budget share if it isn\'t written yet) come to more than `minutes_per_day`, a warning names',
+    '   both numbers: cut the lesson or the quiz, not the explanation that makes it make sense.',
     '   An `image` block shows a picture you stored first with `asset put <file>`: put it, then use the',
     '   `asset.id` it returns as the block\'s `asset`. The type is read from the bytes (SVG, PNG, JPEG, GIF,',
     `   WebP), at most ${L['asset_max_bytes']} bytes; the same bytes give the same id, so putting twice is harmless.`,
@@ -749,7 +761,8 @@ export function agentsDocument(options: ContractOptions): string {
     '`attempts_since_last_run` (with the question, its concepts,',
     'the approaches that taught them, your `predicted`, confidence, hints, seconds, misconception, `gap_hours`), `measures`,',
     '`exams` (checkups the learner finished since your last run, every question and answer), `last_placement`, `widget_errors` and',
-    '`budget`. Then `regrade`, `feedback_since_last_run`, `unresolved_flags`,',
+    '`budget` with `calibration` (this learner\'s pace against the generic estimate).',
+    'Then `regrade`, `feedback_since_last_run`, `unresolved_flags`,',
     '`unanswered_asks`, `recent_runs`, `contract_version`, and for improving lectio: `open_proposals`,',
     '`to_review` (with each build\'s `handback`), `shipped_since_last_run`, `awaiting_outcome` and `retro_due`.',
     '',

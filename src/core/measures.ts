@@ -179,7 +179,7 @@ export interface ApproachOutcome {
   confusing: number;
 }
 
-function median(values: readonly number[]): number | null {
+export function median(values: readonly number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);

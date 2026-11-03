@@ -95,7 +95,7 @@ function fill(text: string, values: Record<string, string>): string {
 }
 
 /** What the examples' responses said that the test checks afterwards. */
-const submitted: {arm_seconds?: unknown; asset_labels?: unknown} = {};
+const submitted: {arm_seconds?: unknown; asset_labels?: unknown; learner_estimate?: unknown; quiz_learner_estimate?: unknown} = {};
 
 async function runExamples(instance: Instance, examples: Example[], values: Record<string, string>): Promise<void> {
   for (const example of examples) {
@@ -120,7 +120,9 @@ async function runExamples(instance: Instance, examples: Example[], values: Reco
     if (argv[1] === 'lesson' && argv[2] === 'submit' && argv[3] === values['<subject>']) {
       values['<new-lesson>'] = result.json.lesson.id;
       submitted.arm_seconds = result.json.arm_seconds;
+      submitted.learner_estimate = result.json.learner_estimate;
     }
+    if (argv[1] === 'quiz' && argv[2] === 'submit' && argv[3] === values['<subject>']) submitted.quiz_learner_estimate = result.json.learner_estimate;
     if (argv[1] === 'asset' && argv[2] === 'put') submitted.asset_labels = result.json.asset.labels;
   }
 }
@@ -160,6 +162,9 @@ test('every example in the contract runs as documented', async () => {
   // The submit timed each arm (#4); the SVG's three labels count toward the shared image.
   expect(submitted.asset_labels).toBe(3);
   expect(submitted.arm_seconds).toMatchObject({longer: 'a', blocks: {a: [{position: 2, type: 'code'}], b: [{position: 1, type: 'markdown'}]}});
+  // Submits give the estimate at this learner's pace (#6): no timed lesson and three answers are too few, so generic.
+  expect(submitted.learner_estimate).toMatchObject({ratio: 1, n: 0, calibrated: false});
+  expect(submitted.quiz_learner_estimate).toMatchObject({seconds_per_question: 45, n: 3, calibrated: false});
   // The placement probe's anticipated wrong answer records its tag.
   const probe = lc.db.query("SELECT i.quiz_id, i.question_id FROM quiz_items i JOIN questions q ON q.id = i.question_id WHERE q.type = 'numeric'").get() as {quiz_id: string; question_id: string};
   const counted = await answerQ(lc, {question: probe.question_id, quiz: probe.quiz_id, answer: 5});
@@ -182,6 +187,8 @@ test('every example in the contract runs as documented', async () => {
   const recent = rust.recent_lessons.find((l: {id: string}) => l.id === values['<new-lesson>']);
   expect(recent.assigned_arm).toBe(seen.arm);
   expect(rust.recent_lessons.find((l: {id: string}) => l.id === values['<lesson>']).assigned_arm).toBeNull();
+  // The context's calibration (#6): now one timed lesson, still under three.
+  expect(rust.calibration).toMatchObject({n: 1, calibrated: false, ratio: 1});
   const [experiment] = rust.measures.experiments;
   const other = seen.arm === 'a' ? 'b' : 'a';
   expect(experiment[seen.arm]).toMatchObject({median_seen_seconds: 40, median_active_seconds: 200, timed_lessons: 1});

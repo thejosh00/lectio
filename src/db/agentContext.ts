@@ -12,6 +12,7 @@ import type {Ctx} from './context.ts';
 import {contractVersion} from './contract.ts';
 import {blocksWithErrors, dueReport, subjectOfFeedback} from './due.ts';
 import {listFeedback, tutorSees, unansweredAsks, unresolvedFlags} from './feedback.ts';
+import {calibrationOf} from './estimate.ts';
 import {examResults} from './exams.ts';
 import {armOf} from './experiments.ts';
 import {improvementsContext} from './improvements.ts';
@@ -170,6 +171,8 @@ function subjectContext(ctx: Ctx, subject: Subject, since: string, contextSince:
       quiz_minutes: quizMinutes,
       quiz_questions: Math.max(3, Math.round((quizMinutes * 60) / SECONDS_PER_QUESTION)),
     },
+    // This learner's pace here against the generic estimate (#6): lessons as a ratio, quizzes in seconds a question.
+    calibration: calibrationOf(ctx, subject.id),
   };
 }
 

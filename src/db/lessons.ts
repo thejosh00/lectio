@@ -15,6 +15,8 @@ import {blockFigureWarnings, figureAssets, lessonFigureWarnings, questionFigureA
 import {LESSON_RATINGS, SKIP_REASONS} from '../core/feedbackKinds.ts';
 import {lessonReadiness, type Readiness} from '../core/schedule.ts';
 import {armEstimates, Invalid, readBlock, readLesson, type LessonInput, type SubjectFacts} from '../core/submission.ts';
+import {dayBudgetWarning, learnerLessonEstimate, type Calibration, type LessonLearnerEstimate} from '../core/estimate.ts';
+import {calibrationOf, dayQuizEstimate} from './estimate.ts';
 import {armOf, drawArm, ensureExperiment, setArm} from './experiments.ts';
 import {Node} from '../core/validate.ts';
 import {isDay} from '../core/time.ts';
@@ -148,10 +150,27 @@ function readLessonOrThrow(value: unknown, facts: SubjectFacts, raw?: string): L
   }
 }
 
-/** Things worth saying about a valid lesson: it runs long, its estimate is off, or a picture won't read at phone width (M17). */
-function lessonWarnings(ctx: Ctx, input: LessonInput, subject: Subject): string[] {
+/**
+ * Things worth saying about a valid lesson: it runs long, its estimate is off, it and the
+ * day's quiz run past the budget at this learner's pace (#6), or a picture won't read at
+ * phone width (M17).
+ */
+function lessonWarnings(ctx: Ctx, input: LessonInput, subject: Subject, learner: {day: string; calibration: Calibration; estimate: LessonLearnerEstimate}): string[] {
   const svg = svgWarnings(ctx, [...figureAssets(input.blocks), ...questionFigureAssets(input.questions)]);
-  return [...budgetWarnings(input, subject), ...lessonFigureWarnings(input.blocks, svg), ...input.questions.flatMap((q, i) => questionFigureWarnings(q, `questions[${i}]`, svg))];
+  const quiz = dayQuizEstimate(ctx, subject.id, learner.day, learner.calibration);
+  const overDay = dayBudgetWarning({minutes_per_day: subject.minutes_per_day, lesson: learner.estimate, quiz});
+  return [
+    ...budgetWarnings(input, subject),
+    ...(overDay === null ? [] : [overDay]),
+    ...lessonFigureWarnings(input.blocks, svg),
+    ...input.questions.flatMap((q, i) => questionFigureWarnings(q, `questions[${i}]`, svg)),
+  ];
+}
+
+/** The lesson's blocks at this learner's pace in its subject, and what the warnings need to judge the day (#6). */
+function learnerOf(ctx: Ctx, subject: Subject, input: LessonInput, day: string) {
+  const calibration = calibrationOf(ctx, subject.id);
+  return {day, calibration, estimate: learnerLessonEstimate(input.estimate_seconds, calibration)};
 }
 
 function budgetWarnings(input: LessonInput, subject: Subject): string[] {
@@ -237,6 +256,8 @@ export interface SubmitResult {
   estimate_minutes: number;
   /** A two-arm lesson's estimate per arm, in seconds; null without an experiment. */
   arm_seconds: ArmSeconds | null;
+  /** `estimate_minutes` at this learner's pace in the subject (#6); null when the day was already there. */
+  learner_estimate: LessonLearnerEstimate | null;
   warnings: string[];
 }
 
@@ -255,7 +276,7 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
   const existing = lessonForDay(ctx, subject.id, day);
   if (existing !== undefined) {
-    return {lesson: existing, existing: true, question_ids: questionIdsOf(ctx, existing.id), estimate_minutes: existing.estimated_minutes, arm_seconds: null, warnings: []};
+    return {lesson: existing, existing: true, question_ids: questionIdsOf(ctx, existing.id), estimate_minutes: existing.estimated_minutes, arm_seconds: null, learner_estimate: null, warnings: []};
   }
   const today = ctx.today();
   if (day !== today) throw failed(`lessons are written for today (${today}), not ${day}`, {today});
@@ -287,7 +308,16 @@ export function submitLesson(ctx: Ctx, subject: Subject, input: {day: string | u
   const questionIds = insertContent(ctx, {id, subject_id: subject.id}, lessonInput, runId, new Map());
   assignExperiment(ctx, {id, subject_id: subject.id, experiment: null}, lessonInput);
   ctx.event('lesson', id, {kind: 'added', subject_id: subject.id, day, title: lessonInput.title});
-  return {lesson: getLesson(ctx, id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), arm_seconds: armSeconds(lessonInput), warnings: lessonWarnings(ctx, lessonInput, subject)};
+  const learner = learnerOf(ctx, subject, lessonInput, day);
+  return {
+    lesson: getLesson(ctx, id)!,
+    existing: false,
+    question_ids: questionIds,
+    estimate_minutes: Math.round(lessonInput.estimate_seconds / 60),
+    arm_seconds: armSeconds(lessonInput),
+    learner_estimate: learner.estimate,
+    warnings: lessonWarnings(ctx, lessonInput, subject, learner),
+  };
 }
 
 /**
@@ -324,7 +354,16 @@ export function reviseLesson(ctx: Ctx, lesson: Lesson, input: {lesson: unknown; 
   const questionIds = insertContent(ctx, lesson, lessonInput, lesson.run_id, keep);
   assignExperiment(ctx, lesson, lessonInput);
   ctx.event('lesson', lesson.id, {kind: 'revised', version: lesson.version + 1, before});
-  return {lesson: getLesson(ctx, lesson.id)!, existing: false, question_ids: questionIds, estimate_minutes: Math.round(lessonInput.estimate_seconds / 60), arm_seconds: armSeconds(lessonInput), warnings: lessonWarnings(ctx, lessonInput, subject)};
+  const learner = learnerOf(ctx, subject, lessonInput, lesson.day);
+  return {
+    lesson: getLesson(ctx, lesson.id)!,
+    existing: false,
+    question_ids: questionIds,
+    estimate_minutes: Math.round(lessonInput.estimate_seconds / 60),
+    arm_seconds: armSeconds(lessonInput),
+    learner_estimate: learner.estimate,
+    warnings: lessonWarnings(ctx, lessonInput, subject, learner),
+  };
 }
 
 // --- the learner's actions ---------------------------------------------------------

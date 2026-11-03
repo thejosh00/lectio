@@ -43,6 +43,18 @@ const armTimes = (body: Record<string, unknown>) => {
   return arms == null ? [] : [`  arms: a about ${arms.a} s, b about ${arms.b} s, shared about ${arms.shared} s`];
 };
 
+/** The submit's time at this learner's pace (#6), and what it is calibrated on. */
+const learnerTime = (body: Record<string, unknown>) => {
+  const e = body['learner_estimate'] as {minutes: number; calibrated: boolean; n: number; ratio?: number; seconds_per_question?: number} | null | undefined;
+  if (e == null) return [];
+  const basis = !e.calibrated
+    ? `generic: too few timed ${e.ratio === undefined ? 'answers' : 'finished lessons'} yet (${e.n})`
+    : e.ratio === undefined
+      ? `${e.seconds_per_question} s a question over ${e.n} answers`
+      : `${e.ratio}× the estimate over ${e.n} lessons`;
+  return [`  for this learner: about ${e.minutes} min (${basis})`];
+};
+
 export const tutorCommands: CommandDef[] = [
   {
     name: 'due',
@@ -170,7 +182,7 @@ export const tutorCommands: CommandDef[] = [
     }),
     human: body => {
       const lesson = body['lesson'] as Lesson;
-      return [`${body['existing'] === true ? 'already written' : 'submitted'}: ${lesson.title} (${lesson.id}, ${lesson.day})`, ...armTimes(body), ...warnings(body)];
+      return [`${body['existing'] === true ? 'already written' : 'submitted'}: ${lesson.title} (${lesson.id}, ${lesson.day})`, ...armTimes(body), ...learnerTime(body), ...warnings(body)];
     },
   },
   {
@@ -201,7 +213,7 @@ export const tutorCommands: CommandDef[] = [
     values: ['file'],
     booleans: ['stdin'],
     build: async (args, io) => ({method: 'PUT', path: `/api/lessons/${enc(need(args.positional[0], 'lectio lesson revise <lesson> --file lesson.json'))}`, body: {lesson: await jsonInput(args, io, 'lesson')}}),
-    human: body => [`revised: ${(body['lesson'] as Lesson).title} (v${(body['lesson'] as Lesson).version})`, ...armTimes(body), ...warnings(body)],
+    human: body => [`revised: ${(body['lesson'] as Lesson).title} (v${(body['lesson'] as Lesson).version})`, ...armTimes(body), ...learnerTime(body), ...warnings(body)],
   },
   {
     name: 'lesson show',
@@ -252,6 +264,7 @@ export const tutorCommands: CommandDef[] = [
       return [
         `${body['existing'] === true ? 'already written' : 'submitted'}: ${quiz.kind} quiz ${quiz.id} (${(body['question_ids'] as string[]).length} questions)`,
         ...(superseded.length > 0 ? [`  superseded ${superseded.join(', ')}`] : []),
+        ...learnerTime(body),
         ...warnings(body),
       ];
     },
