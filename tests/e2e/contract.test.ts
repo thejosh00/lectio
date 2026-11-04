@@ -95,7 +95,7 @@ function fill(text: string, values: Record<string, string>): string {
 }
 
 /** What the examples' responses said that the test checks afterwards. */
-const submitted: {arm_seconds?: unknown; asset_labels?: unknown; learner_estimate?: unknown; quiz_learner_estimate?: unknown} = {};
+const submitted: {arm_seconds?: unknown; asset_labels?: unknown; learner_estimate?: unknown; quiz_learner_estimate?: unknown; revised_quiz?: string} = {};
 
 async function runExamples(instance: Instance, examples: Example[], values: Record<string, string>): Promise<void> {
   for (const example of examples) {
@@ -122,7 +122,12 @@ async function runExamples(instance: Instance, examples: Example[], values: Reco
       submitted.arm_seconds = result.json.arm_seconds;
       submitted.learner_estimate = result.json.learner_estimate;
     }
-    if (argv[1] === 'quiz' && argv[2] === 'submit' && argv[3] === values['<subject>']) submitted.quiz_learner_estimate = result.json.learner_estimate;
+    if (argv[1] === 'quiz' && argv[2] === 'submit' && argv[3] === values['<subject>']) {
+      values['<new-quiz>'] = result.json.quiz.id;
+      values['<new-quiz-question>'] = result.json.question_ids[0];
+      submitted.quiz_learner_estimate = result.json.learner_estimate;
+    }
+    if (argv[1] === 'quiz' && argv[2] === 'revise') submitted.revised_quiz = result.json.quiz.id;
     if (argv[1] === 'asset' && argv[2] === 'put') submitted.asset_labels = result.json.asset.labels;
   }
 }
@@ -165,6 +170,10 @@ test('every example in the contract runs as documented', async () => {
   // Submits give the estimate at this learner's pace (#6): no timed lesson and three answers are too few, so generic.
   expect(submitted.learner_estimate).toMatchObject({ratio: 1, n: 0, calibrated: false});
   expect(submitted.quiz_learner_estimate).toMatchObject({seconds_per_question: 45, n: 3, calibrated: false});
+  // The revise example corrected today's quiz before it was opened (#7): what it kept, and its new rationale.
+  const revisedQuiz = (await lc.j(['quiz', 'show', submitted.revised_quiz!])).json.quiz;
+  expect(revisedQuiz.rationale).toContain('not wrong');
+  expect(revisedQuiz.items).toHaveLength(2);
   // The placement probe's anticipated wrong answer records its tag.
   const probe = lc.db.query("SELECT i.quiz_id, i.question_id FROM quiz_items i JOIN questions q ON q.id = i.question_id WHERE q.type = 'numeric'").get() as {quiz_id: string; question_id: string};
   const counted = await answerQ(lc, {question: probe.question_id, quiz: probe.quiz_id, answer: 5});

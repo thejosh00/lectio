@@ -851,6 +851,7 @@ lectio lesson revise <lesson> --file lesson.json --json   # only while 'ready'
 lectio lesson verdict <lesson> --note "<what the hypothesis turned out to be>" --json
 lectio block fix <block> --file block.json --resolve <feedback-id…> --reply "<what changed>" --json
 lectio quiz submit <subject> --day <date> --run <run> [--kind daily|placement] --file quiz.json --json
+lectio quiz revise <quiz> --file quiz.json --json   # only while 'ready'
 
 lectio questions [--subject …] [--concept …] [--status active|retired] --json   # the bank, with stats
 lectio question fix <question> --file q.json [--void-attempts] --resolve <feedback-id…> --reply "…" --json

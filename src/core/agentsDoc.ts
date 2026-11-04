@@ -217,6 +217,16 @@ const QUIZ = {
   ],
 };
 
+/** A correction: the rationale said something false, so it goes, and the items worth keeping stay by id. */
+const QUIZ_FIXED = {
+  lesson: '<new-lesson>',
+  rationale: 'Moves today, plus the review due: you got the scope question right yesterday, not wrong.',
+  items: [
+    {role: 'new', existing: '<new-quiz-question>', predict: 0.75},
+    {role: 'review', existing: '<review-question>', predict: 0.6},
+  ],
+};
+
 const NEW_CONCEPTS = [
   {key: 'semitones', title: 'Semitones', summary: 'The smallest step between notes', prereqs: [], position: 1},
   {key: 'interval-names', title: 'Interval names', summary: 'Seconds, thirds, fifths: counting letter names', prereqs: ['semitones'], position: 2},
@@ -340,6 +350,7 @@ export function tutorExamples(options: ContractOptions): Example[] {
     {section: 'write', line: 'lectio asset put move.svg --json', file: {name: 'move.svg', content: MOVE_SVG}},
     {section: 'write', line: 'lectio lesson submit <subject> --day <today> --run <run> --file lesson.json --json', file: {name: 'lesson.json', content: LESSON}},
     {section: 'write', line: 'lectio quiz submit <subject> --day <today> --run <run> --file quiz.json --json', file: {name: 'quiz.json', content: QUIZ}},
+    {section: 'write', line: 'lectio quiz revise <new-quiz> --file quiz-fixed.json --json', file: {name: 'quiz-fixed.json', content: QUIZ_FIXED}},
     {section: 'experiment', line: 'lectio experiments --subject <subject> --json'},
     {section: 'experiment', line: 'lectio experiment close worked_vs_problem_first --note "Prediction first: 9 of 11 retained at 3 days vs 6 of 12 worked first; the interval clears 0." --json'},
     {section: 'bank', line: 'lectio questions --subject <subject> --json'},
@@ -574,6 +585,11 @@ export function agentsDocument(options: ContractOptions): string {
     '   subject is ready: no lesson today, every earlier one finished or skipped, scheduled today, and past',
     `   ${String(L['lesson_ready_hour']).padStart(2, '0')}:00. Submitting a day twice returns \`"existing": true\` and changes nothing.`,
     ...shown('write'),
+    '   To correct a lesson or a quiz after submitting it, revise it while it hasn\'t been opened (`lesson revise`,',
+    '   `quiz revise`); once opened, either is refused (exit 1) and `block fix` or `question fix` reach single pieces.',
+    '   `quiz revise` takes a whole quiz, the same shape and checks as a submit, and replaces its rationale and items.',
+    '   Name a question to keep by id (`existing`); a `question` is written anew. A question the old version wrote and',
+    '   the new one drops is retired, unless it is already in use elsewhere: then a warning names it and it stays.',
     '   Submitting or revising a lesson returns `learner_estimate` beside `estimate_minutes`: `{minutes, ratio, n,',
     '   calibrated}`, the blocks\' estimate times `calibration.ratio`. A quiz submit returns `estimate_minutes` and',
     '   `learner_estimate`: `{minutes, seconds_per_question, n, calibrated}`, its questions at this learner\'s median.',
@@ -737,8 +753,9 @@ export function agentsDocument(options: ContractOptions): string {
     '`retry` is for recent misses. `existing` is an active question id of the same subject.',
     '',
     'A new subject\'s first quiz is `--kind placement`: `probe` items only, spread across the syllabus at rising',
-    'difficulty. Probes never count toward memory or retention. A new daily quiz supersedes an earlier one',
-    'still unstarted. Practice quizzes are assembled by the app, not by you.',
+    'difficulty. Probes never count toward memory or retention. A new daily quiz supersedes one from an earlier',
+    'day still unstarted; a second submit for the same day changes nothing (`quiz revise` corrects it). Practice',
+    'quizzes are assembled by the app, not by you.',
     '',
     '`predict` (0–1, on every item of a daily quiz) is your honest probability that the learner\'s first try',
     'scores 1. The app scores it against what happened, beside a formula (see the measures), and shows the learner',

@@ -4,10 +4,11 @@
  * `ready` → `open` → `finished`. A daily quiz whose lesson has new items opens only once
  * that lesson is finished. When the tutor submits a new daily quiz for a subject, any
  * earlier one still `ready` becomes `superseded` (its reviews are stale); a started quiz
- * is never superseded. Practice is the one quiz the app assembles itself.
+ * is never superseded. The tutor can revise one still `ready`, in place. Practice is the one
+ * quiz the app assembles itself.
  */
 import {AppError, EXIT_USAGE, failed, notFound, usageError} from '../core/errors.ts';
-import {Invalid, readQuiz, type QuizItemInput} from '../core/submission.ts';
+import {Invalid, readQuiz, type QuizInput, type QuizItemInput} from '../core/submission.ts';
 import {daysBetween, isDay} from '../core/time.ts';
 import {isQuizKind, type ItemRole, type Lesson, type Question, type Quiz, type QuizKind, type Subject} from '../core/types.ts';
 import {questionSeconds} from '../blocks/question.ts';
@@ -20,7 +21,7 @@ import {conceptIds} from './concepts.ts';
 import type {Ctx} from './context.ts';
 import {getLesson, invalid, requireLessonOf, subjectFacts} from './lessons.ts';
 import {dueConcepts} from './memory.ts';
-import {checkVariant, getQuestion, insertQuestion, learnerView, type LearnerQuestion} from './questions.ts';
+import {checkVariant, getQuestion, insertQuestion, learnerView, retireQuestion, type LearnerQuestion} from './questions.ts';
 import {resolveId} from './refs.ts';
 import {runFor} from './runs.ts';
 import {numberSetting} from './settings.ts';
@@ -217,24 +218,18 @@ function predictionWarnings(items: readonly QuizItemInput[], kind: QuizKind, tar
   return warnings;
 }
 
-/** `diagrams`: the mermaid check's verdicts for the quiz's figures (`src/server/diagrams.ts`). */
-export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; kind: string | undefined; quiz: unknown; diagrams?: ReadonlyMap<string, string | null>}): QuizSubmitResult {
-  const runId = runFor(ctx, input.run);
-  const kind = (input.kind ?? 'daily') as QuizKind;
-  if (!isQuizKind(kind) || kind === 'practice' || kind === 'exam') throw usageError('--kind must be daily or placement (practice quizzes are assembled by the app; checkups are the examiner\'s)');
-  const day = input.day ?? ctx.today();
-  if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
-  const existing = ctx.db.query("SELECT * FROM quizzes WHERE subject_id = ? AND day = ? AND kind IN ('daily', 'placement')").get(subject.id, day) as Quiz | null;
-  if (existing !== null) {
-    return {quiz: existing, existing: true, question_ids: quizItems(ctx, existing.id).map(i => i.question_id), superseded: [], estimate_minutes: genericMinutes(quizSeconds(ctx, existing.id).generic_seconds), learner_estimate: null, warnings: []};
-  }
-  const today = ctx.today();
-  if (day !== today) throw failed(`quizzes are written for today (${today}), not ${day}`, {today});
-  if (subject.status !== 'active') throw failed(`${subject.title} is ${subject.status}`);
+interface CheckedQuiz {
+  input: QuizInput;
+  lesson: Lesson | undefined;
+  existing: ReadonlyMap<number, string>;
+  variants: ReadonlyMap<number, string | null>;
+}
 
+/** Everything a submit and a revise both refuse: the shape, the lesson, and each item's question. */
+function checkQuiz(ctx: Ctx, subject: Subject, raw: unknown, kind: QuizKind, day: string, diagrams: ReadonlyMap<string, string | null> | undefined): CheckedQuiz {
   let quizInput;
   try {
-    quizInput = readQuiz(input.quiz, subjectFacts(ctx, subject.id, input.diagrams), kind);
+    quizInput = readQuiz(raw, subjectFacts(ctx, subject.id, diagrams), kind);
   } catch (error) {
     if (error instanceof Invalid) throw invalid(error);
     throw error;
@@ -278,21 +273,60 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
   if (errors.length > 0) {
     throw new AppError(`the quiz has ${errors.length === 1 ? 'a problem' : `${errors.length} problems`}: ${errors.map(e => `${e.path}: ${e.message}`).join('; ')}`, EXIT_USAGE, {errors});
   }
+  return {input: quizInput, lesson, existing: resolvedExisting, variants};
+}
 
+function insertItems(ctx: Ctx, quizId: string, subjectId: string, checked: CheckedQuiz, runId: string | null): string[] {
+  const ids = conceptIds(ctx, subjectId);
+  return checked.input.items.map((item, position) => {
+    const questionId =
+      item.existing !== undefined
+        ? checked.existing.get(position)!
+        : insertQuestion(ctx, item.question, {subjectId, lessonId: checked.lesson?.id ?? null, runId, conceptIds: ids, variantOf: checked.variants.get(position) ?? null}).id;
+    ctx.db.query('INSERT INTO quiz_items (quiz_id, position, question_id, role, predicted) VALUES (?, ?, ?, ?, ?)').run(quizId, position, questionId, item.role, item.predicted);
+    return questionId;
+  });
+}
+
+/** The estimates and warnings a submit and a revise both answer with. */
+function writtenQuiz(ctx: Ctx, subject: Subject, quizId: string, day: string, kind: QuizKind, items: readonly QuizItemInput[], questionIds: string[], superseded: string[], extraWarnings: string[] = []): QuizSubmitResult {
+  // The quiz and the day's lesson at this learner's pace, against the day's budget (#6).
+  const timing = quizSeconds(ctx, quizId);
+  const calibration = calibrationOf(ctx, subject.id);
+  const learner = learnerQuizEstimate(timing, calibration);
+  const overDay = dayBudgetWarning({minutes_per_day: subject.minutes_per_day, lesson: dayLessonEstimate(ctx, subject.id, day, calibration), quiz: learner});
+  return {
+    quiz: getQuiz(ctx, quizId)!,
+    existing: false,
+    question_ids: questionIds,
+    superseded,
+    estimate_minutes: genericMinutes(timing.generic_seconds),
+    learner_estimate: learner,
+    warnings: [...predictionWarnings(items, kind, numberSetting(ctx.db, 'target_accuracy')), ...(overDay === null ? [] : [overDay]), ...figureWarningsOf(ctx, items), ...extraWarnings],
+  };
+}
+
+/** `diagrams`: the mermaid check's verdicts for the quiz's figures (`src/server/diagrams.ts`). */
+export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | undefined; run: string | undefined; kind: string | undefined; quiz: unknown; diagrams?: ReadonlyMap<string, string | null>}): QuizSubmitResult {
+  const runId = runFor(ctx, input.run);
+  const kind = (input.kind ?? 'daily') as QuizKind;
+  if (!isQuizKind(kind) || kind === 'practice' || kind === 'exam') throw usageError('--kind must be daily or placement (practice quizzes are assembled by the app; checkups are the examiner\'s)');
+  const day = input.day ?? ctx.today();
+  if (!isDay(day)) throw usageError(`--day must be a date like 2026-09-12, not "${day}"`);
+  const existing = ctx.db.query("SELECT * FROM quizzes WHERE subject_id = ? AND day = ? AND kind IN ('daily', 'placement')").get(subject.id, day) as Quiz | null;
+  if (existing !== null) {
+    return {quiz: existing, existing: true, question_ids: quizItems(ctx, existing.id).map(i => i.question_id), superseded: [], estimate_minutes: genericMinutes(quizSeconds(ctx, existing.id).generic_seconds), learner_estimate: null, warnings: []};
+  }
+  const today = ctx.today();
+  if (day !== today) throw failed(`quizzes are written for today (${today}), not ${day}`, {today});
+  if (subject.status !== 'active') throw failed(`${subject.title} is ${subject.status}`);
+
+  const checked = checkQuiz(ctx, subject, input.quiz, kind, day, input.diagrams);
   const id = ctx.newId();
   ctx.db
     .query('INSERT INTO quizzes (id, subject_id, day, kind, lesson_id, rationale, run_id, added_by, state, added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, subject.id, day, kind, lesson?.id ?? null, quizInput.rationale.trim(), runId, ctx.actor, 'ready', ctx.now());
-  const ids = conceptIds(ctx, subject.id);
-  const questionIds: string[] = [];
-  quizInput.items.forEach((item, position) => {
-    const questionId =
-      item.existing !== undefined
-        ? resolvedExisting.get(position)!
-        : insertQuestion(ctx, item.question, {subjectId: subject.id, lessonId: lesson?.id ?? null, runId, conceptIds: ids, variantOf: variants.get(position) ?? null}).id;
-    ctx.db.query('INSERT INTO quiz_items (quiz_id, position, question_id, role, predicted) VALUES (?, ?, ?, ?, ?)').run(id, position, questionId, item.role, item.predicted);
-    questionIds.push(questionId);
-  });
+    .run(id, subject.id, day, kind, checked.lesson?.id ?? null, checked.input.rationale.trim(), runId, ctx.actor, 'ready', ctx.now());
+  const questionIds = insertItems(ctx, id, subject.id, checked, runId);
   const superseded = (
     ctx.db.query("SELECT id FROM quizzes WHERE subject_id = ? AND kind = 'daily' AND state = 'ready' AND day < ?").all(subject.id, day) as Array<{id: string}>
   ).map(r => r.id);
@@ -303,20 +337,53 @@ export function submitQuiz(ctx: Ctx, subject: Subject, input: {day: string | und
     }
   }
   ctx.event('quiz', id, {kind: 'added', subject_id: subject.id, day, quiz_kind: kind, items: questionIds.length});
-  // The quiz and the day's lesson at this learner's pace, against the day's budget (#6).
-  const timing = quizSeconds(ctx, id);
-  const calibration = calibrationOf(ctx, subject.id);
-  const learner = learnerQuizEstimate(timing, calibration);
-  const overDay = dayBudgetWarning({minutes_per_day: subject.minutes_per_day, lesson: dayLessonEstimate(ctx, subject.id, day, calibration), quiz: learner});
-  return {
-    quiz: getQuiz(ctx, id)!,
-    existing: false,
-    question_ids: questionIds,
-    superseded: kind === 'daily' ? superseded : [],
-    estimate_minutes: genericMinutes(timing.generic_seconds),
-    learner_estimate: learner,
-    warnings: [...predictionWarnings(quizInput.items, kind, numberSetting(ctx.db, 'target_accuracy')), ...(overDay === null ? [] : [overDay]), ...figureWarningsOf(ctx, quizInput.items)],
-  };
+  return writtenQuiz(ctx, subject, id, day, kind, checked.input.items, questionIds, kind === 'daily' ? superseded : []);
+}
+
+/**
+ * A question this quiz wrote, as opposed to one it brought back: added with or after the
+ * quiz, by its run, and not an inline check of a lesson. Nothing records this directly.
+ */
+function wroteQuestion(ctx: Ctx, quiz: Quiz, question: Question): boolean {
+  if (question.run_id !== quiz.run_id || question.added < quiz.added) return false;
+  const inline = ctx.db.query("SELECT 1 FROM blocks WHERE type = 'question' AND json_extract(body, '$.question_id') = ? LIMIT 1").get(question.id);
+  return inline === null;
+}
+
+/**
+ * Replace an unopened quiz's rationale and items, with the checks a submit runs. A question
+ * the old version wrote and the new one drops is retired, so a wrong one can't come back in
+ * practice; one already in use elsewhere stays, and a warning says so.
+ */
+export function reviseQuiz(ctx: Ctx, quiz: Quiz, input: {quiz: unknown; diagrams?: ReadonlyMap<string, string | null>}): QuizSubmitResult {
+  if (quiz.kind !== 'daily' && quiz.kind !== 'placement') throw failed(`only a daily or placement quiz can be revised; this one is ${quiz.kind === 'practice' ? 'assembled by the app' : "the examiner's"}`);
+  if (quiz.state !== 'ready') throw failed(`only a quiz that hasn't been opened can be revised; this one is ${quiz.state}. Fix single questions with "lectio question fix".`);
+  const subject = getSubject(ctx, quiz.subject_id)!;
+  const checked = checkQuiz(ctx, subject, input.quiz, quiz.kind, quiz.day, input.diagrams);
+  const beforeItems = quizItems(ctx, quiz.id);
+  ctx.db.query('DELETE FROM quiz_items WHERE quiz_id = ?').run(quiz.id);
+  ctx.db.query('UPDATE quizzes SET lesson_id = ?, rationale = ? WHERE id = ?').run(checked.lesson?.id ?? null, checked.input.rationale.trim(), quiz.id);
+  const questionIds = insertItems(ctx, quiz.id, subject.id, checked, quiz.run_id);
+
+  const retired: string[] = [];
+  const kept: string[] = [];
+  for (const item of beforeItems) {
+    if (questionIds.includes(item.question_id)) continue;
+    const question = getQuestion(ctx, item.question_id);
+    if (question === undefined || !wroteQuestion(ctx, quiz, question)) continue;
+    const inUse = ctx.db
+      .query('SELECT 1 FROM quiz_items WHERE question_id = ? UNION ALL SELECT 1 FROM attempts WHERE question_id = ? LIMIT 1')
+      .get(question.id, question.id);
+    if (inUse !== null) {
+      kept.push(question.id);
+      continue;
+    }
+    retireQuestion(ctx, question);
+    retired.push(question.id);
+  }
+  ctx.event('quiz', quiz.id, {kind: 'revised', before: {lesson_id: quiz.lesson_id, rationale: quiz.rationale, items: beforeItems}, retired});
+  const stillActive = kept.map(id => `question ${id} left this quiz but is already in use elsewhere, so it stays in the bank: if it is wrong, fix it with "lectio question fix"`);
+  return writtenQuiz(ctx, subject, quiz.id, quiz.day, quiz.kind, checked.input.items, questionIds, [], stillActive);
 }
 
 /**

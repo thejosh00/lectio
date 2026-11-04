@@ -270,6 +270,16 @@ export const tutorCommands: CommandDef[] = [
     },
   },
   {
+    name: 'quiz revise',
+    audience: 'tutor',
+    summary: "replace a quiz's rationale and items while it hasn't been opened",
+    usage: 'lectio quiz revise <quiz> --file quiz.json | --stdin',
+    values: ['file'],
+    booleans: ['stdin'],
+    build: async (args, io) => ({method: 'PUT', path: `/api/quizzes/${enc(need(args.positional[0], 'lectio quiz revise <quiz> --file quiz.json'))}`, body: {quiz: await jsonInput(args, io, 'quiz')}}),
+    human: body => [`revised: ${(body['quiz'] as Quiz).kind} quiz ${(body['quiz'] as Quiz).id} (${(body['question_ids'] as string[]).length} questions)`, ...learnerTime(body), ...warnings(body)],
+  },
+  {
     name: 'quiz show',
     audience: 'anyone',
     summary: 'one quiz, with its items and how they went (agents see question keys)',
