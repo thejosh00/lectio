@@ -112,7 +112,7 @@ export function dayBudgetWarning(input: {
   if (total <= input.minutes_per_day) return null;
   const lessonPart = input.lesson === null ? 'no lesson' : `the lesson about ${lessonMinutes} min`;
   const quizPart = input.quiz === null ? `the quiz's share of ${quizShare} min` : `the quiz about ${quizMinutes} min`;
-  return `for this learner, ${lessonPart} and ${quizPart} come to about ${total} min, over this subject's ${input.minutes_per_day} min/day. Shorter beats complete.`;
+  return `for this learner, ${lessonPart} and ${quizPart} come to about ${total} min, over this subject's ${input.minutes_per_day} min/day. Cut an idea rather than compress the sentences.`;
 }
 
 const round2 = (x: number) => Math.round(x * 100) / 100;

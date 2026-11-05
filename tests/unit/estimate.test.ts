@@ -49,7 +49,7 @@ test('the day budget warning: only when calibrated, and naming both numbers', ()
   expect(dayBudgetWarning({...day, lesson: {minutes: 9, calibrated: true}, quiz: {minutes: 6, calibrated: false}})).toBeNull();
   // Over: lesson 12 + quiz 6.
   expect(dayBudgetWarning({...day, lesson: {minutes: 12, calibrated: true}, quiz: {minutes: 6, calibrated: false}})).toBe(
-    "for this learner, the lesson about 12 min and the quiz about 6 min come to about 18 min, over this subject's 15 min/day. Shorter beats complete.",
+    "for this learner, the lesson about 12 min and the quiz about 6 min come to about 18 min, over this subject's 15 min/day. Cut an idea rather than compress the sentences.",
   );
   // No quiz yet: its share (15 − 9 = 6) stands in.
   expect(dayBudgetWarning({...day, lesson: {minutes: 10, calibrated: true}, quiz: null})).toContain("the lesson about 10 min and the quiz's share of 6 min come to about 16 min");

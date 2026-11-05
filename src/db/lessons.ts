@@ -178,7 +178,7 @@ function budgetWarnings(input: LessonInput, subject: Subject): string[] {
   const blocksMinutes = Math.round(input.estimate_seconds / 60);
   const budget = Math.round(subject.minutes_per_day * 0.6);
   if (blocksMinutes > Math.max(budget * 1.25, budget + 2)) {
-    warnings.push(`the blocks add up to about ${blocksMinutes} min; the lesson's share of ${subject.minutes_per_day} min/day is about ${budget}. Shorter beats complete.`);
+    warnings.push(`the blocks add up to about ${blocksMinutes} min; the lesson's share of ${subject.minutes_per_day} min/day is about ${budget}. Cut an idea rather than compress the sentences.`);
   }
   if (Math.abs(input.estimated_minutes - blocksMinutes) > Math.max(3, blocksMinutes * 0.5)) {
     warnings.push(`estimated_minutes is ${input.estimated_minutes}, but the blocks add up to about ${blocksMinutes}`);

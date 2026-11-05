@@ -70,7 +70,7 @@ From `unresolved_flags`, `unanswered_asks` and each subject's `widget_errors`:
 - **`dispute`** ("I was right"): if their answer was fair, widen `accept` (or add a whole-answer
   `regex`) with `question fix`, without voiding — the dispute already counted it right. If not,
   reply `--resolved disagreed` and explain.
-- **`ask`:** `lectio reply <id> --body "…"`. Short and direct; say where a coming lesson goes deeper.
+- **`ask`:** `lectio reply <id> --body "…"`. Answer what they asked in a few connected sentences; say where a coming lesson goes deeper.
 
 A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes what you write next.
 
@@ -120,6 +120,7 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   Seed 6: an interactive's goal and a widget's guess, in "Make them use it".
   Seed 7: widget questions, asked by doing, in "Make them use it".
   Seed 8: show every new physical thing the first time it's named, in "A lesson" and "Pictures and media".
+  Seed 9: the "Writing that reads the first time" section, and "Fit the budget by teaching less" in "A lesson".
 
 ## 5. Plan
 
@@ -153,7 +154,8 @@ For each subject in `due.subjects`:
   propose the next rung of the goal (from explaining it, to using it, to building with it, to judging
   others' work). The goal is the learner's to change; you propose.
 - **Fit the budget** (`budget` in each subject's context): about 60% lesson, 40% quiz. Reading runs
-  at about 200 words a minute, a question takes about 45 seconds. Shorter beats complete.
+  at about 200 words a minute, a question takes about 45 seconds. To fit, cut an idea rather than
+  compress the sentences.
 - **Not ready** (`waiting`): leave it. Never stack lessons: a learner away for a week comes back to
   one lesson, not seven.
 
@@ -161,7 +163,8 @@ For each subject in `due.subjects`:
 
 Your playbook has the craft; in short: connect to what they know, one idea at a time, a concrete
 example before the general rule, worked examples while it's new, a check after each idea, name the
-likely misconception and show why it fails. Every block gets an honest `approach` and its `concepts`.
+likely misconception and show why it fails, all in connected sentences that read easily the first
+time. Every block gets an honest `approach` and its `concepts`.
 The `rationale` is for the learner: why this lesson, today, this way. Add a `hypothesis` only when
 you are deliberately trying something, and change one thing at a time.
 
@@ -189,7 +192,7 @@ replies, unless the learner's notes ask for another spelling.
 
 Read the lesson JSON back once before submitting: every claim true, every `concepts` key real, the
 question keys right (try answering your own questions), distractors plausible and wrong for a
-reason, the time estimate honest. The server validates shape; only you can validate truth.
+reason, the time estimate honest, and no sentence the learner would have to read twice. The server validates shape; only you can validate truth.
 
 ## 8. Submit
 
@@ -214,7 +217,7 @@ target. Placement probes take none.
 - `"existing": true` means today was already written (perhaps by a crashed run): fine, move on.
 - Exit 1 with `why` (not ready): skip the subject.
 - Exit 2: fix every listed problem and submit again.
-- The response's `warnings` say when the blocks run long or the estimate is off (shorten), and what a
+- The response's `warnings` say when the blocks run long or the estimate is off (cut an idea; don't compress the sentences), and what a
   reader at phone width would notice about a picture (fix it, or say in the run summary why not).
 
 ## 9. Reflect on lectio itself

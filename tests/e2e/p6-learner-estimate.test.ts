@@ -65,7 +65,7 @@ test('three slow lessons calibrate the estimate, and the day over budget is warn
   expect(lesson.json.learner_estimate).toEqual({minutes, ratio, n: 3, calibrated: true});
   expect(minutes).toBeGreaterThan(generic);
   // 15 min/day: the lesson's share is 9, the quiz's 6. No quiz yet, so its share stands in.
-  expect(lesson.json.warnings).toContain(`for this learner, the lesson about ${minutes} min and the quiz's share of 6 min come to about ${minutes + 6} min, over this subject's 15 min/day. Shorter beats complete.`);
+  expect(lesson.json.warnings).toContain(`for this learner, the lesson about ${minutes} min and the quiz's share of 6 min come to about ${minutes + 6} min, over this subject's 15 min/day. Cut an idea rather than compress the sentences.`);
   // The human output says it too.
   const id = lesson.json.lesson.id as string;
   const revised = await lc.cli(['lesson', 'revise', id, '--file', lc.file('lesson.json', lessonFor(3))], TUTOR);
@@ -80,7 +80,7 @@ test('three slow lessons calibrate the estimate, and the day over budget is warn
   expect(quiz.code).toBe(0);
   expect(quiz.json.estimate_minutes).toBe(2);
   expect(quiz.json.learner_estimate).toEqual({minutes: 6, seconds_per_question: 120, n: 9, calibrated: true});
-  expect(quiz.json.warnings).toContain(`for this learner, the lesson about ${minutes} min and the quiz about 6 min come to about ${minutes + 6} min, over this subject's 15 min/day. Shorter beats complete.`);
+  expect(quiz.json.warnings).toContain(`for this learner, the lesson about ${minutes} min and the quiz about 6 min come to about ${minutes + 6} min, over this subject's 15 min/day. Cut an idea rather than compress the sentences.`);
 });
 
 test('under three finished lessons the estimate stays generic, with no new warning', async () => {

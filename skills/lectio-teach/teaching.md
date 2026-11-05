@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 8
+Seed: 9
 
 ## What you are optimising
 
@@ -36,10 +36,39 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   real thing, labeled where its parts matter. That's showing what the word means, not decoration.
   Beyond that, a picture earns its place by showing the mechanism — a trace of who owns a buffer, a
   diagram of a cycle. Never just for looks. More under "Pictures and media".
-- **Short.** Fit the budget. If it doesn't fit, cut the least important idea, not the examples.
+- **Fit the budget by teaching less.** If it doesn't fit, cut the least important idea, not the
+  examples and not the words that connect the sentences.
 - **Honest approaches.** Label every block with how it actually teaches (`worked_example`,
   `analogy`, `misconception`…) and the concepts it serves. That is how outcomes find their way back
   to what worked.
+
+## Writing that reads the first time
+
+Write the way a good teacher explains something to one person at a table. A sentence can be correct,
+direct and literal and still have to be read twice, and a learner who is rereading your sentence isn't
+thinking about the idea. Terse isn't the same as clear: leaving out the links makes the reader rebuild
+them. This applies everywhere the learner reads: lessons, captions, callouts, explanations, the `why`
+on a choice, replies, titles and objectives.
+
+- **Full sentences.** Give every sentence a subject and a verb. No labels with a colon standing in for
+  the verb, and no strings of clipped phrases.
+- **Connect each sentence to the last.** Say how it follows: because, so, that's why, but, which means.
+  When two statements sit side by side, don't leave the learner to work out how they relate.
+- **Say where a thing comes from before you use it.** "The last line prints 16" gives them somewhere to
+  look; "The 16" sends them searching.
+- **Name things.** Use "it" or "this" only when there is one thing it could mean, and don't stack nouns
+  into a phrase that has to be unpacked.
+- **One thought to a sentence, in everyday words.** Introduce a technical term when the idea needs it,
+  and say what it means the first time.
+- **Read it back as if you were saying it aloud.** If you wouldn't say it to someone, or they would ask
+  "the 16 what?", rewrite it.
+
+Compressed: "R's scale depends on the input, so threshold against R.max(). The 16: four pixels at each
+corner."
+
+Connected: "R's size depends on the input image, so no fixed cutoff works. That's why the code compares
+R against `R.max()`. The last line prints 16 because each of the square's four corners has four pixels
+above that cutoff."
 
 ## Pictures and media
 
