@@ -53,13 +53,14 @@ export interface ProposalInput {
 /** The edges of the lifecycle: action → the statuses it may start from, and where it goes. */
 export const TRANSITIONS = {
   approve: {from: ['open', 'deferred'], to: 'approved'},
-  decline: {from: ['open', 'approved', 'deferred', 'needs_info'], to: 'declined'},
+  decline: {from: ['open', 'approved', 'deferred', 'needs_info', 'in_review'], to: 'declined'},
   defer: {from: ['open', 'approved', 'needs_info'], to: 'deferred'},
   withdraw: {from: ['open', 'deferred'], to: 'withdrawn'},
   claim: {from: ['approved', 'changes_requested'], to: 'building'},
   ask: {from: ['building'], to: 'needs_info'},
   answer: {from: ['needs_info'], to: 'approved'},
-  submit: {from: ['building'], to: 'in_review'},
+  /** From in_review: the next version of a build, when otto's change page asked for it. */
+  submit: {from: ['building', 'in_review'], to: 'in_review'},
   request_changes: {from: ['in_review'], to: 'changes_requested'},
   /** The tutor's review of a shipped build it asked for: another change on top. */
   send_back: {from: ['shipped'], to: 'changes_requested'},

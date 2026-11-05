@@ -27,6 +27,7 @@ const shown = (body: Record<string, unknown>) => {
     `  change:  ${p.change}`,
     `  success: ${p.success}`,
     ...(p.branch === null ? [] : [`  branch:  ${p.branch} @ ${p.commit_sha ?? '?'}`]),
+    ...(p.otto_change === null ? [] : [`  otto change: ${p.otto_change}`]),
     ...(p.accepted_at === null ? [] : [`  accepted by the tutor: ${p.accepted_at}`]),
     ...(p.outcome === null ? [] : [`  outcome: ${p.outcome} — ${p.outcome_note ?? ''}`]),
     ...p.evidence.map(e => `  evidence: ${e.kind}${e.id === null ? '' : ` ${e.id}`} — ${e.note}`),
@@ -165,8 +166,8 @@ export const proposalCommands: CommandDef[] = [
   action('submit', 'submit', {
     audience: 'builder',
     summary: 'hand a built branch back for review',
-    usage: 'lectio proposal submit <n> --branch <b> --commit <sha> --note-file handback.md --as agent:builder',
-    values: ['branch', 'commit', 'note-file'],
+    usage: 'lectio proposal submit <n> --branch <b> --commit <sha> [--change <run>/<n>] --note-file handback.md --as agent:builder',
+    values: ['branch', 'commit', 'change', 'note-file'],
     body: async (args, io) => {
       const file = flagValue(args, 'note-file');
       if (file === undefined) throw new CommandUsage('the hand-back note is required: --note-file handback.md');
@@ -176,7 +177,7 @@ export const proposalCommands: CommandDef[] = [
       } catch (error) {
         throw new CommandUsage(`can't read ${file}: ${error instanceof Error ? error.message : String(error)}`);
       }
-      return {branch: flagValue(args, 'branch'), commit: flagValue(args, 'commit'), note};
+      return {branch: flagValue(args, 'branch'), commit: flagValue(args, 'commit'), change: flagValue(args, 'change'), note};
     },
   }),
   action('comment', 'comments', {

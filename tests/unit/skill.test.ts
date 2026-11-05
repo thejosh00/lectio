@@ -111,3 +111,11 @@ test("R5: the examiner's token is documented apart from the tutor's, in its own 
   expect(readme).not.toMatch(/agent:examiner\nlectio login[^\n]*added to client\.json/);
   expect(readme).toContain('`--as you` from the CLI is no longer supported');
 });
+
+test('lectio-build hands code back as an otto change, and never as a message to merge it', async () => {
+  const skill = await read('lectio-build/SKILL.md');
+  expect(skill).toContain('otto state change submit');
+  expect(skill).toContain('--change <run>/<change>');
+  expect(skill).not.toMatch(/send an `update` message[^.]*ready to merge/);
+  expect(skill).not.toContain('git merge lectio/');
+});

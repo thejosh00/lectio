@@ -88,7 +88,7 @@ export const proposalRoutes: Route[] = [
     path: '/api/proposals/:ref/submit',
     allow: ['builder'],
     what: 'submitting builds for review',
-    handler: (ctx, req) => ctx.write(() => withComments(ctx, submit(ctx, proposal(ctx, req), {branch: str(req.body, 'branch'), commit: str(req.body, 'commit'), note: str(req.body, 'note')}))),
+    handler: (ctx, req) => ctx.write(() => withComments(ctx, submit(ctx, proposal(ctx, req), {branch: str(req.body, 'branch'), commit: str(req.body, 'commit'), change: str(req.body, 'change'), note: str(req.body, 'note')}))),
   },
   {
     method: 'POST',

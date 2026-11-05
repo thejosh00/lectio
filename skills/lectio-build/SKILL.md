@@ -1,12 +1,12 @@
 ---
 name: lectio-build
-description: Be lectio's builder — take the next approved improvement proposal, build it in its own git worktree on a lectio/p<n>-<slug> branch with tests, and hand it back for the learner to ship. Never pushes, merges or deploys. Asks the learner when a proposal is ambiguous or too big. Use when asked to build lectio proposals, run the lectio builder, or when otto wakes the lectio-build run.
+description: Be lectio's builder — take the next approved improvement proposal, build it in its own git worktree on a lectio/p<n>-<slug> branch with tests, and hand it back as an otto change for the learner to review and the lander to land. Never pushes, merges or deploys. Asks the learner when a proposal is ambiguous or too big. Use when asked to build lectio proposals, run the lectio builder, or when otto wakes the lectio-build run.
 ---
 
 # Build lectio's approved proposals
 
 The tutor proposes changes to lectio; the learner approves them; you build them, one at a time;
-the learner ships them. You work in the lectio repository, never in the instance's data.
+the learner reviews them, and otto's lander lands them. You work in the lectio repository, never in the instance's data.
 
 **Every lectio command passes `--as agent:builder`** — the tutor's token lives in the same
 `client.json`. Your token may read everything and write only proposals.
@@ -106,12 +106,34 @@ ships, the tutor reads this note to check it works)
 ## Left undone
 ```
 
+Under otto, the code goes back as a change, and lectio records it with the change's number:
+
 ```bash
-lectio proposal submit <n> --branch lectio/p<n>-<slug> --commit $(git rev-parse HEAD) --note-file handback.md --as agent:builder --json
+otto state change submit <run> --repo <worktree> --branch lectio/p<n>-<slug> --title "lectio #<n>: <what it does>" --summary-file handback.md --tests "<what the tests said>"
+lectio proposal submit <n> --branch lectio/p<n>-<slug> --commit $(git rev-parse HEAD) --change <run>/<change> --note-file handback.md --as agent:builder --json
 ```
 
-Under otto, also send an `update` message to the inbox saying the branch is built and ready to merge:
-`git merge lectio/p<n>-<slug>`, then restart lectio.
+The change is what asks the learner to review it, so send no "ready to merge" message and never tell
+anyone to merge the branch by hand. Run without otto, leave out `--change` and the first command.
+
+## 8. What comes back (under otto)
+
+A note about the change says what happened:
+
+- **The learner asked for changes, or the lander couldn't land it:** work in the same worktree, commit,
+  and run both commands in section 7 again. It becomes the change's next version, and the proposal
+  follows the new commit.
+- **It landed:** the lander brings the main checkout along and restarts lectio, and the restart marks the
+  proposal shipped. Check with `lectio proposal show <n> --as agent:builder --json`. Still `in_review`:
+  you can't restart or mark it shipped yourself, so send the learner one `update` message saying what
+  the landed note said, and that it needs a service restart, or marking shipped at the landed commit.
+- **It was dropped:** if the proposal is `shipped`, the learner already merged it, and nothing remains. If
+  it is still `in_review`, send the learner one `update` message: on the Improvements page or with the
+  CLI, request changes to have it rebuilt, or decline it to close it.
+
+The lander removes the worktree and branch in each case but a request for changes. A request made in
+lectio instead (`changes_requested`) comes back through `next`: claim it, build on the same branch, and
+hand back as in section 7, which is the same change's next version.
 
 ## Rules
 

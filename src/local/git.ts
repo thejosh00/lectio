@@ -32,14 +32,25 @@ export function isAncestor(repo: string, sha: string, of: string): boolean {
 }
 
 /**
+ * Whether a commit's work is in another: as an ancestor, or rebased onto it with the same
+ * patches, because landing rebases a change when its base has moved. A squash of several
+ * commits matches none of them, and a commit git has pruned matches nothing.
+ */
+export function isIncluded(repo: string, sha: string, of: string): boolean {
+  if (isAncestor(repo, sha, of)) return true;
+  const cherry = git(repo, ['cherry', of, sha]);
+  return cherry.code === 0 && !cherry.out.split('\n').some(line => line.startsWith('+'));
+}
+
+/**
  * At startup: record the commit, and mark every in-review proposal whose submitted commit
- * is an ancestor of it as shipped — "shipped" means running, not merged.
+ * is part of it as shipped — "shipped" means running, not merged.
  */
 export function noteRunningCommit(db: Database, repo: string, now: () => string = nowIso): {commit: string | undefined; shipped: Proposal[]} {
   const commit = gitHead(repo);
   if (commit === undefined) return {commit, shipped: []};
   setMark(db, 'running_commit', commit);
   const ctx = new Ctx({db, now}, 'you');
-  const shipped = ctx.write(() => detectShipped(ctx, sha => isAncestor(repo, sha, commit)));
+  const shipped = ctx.write(() => detectShipped(ctx, sha => isIncluded(repo, sha, commit)));
   return {commit, shipped};
 }

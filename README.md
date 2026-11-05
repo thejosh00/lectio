@@ -209,7 +209,7 @@ lectio proposals                                   # or the Improvements page (T
 lectio proposal approve <n> [--priority high]
 lectio proposal decline|defer <n> --note "…"
 lectio proposal answer <n> "…"                     # to a builder's question
-git merge lectio/p<n>-<slug> && lectio service restart   # ship a built branch
+otto changes show <run>/<n>                        # review a built branch; approving it ships it
 lectio proposal request-changes <n> --note "…"     # or send it back instead
 ```
 
@@ -225,12 +225,17 @@ otto check <run> --script "$PWD/skills/lectio-build/check.sh"
 ```
 
 The builder works in `.work-trees/lectio-build/` on `lectio/p<n>-<slug>` branches, never in this
-checkout; it never pushes, merges or deploys. It sends an otto inbox message when a branch is ready.
+checkout; it never pushes, merges or deploys. Each build goes back as an otto change, and the
+Improvements page points to it.
 
-**Shipping.** Merge the branch into `main` and restart lectio, as you would any change. A server run
-from a checkout records the commit it is running at startup and marks every built proposal whose
-commit is part of it as shipped. (Squashing or rebasing gives the branch new commits, so mark those
-by hand with `lectio proposal shipped <n> --commit <sha>`, as you would for a binary build.)
+**Shipping.** Approve the change in otto, and otto's lander lands it. Once it is on `main`, bring the
+main checkout along (`git merge --ff-only origin/main`) and run `lectio service restart`: lectio runs
+from that checkout, and migrations run on start. As a pull request, use a merge commit
+(`gh pr merge --merge`), never a squash. A server run from a checkout records the commit it is running
+at startup and marks every built proposal whose commit is part of it, or rebased onto it, as shipped. A
+squash of several commits can't be recognized, so mark those by hand with
+`lectio proposal shipped <n> --commit <sha>`, as you would for a binary build. Without otto, merge the
+branch yourself: `git merge lectio/p<n>-<slug> && lectio service restart`.
 
 **The tutor checks what shipped for it.** A shipped proposal the tutor filed wakes its next run
 (`lectio due`). It reads the new contract and the builder's hand-back, tries the change, and either

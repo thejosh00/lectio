@@ -355,6 +355,10 @@ const MIGRATIONS: string[] = [
   -- every concept they teach ('taught'), so a comparison on ideas already met can be measured.
   ALTER TABLE experiments ADD COLUMN counts TEXT NOT NULL DEFAULT 'new';
   `,
+  `
+  -- The otto change a build went back as ('<run>/<n>'): it is reviewed and landed there.
+  ALTER TABLE proposals ADD COLUMN otto_change TEXT;
+  `,
 ];
 
 export interface OpenOptions {

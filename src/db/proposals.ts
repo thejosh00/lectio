@@ -49,6 +49,8 @@ export interface Proposal {
   run_id: string | null;
   branch: string | null;
   commit_sha: string | null;
+  /** The otto change this build went back as, `<run>/<n>`; it is reviewed and landed there. */
+  otto_change: string | null;
   shipped_at: string | null;
   /** When the tutor accepted the current build of a proposal it filed. */
   accepted_at: string | null;
@@ -275,15 +277,17 @@ export function answer(ctx: Ctx, proposal: Proposal, text: string | undefined): 
   return moved;
 }
 
-export function submit(ctx: Ctx, proposal: Proposal, input: {branch: string | undefined; commit: string | undefined; note: string | undefined}): Proposal {
+export function submit(ctx: Ctx, proposal: Proposal, input: {branch: string | undefined; commit: string | undefined; change?: string | undefined; note: string | undefined}): Proposal {
   only(ctx, ['builder'], 'Submitting a build for review');
   const branch = input.branch?.trim() ?? '';
   const sha = input.commit?.trim().toLowerCase() ?? '';
   if (!/^lectio\/p\d+-[a-z0-9-]+$/.test(branch) || !branch.startsWith(`lectio/p${proposal.number}-`)) throw usageError(`--branch must be lectio/p${proposal.number}-<slug>`);
   if (!/^[0-9a-f]{7,40}$/.test(sha)) throw usageError('--commit must be the branch head (a git sha)');
+  const change = input.change?.trim() ?? '';
+  if (change !== '' && !/^[\w-]+\/\d+$/.test(change)) throw usageError('--change must be the otto change, <run>/<n>');
   if ((input.note?.trim() ?? '') === '') throw usageError('the hand-back note is required: --note-file handback.md');
   // A new build is checked afresh once it ships.
-  const moved = move(ctx, proposal, 'submit', {branch, commit_sha: sha, accepted_at: null});
+  const moved = move(ctx, proposal, 'submit', {branch, commit_sha: sha, otto_change: change === '' ? null : change, accepted_at: null});
   comment(ctx, moved, 'handback', input.note!);
   return moved;
 }
@@ -365,12 +369,12 @@ export function addComment(ctx: Ctx, proposal: Proposal, body: string | undefine
 
 /**
  * Mark in-review proposals whose submitted commit is now part of what the server runs.
- * `isAncestor` answers whether a commit is an ancestor of the running one (git does).
+ * `isIncluded` answers whether a commit's work is part of the running one (git does).
  */
-export function detectShipped(ctx: Ctx, isAncestor: (sha: string) => boolean): Proposal[] {
+export function detectShipped(ctx: Ctx, isIncluded: (sha: string) => boolean): Proposal[] {
   const shipped: Proposal[] = [];
   for (const p of listProposals(ctx, {status: ['in_review']})) {
-    if (p.commit_sha === null || !isAncestor(p.commit_sha)) continue;
+    if (p.commit_sha === null || !isIncluded(p.commit_sha)) continue;
     ctx.db.query("UPDATE proposals SET status = 'shipped', shipped_at = ?, changed = ? WHERE id = ?").run(ctx.now(), ctx.now(), p.id);
     ctx.event('proposal', p.id, {kind: 'shipped', number: p.number, from: 'in_review', to: 'shipped'});
     shipped.push(getProposal(ctx, p.id)!);

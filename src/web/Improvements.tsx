@@ -35,6 +35,7 @@ interface Proposal {
   proposed_by: string;
   branch: string | null;
   commit_sha: string | null;
+  otto_change: string | null;
   shipped_at: string | null;
   accepted_at: string | null;
   outcome: string | null;
@@ -184,11 +185,14 @@ function Answer({p, comments, onDone}: {p: Proposal; comments: Comment[]; onDone
 
 function ShipCommand({p}: {p: Proposal}) {
   const {toast} = useShared();
-  const command = `git merge ${p.branch ?? ''} && lectio service restart`;
+  const command = p.otto_change === null ? `git merge ${p.branch ?? ''} && lectio service restart` : `otto changes show ${p.otto_change}`;
   return (
     <>
       <p className="small-text muted" style={{marginBottom: 4}}>
-        Ship it like any other change: merge it in the lectio checkout and restart. Once it's running, lectio marks it shipped and your tutor checks it on its next run.
+        {p.otto_change === null
+          ? 'Ship it like any other change: merge it in the lectio checkout and restart.'
+          : 'Review it in otto: approving it there lands it and restarts lectio, so there is nothing to merge by hand.'}{' '}
+        Once it's running, lectio marks it shipped and your tutor checks it on its next run.
       </p>
       <div className="row">
         <pre className="hint-box ship-command">{command}</pre>
