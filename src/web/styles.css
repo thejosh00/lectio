@@ -390,6 +390,13 @@ pre {
   padding: calc(env(safe-area-inset-top) + 28px) 16px 32px;
 }
 
+/* A title's long word breaks rather than push the page sideways on a small phone. */
+h1,
+h2,
+h3 {
+  overflow-wrap: anywhere;
+}
+
 h1,
 h2 {
   font-family: var(--serif);
@@ -887,7 +894,8 @@ h3 {
   font-size: 0.82em;
 }
 
-.prose pre {
+.prose pre,
+.question .prompt pre {
   background: var(--codeblock-bg);
   color: var(--code-text);
   border-radius: 12px;
@@ -897,7 +905,8 @@ h3 {
   line-height: 1.5;
 }
 
-.prose pre code {
+.prose pre code,
+.question .prompt pre code {
   background: none;
   padding: 0;
   font-size: inherit;
@@ -1109,6 +1118,7 @@ h3 {
 /* Every frame's paper is the tallest frame's height, its picture at the top: a diagram that builds up
    keeps what was there in place, so the eye finds what changed. */
 .steps-frame {
+  min-width: 0;
   grid-area: 1 / 1;
   visibility: hidden;
   display: flex;
@@ -1177,7 +1187,7 @@ h3 {
 
 /* A dot is small to look at and a full finger to tap. */
 .steps-dots button {
-  width: 22px;
+  width: 24px;
   height: 32px;
   min-height: 0;
   padding: 0;
@@ -1189,14 +1199,14 @@ h3 {
 .steps-dots button::after {
   content: '';
   position: absolute;
-  inset: 11px 6px;
+  inset: 11px 7px;
   border-radius: 50%;
   background: var(--line-strong);
 }
 
 .steps-dots button.on::after {
   background: var(--accent);
-  inset: 10px 5px;
+  inset: 10px 6px;
 }
 
 /* A widget: the tutor's sandboxed frame on the paper; the page owns an animation's controls. */
@@ -1328,6 +1338,11 @@ details.more summary {
   padding-left: 18px;
 }
 
+.sources li {
+  line-height: 24px;
+  padding-block: 3px;
+}
+
 /* --- questions ----------------------------------------------------------------------- */
 
 .question {
@@ -1355,6 +1370,19 @@ details.more summary {
 
 .question .prompt p {
   margin: 0 0 0.5em;
+}
+
+/* A long line of code in a sentence wraps; in a fence it scrolls in its own box. Neither moves the page. */
+.prose code,
+.question .prompt code,
+.option code,
+.tutor-voice code {
+  overflow-wrap: anywhere;
+}
+
+.prose pre code,
+.question .prompt pre code {
+  overflow-wrap: normal;
 }
 
 .options {
@@ -2018,4 +2046,18 @@ table.data th.num {
 .hbar .value {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* Small to read, not small to tap (WCAG 2.2's 24px): the links back, the ✕ out of a quiz, and what unfolds. */
+a.small-text {
+  display: inline-block;
+  min-width: 24px;
+  min-height: 24px;
+  line-height: 24px;
+  text-align: center;
+}
+
+summary {
+  min-height: 24px;
+  line-height: 24px;
 }

@@ -10,7 +10,8 @@
  */
 import {Database} from 'bun:sqlite';
 import {mkdirSync, writeFileSync} from 'node:fs';
-import {dirname} from 'node:path';
+import {dirname, join} from 'node:path';
+import {BACKUP_DIR, labelledName, takeBackup} from './backup.ts';
 import {PRIVATE_DIR, PRIVATE_FILE, dbFiles, tighten} from './fileModes.ts';
 
 export const DB_FILE = 'lectio.db';
@@ -379,14 +380,22 @@ export function openDatabase(path: string, options: OpenOptions = {}): Database 
   if (path !== ':memory:') for (const file of dbFiles(path)) tighten(file, PRIVATE_FILE);
   db.exec(`PRAGMA busy_timeout = ${Math.max(0, Math.floor(options.busyTimeoutMs ?? 5000))}`);
   db.exec('PRAGMA foreign_keys = ON');
-  migrate(db);
+  migrate(db, path);
   return db;
 }
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-function migrate(db: Database): void {
+/** For a test to build a database as an older lectio left it. */
+export const migrationsUpTo = (version: number) => MIGRATIONS.slice(0, version);
+
+function migrate(db: Database, path: string): void {
   const current = (db.query('PRAGMA user_version').get() as {user_version: number}).user_version;
+  // Migrations only go forward, and they run on the learner's real data when a landed change
+  // restarts the server, so the way back is taken first. A new database has nothing to lose.
+  if (path !== ':memory:' && current > 0 && current < MIGRATIONS.length) {
+    takeBackup(db, join(dirname(path), BACKUP_DIR), labelledName(`pre-migration-v${current}`, new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')));
+  }
   for (let version = current; version < MIGRATIONS.length; version++) {
     db.transaction(() => {
       db.exec(MIGRATIONS[version]!);

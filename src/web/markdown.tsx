@@ -86,7 +86,11 @@ const md = new MarkdownIt({html: false, linkify: true, typographer: true, highli
 md.inline.ruler.before('escape', 'math_inline', mathInline);
 md.block.ruler.before('fence', 'math_block', mathBlock, {alt: ['paragraph', 'reference', 'blockquote', 'list']});
 md.renderer.rules['math_inline'] = (tokens, i) => renderMath(tokens[i]!.content, false);
-md.renderer.rules['math_display'] = (tokens, i) => renderMath(tokens[i]!.content, true);
+// What can scroll sideways on a phone has to be reachable by keyboard too.
+md.renderer.rules['math_display'] = (tokens, i) => renderMath(tokens[i]!.content, true).replace('class="katex-display"', 'class="katex-display" tabindex="0"');
+md.renderer.rules['table_open'] = () => '<table tabindex="0">';
+const defaultFence = md.renderer.rules['fence']!;
+md.renderer.rules['fence'] = (tokens, i, options, env, self) => defaultFence(tokens, i, options, env, self).replace('<pre>', '<pre tabindex="0">');
 const defaultLink = md.renderer.rules['link_open'] ?? ((tokens, i, options, _env, self) => self.renderToken(tokens, i, options));
 md.renderer.rules['link_open'] = (tokens, i, options, env, self) => {
   tokens[i]!.attrSet('target', '_blank');

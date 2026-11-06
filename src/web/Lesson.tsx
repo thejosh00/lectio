@@ -311,7 +311,7 @@ export function LessonView({id}: {id: string}) {
           <span className="small-text muted">{lesson.estimated_minutes} min</span>
           <SkipMenu lesson={lesson} />
         </div>
-        <div className="progress" aria-label="progress">
+        <div className="progress" role="progressbar" aria-label="progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
           <span style={{width: `${Math.round(progress * 100)}%`}} />
         </div>
       </div>

@@ -40,13 +40,13 @@ function CodeBlock({block}: BlockProps) {
   return (
     <figure className="code-block" style={{margin: 0}}>
       {typeof caption === 'string' && <figcaption className="caption">{caption}</figcaption>}
-      <pre>
+      <pre tabIndex={0}>
         <code className={`hljs language-${lang}`} dangerouslySetInnerHTML={{__html: highlight(String(block.body['source'] ?? ''), lang)}} />
       </pre>
       {typeof output === 'string' && (
         <div className="output">
           <span className="muted">Output</span>
-          <pre>{output}</pre>
+          <pre tabIndex={0}>{output}</pre>
         </div>
       )}
     </figure>
