@@ -199,6 +199,9 @@ For more independence, run the examiner on a different model from the tutor.
 
 ## Testing
 
+In a fresh checkout or worktree, run `bun install` first. Not `./install.sh`: that also puts this
+checkout's `lectio` on your PATH.
+
 ```bash
 bun run test               # types, unit and end-to-end tests, then a real browser: about 4 minutes
 bun run test:fast          # without the browser, while you work
