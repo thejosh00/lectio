@@ -87,9 +87,24 @@ build is in `main`: start the branch from `main` and build the change on top.
 bun run test
 ```
 
-It must pass. For a change to the web
-app, run a dev instance on a spare port with a temporary `LECTIO_DIR` and look at it at phone width
-(390px) with headless Chrome. For a change the tutor uses, its contract example must pass.
+It must pass. That is the types, the unit and end-to-end tests, and a real browser (WebKit and Chromium)
+at phone, tablet and desktop sizes; `bun run test:fast` skips the browser while you work.
+
+- **A change to the web app adds to `tests/browser/`.** A flow in `flows.pw.ts` for what a person now
+  does. New content that could draw wide or strange goes in `seeds.ts`, which every page check then
+  sees. A new block or question type has to go there: `tests/unit/browser-seeds.test.ts` fails until it does.
+- **A picture in `tests/browser/looks/` that changed on purpose** is updated in the same commit
+  (`bun run test:browser --update-snapshots`) and said so in the hand-back. Never update one to make a
+  failure go away without looking at what changed: `.playwright/report` shows the difference.
+- **Attach what you saw.** `.playwright/gallery/` has every page at every size. Look at the phone
+  and desktop pictures of what you changed, and pass them to `otto state change submit` with `--evidence`.
+- **A migration:** run `bun run check:migrations`, which runs it on a copy of the newest backup. It
+  prints counts, never content.
+- **A change to `skills/lectio-teach` or the contract:** run `bun run test:live`, a real tutor on a
+  throwaway instance. Say what it spent in the hand-back. For a change the tutor uses, its contract
+  example must pass too.
+
+Never loosen a browser check to get a change through. If one is wrong, say so in the hand-back.
 
 ## 7. Hand back
 

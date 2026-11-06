@@ -10,9 +10,15 @@
   "scripts": {
     "dev": "bun run src/cli.ts serve --dev",
     "typecheck": "tsc --noEmit",
-    "test": "bun run typecheck && bun test",
+    "test": "bun run typecheck && bun test && bun run test:browser",
     "test:unit": "bun test tests/unit",
-    "build": "bun build --compile --minify src/cli.ts --outfile dist/lectio"
+    "build": "bun build --compile --minify src/cli.ts --outfile dist/lectio",
+    "test:fast": "bun run typecheck && bun test",
+    "test:browser": "playwright test",
+    "test:real": "LECTIO_REAL_DATA=${LECTIO_DIR:-$HOME/.lectio} playwright test --project=iphone-webkit --project=desktop-chromium",
+    "test:live": "bun run tests/live/tutor.ts",
+    "check:migrations": "bun run scripts/check-migrations.ts",
+    "test:full": "bun run test && bun run check:migrations && bun run test:real && bun run test:live"
   },
   "dependencies": {
     "d3": "7.9.0",
@@ -27,6 +33,8 @@
     "ts-fsrs": "5.4.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.0",
     "@types/bun": "^1.4.2",
     "@types/markdown-it": "^14.2.0",
     "@types/react": "^19.3.0",

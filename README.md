@@ -197,6 +197,30 @@ and delete `agent:examiner` from `client.json`.
 
 For more independence, run the examiner on a different model from the tutor.
 
+## Testing
+
+```bash
+bun run test               # types, unit and end-to-end tests, then a real browser: about 4 minutes
+bun run test:fast          # without the browser, while you work
+bun run test:browser       # just the browser (add --ui to watch it, --update-snapshots for a picture you meant to change)
+bun run check:migrations   # this checkout's migrations on a copy of your newest backup: counts only, never content
+bun run test:real          # your own lessons, from that copy, in a browser, at phone and desktop size
+bun run test:live          # a real tutor on a throwaway instance: about 5 minutes, and real tokens (about 1M)
+bun run test:full          # all of it
+```
+
+The browser tests need Node and Playwright's browsers: `bunx playwright install chromium webkit`. They
+run every page in both themes at seven sizes, in WebKit and Chromium: nothing scrolls sideways, every
+nav item is in view, controls are big enough to tap, the accessibility scan is clean, and the page
+reports no errors. WebKit is close to an iPhone's Safari, not the same as one: it can't speak for
+adding lectio to a home screen, or for a real device. `.playwright/gallery/` keeps a picture of everything
+they saw, and `.playwright/report/` explains a failure. Both stay on your machine.
+
+`test:real` is worth running by hand: real lessons found what invented ones didn't. It only ever reads
+your data directory, and what it writes, including pictures of your lessons, stays in `.playwright/`.
+A failure can quote a few words of a lesson. Before any migration runs on an existing database, lectio
+keeps a copy as `backups/lectio-label-pre-migration-v<N>-…`.
+
 ## Improving lectio itself
 
 The tutor is lectio's most demanding user. When the app gets in the way of teaching, it proposes a
