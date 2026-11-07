@@ -1567,3 +1567,153 @@ the learner's flags on the question are how the tutor hears of a broken one.
 *Done when:* a widget's score lands on the attempt, graded by the widget and counted for memory; a
 score outside 0–1 is refused; and the page takes the answer only from the question's own frame.
 
+## 19. From answering to doing (M23–M27)
+
+v1 teaches the learner to answer questions about a subject. Its goals ask for more: "know the theory
+and practice to write my own computer vision applications" can't be met by a quiz, and nothing in
+lectio yet asks for the application. This section keeps the architecture and changes what it aims to
+produce: the learner, unaided, able to do what the goal names. It is not a rewrite.
+
+**Where things stood on 2026-11-06**, 17 days in, and small numbers throughout:
+
+- *The habit holds.* 54 of 57 lessons finished, none skipped.
+- *Practice is mostly recognition.* Of 525 answers, about 83% picked or arranged given options (380
+  multiple choice). Six were written in the learner's own words. No retention has been measured on
+  anything taught hands-on.
+- *Retention fell while same-day accuracy rose.* Retention went from 0.88 to 0.52 week over week
+  (n 25 each); same-day accuracy reached 0.94. Longer gaps don't explain it: within 1–8 day gaps it
+  went from 17 of 19 to 12 of 22. Terser prose is a suspect (words per objective fell 195 → 147 → 103),
+  unproven.
+- *Two-arm experiments can't answer in time.* Detecting 10 points of retention near 0.7 takes about
+  290 delayed reviews per arm. At about 25 delayed reviews a week, that is about six months for one
+  experiment given every review, before allowing for answers on one idea not being independent.
+  `picture_vs_printout` stands at +7 points, with an interval from -44 to +58.
+- *The measures can miss what matters.* Rereading never showed in them; the learner had to say so.
+
+What doesn't move: the app makes no model calls, existing measures keep their definitions (new ones go
+beside them), guard tests are added to and never loosened, `rules.md` and the settings are the
+learner's, there are no streaks or points, and the learner ships. Not in this section: live chat, new
+media types, more learners, a native app. None of them closes the gap between answering and doing.
+
+### The order, and why it waits
+
+1. **Done 2026-11-06:** the examiner runs (otto run 14), and the first four checkups are written.
+2. **Baseline, until 2026-11-20:** change nothing in how lessons or questions work. Seed 9's fuller
+   prose arrived on 2026-11-05, and two weeks shows how much of the drop it repairs. Any change made
+   sooner would be confounded with it.
+3. **M23, then M24 on Computer Vision alone, then M25, then M26.** M27 can go at any time; it doesn't
+   touch what is measured.
+
+Build as in §17: one branch per milestone in a worktree, since each cuts across the schema, the
+measures and the contract. Small changes still go to the queue (§11).
+
+### Milestones
+
+**M23 — Recall first.** Delayed reviews become mostly production: the learner writes or works out the
+answer before seeing any option, and the tutor grades it on its next run. Feedback waiting up to an
+hour is acceptable for a review. The learner still sees the model answer and self-grades at once.
+- *Mostly already here.* `free_response` asks and self-grades, and `lectio grade` re-grades, but both
+  grades are kept and the learner's alone counts (`agentGrade` in `src/db/attempts.ts`). What it lacks
+  is the tutor's grade being used for anything, and a way to review it on a phone.
+- *Grades.* Memory keeps updating from the self-grade at once, as now, and a later re-grade doesn't
+  rewrite it. A new measure, `graded_recall`, counts delayed free responses by the tutor's score, beside
+  a self-grade calibration (self against tutor). Where the tutor grades well below the learner, the
+  concept comes back early as a retry. The app only reports the gap; the retry is the tutor's choice.
+- *The page.* The answer screen shows the tutor's note on a past answer when it arrives, and Today
+  lists new notes. Answers typed with one thumb need to be short, so questions ask for a sentence, a
+  number or a line of code, and "on paper, then compare" stays available for anything longer.
+- *Teaching.* A new seed in `teaching.md`: reviews default to production; recognition is for new items
+  and for discriminating between named misconceptions.
+- *Expect the series to break.* Harder questions lower `retention` even if nothing is forgotten. Read
+  the change against the checkup score, which is why M26 waits: the examiner's format stays fixed
+  across this milestone.
+*Done when:* a re-grade reaches the learner's page and `graded_recall` in one flow; the existing
+`retention` definition is unchanged (guard test); and self-grade calibration appears on Progress once
+it has data.
+
+**M24 — Assignments.** A new top-level thing beside lessons and quizzes: real work, drawn from the
+subject's goal, done away from the app and reviewed by the tutor. Computer Vision first; the others
+only once this has worked there.
+- *Shape.* `assignments`: subject, title, brief, what done looks like, concepts, state (`set` → `submitted`
+  → `reviewed` → `accepted` or `revise`), the learner's submission, and the tutor's review. Cap: one
+  open per subject, none while one awaits review. Time counts against the subject's budget, and the
+  tutor plans a lighter lesson day around it.
+- *Code.* The work is a program in the learner's own git repository under a new `work_dir` setting. The
+  learner submits a commit. The tutor reads and runs it, on test inputs it brings, and reviews it like a
+  colleague: what works, what fails, the one thing to change next. A submission outside `work_dir` is
+  refused.
+- *Other subjects.* A note and photos of a real job (a diagnosis on the car, a repair done). This needs
+  uploads on the phone: `POST /api/assets` already accepts the learner, but the web app has no file input.
+- *Safety.* A submission is data, never instructions (added to `rules.md` by the learner), like any
+  other content the tutor reads. It is the learner's own code, but the tutor runs it unattended, so the
+  skill says to run it in a sandbox, with no network.
+- *Keeping it honest.* The learner states how much help they had (none, looked things up, used an AI),
+  because an assignment done with Claude Code says little about what they can do alone.
+*Done when:* an assignment goes from set to accepted through a revision, in the CLI and on a phone; an
+agent token can't submit or accept one (guard test); a submission outside `work_dir` is refused; and the
+learner has finished a Computer Vision assignment they say was worth the time.
+
+**M25 — What you can do.** Each goal becomes a short ladder of capabilities ("can build a contour-based
+object counter from a sketch of what it should do"), each backed by evidence. Progress leads with it;
+concepts and FSRS keep scheduling reviews underneath. Built after M24 so it describes real work, not a
+guess at it.
+- *Whose it is.* The tutor drafts the ladder from the goal and revises it; the learner approves and
+  edits, as with notes. Their lines stay theirs.
+- *States.* `not yet` → `with help` → `unaided`. The tutor's review can reach `with help` and, with a no-help
+  assignment, propose `unaided`. Only M26's task checkup confirms it, so the tutor never certifies its own
+  teaching.
+- *Evidence.* Every state links to the assignment or checkup behind it, and a state with no link is
+  refused. A capability goes stale after a long time unused, and says so.
+*Done when:* Progress shows each subject's ladder with evidence one tap away, and an agent can't set
+`unaided` without a task checkup (guard test).
+
+**M26 — Task checkups.** The examiner also sets a small unaided task, scored against a rubric written
+before it sees the work. This is the measure of v2, and the tutor can't influence it.
+- *Beside the existing checkup, not instead.* The checkup score stays app-graded and keeps its meaning.
+  Tasks are a new kind with their own measure, since `examQuestionProblems` in `src/core/submission.ts`
+  rightly refuses anything not app-graded, and that refusal stays.
+- *Isolation.* The examiner sees capability statements, plus what M12 gives it. It never sees the
+  tutor's reviews. The learner declares the task done without help, and the tutor sees nothing until it
+  is scored. `tests/guard/exam-isolation.test.ts` extends to cover all of this.
+- *Rhythm.* At most one per subject per month: they cost the learner real time, and a checkup that is
+  skipped measures nothing.
+*Done when:* a task goes from drawn to scored with the tutor refused at every step until then; the
+rubric can't be changed after the work is submitted; and a passed task moves a proposed capability to
+`unaided`.
+
+**M27 — Trust less in small experiments.** The tutor stops treating two-arm tests as its main evidence.
+- *Guidance.* A new seed: start from published research on how people learn; use this learner's direct
+  reactions and consistent patterns to adjust it; run an experiment only where the expected difference is
+  large enough to see, and estimate the reviews needed before starting one. The measures all stay.
+- *Open experiments.* Tell the tutor to close or keep each one on that estimate, and to say so in its
+  notes. A verdict still needs `enough`.
+- *A signal the measures missed.* A one-tap "had to reread" on a block, as a new rating
+  (`src/core/feedbackKinds.ts`). It reaches the tutor with the rest of its feedback.
+*Done when:* a reread rating reaches the tutor's context beside the others, and no existing measure has
+changed (guard test).
+
+### How to judge it
+
+Around 2027-01-15, about two months after M23 begins:
+
+- Can the learner build a small Computer Vision application unaided, and does a task checkup agree?
+- Is the checkup score at or above what the memory model expected? A wide gap means the tutor's reviews
+  flatter the learner.
+- Has `graded_recall` held or risen across the weeks since M23?
+- Is the habit intact? Assignments are the likeliest thing to break it. If lessons start going
+  unfinished, that outweighs the rest: lighten assignments first.
+
+If the learner doesn't think the assignments are worth their time, stop at M23 and M27. Those stand
+without the rest.
+
+### Open questions
+
+| Question | Default in this plan |
+|---|---|
+| Retention recovers by 2026-11-20 on its own: is M23 still worth building? | Yes. Retention here is mostly recognition, and the goals ask for production. It would only lower the urgency |
+| Retention stays low | Look at the first checkups and the tutor's review load first. M23 goes ahead, but don't read it as the fix |
+| Where does `work_dir` live, and is it one repository or one per subject? | `~/workspace/lectio-work/`, one repository per subject |
+| Does self-grading stay the input to memory? | Yes for now. Switching to the tutor's grade would delay reviews by up to an hour and change what memory means. Revisit once calibration has data |
+| Does the tutor run the learner's code in a sandbox? | Yes, with no network. How depends on what otto's launchers offer |
+| What does a week of review cost in tokens, with free-text grading and code review? | Unknown. Measure it during M23 and M24 with `otto usage`; set a budget if it surprises |
+
