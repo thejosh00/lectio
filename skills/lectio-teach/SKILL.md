@@ -121,6 +121,8 @@ A `confusing`, `too_hard` or similar rating isn't a flag to resolve: it shapes w
   Seed 7: widget questions, asked by doing, in "Make them use it".
   Seed 8: show every new physical thing the first time it's named, in "A lesson" and "Pictures and media".
   Seed 9: the "Writing that reads the first time" section, and "Fit the budget by teaching less" in "A lesson".
+  Seed 10: "Teach on real material" in "A lesson", and "Show what the learner will have to judge" in
+  "Pictures and media". When you fold it in, also add the `Material` line (step 5) to each active subject's plan.
 
 ## 5. Plan
 
@@ -128,8 +130,10 @@ For each subject in `due.subjects`:
 
 - **`needs_plan` (a new subject).** Size the syllabus to the learner's `goal` and `level`, not to the
   whole field: 15–40 concepts with prerequisites, in teaching order (`lectio concepts upsert`). Write
-  the plan (`lectio plan set`). Then, if it is `ready`, a short orientation lesson (a map of the
-  subject and the road ahead, 3–5 minutes, introducing at most the first concept) and a placement
+  the plan (`lectio plan set`), with a `Material` line: what someone good at this judges by looking or
+  listening, the real material lessons will show it on, and where you keep that material between runs
+  (never `/tmp`). A subject with nothing to judge that way says so in that line. Then, if it is
+  `ready`, a short orientation lesson (a map of the subject and the road ahead, 3–5 minutes, introducing at most the first concept) and a placement
   quiz (`--kind placement`): 4–8 `probe` items spread across the syllabus at rising difficulty. Next
   run, mark what the probes showed they know with `"status": "known"`.
 - **`ready`.** Choose new concepts whose prerequisites have `recall_now` ≥ 0.8, are `known`, or were

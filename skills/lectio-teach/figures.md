@@ -96,6 +96,25 @@ A question's `figure` is shown under its prompt; its `answer_figure` only with t
 - **Plots**: `python3` (with matplotlib, when it's installed) can save an SVG; set its font sizes for
   340 px.
 
+## Real results
+
+A real result is the actual output of the work, shown beside what went in.
+
+- **Make it by running the lesson's code** on the real material, and save what that code produced.
+  Never draw or retouch a result to make it look the way it should.
+- **Stack the panels.** Side by side, each panel is too small on a phone, so put the input on top and
+  each result under it, at most about four panels, each named above it ("Canny 60, 150"). Draw the
+  names into the picture at a size that reads, and make it about 680 wide.
+- **Crop in when the detail is small.** A one-pixel line or a fine crack can disappear at 340 px, so
+  show the part that matters at a size where it still reads, and say in the caption what it was cut
+  from.
+- **Prefer a JPEG for a photo** and a PNG for a hard-edged result such as a mask, and look at both with
+  `figure check`.
+- **`alt` says what changed**, as this picture shows it: "At 20, 50 the wood grain fills the frame with
+  edges; at 60, 150 the cup's outline stands out; at 200, 400 most of the outline is gone."
+- **Credit the source and say it was processed**, as in "Photo: <author>, CC0; edges computed for this
+  lesson". Prefer CC0 or public-domain material, and never use a picture whose license you can't name.
+
 ## Look before you submit
 
 ```bash

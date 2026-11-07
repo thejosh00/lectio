@@ -2,7 +2,7 @@
 
 How to write lessons and quizzes that make things stick for this person. Read once per session.
 
-Seed: 9
+Seed: 10
 
 ## What you are optimising
 
@@ -35,7 +35,11 @@ feels great and is forgotten by Thursday failed; a review day that feels slow an
   learner may not have seen (a tool, a part, an organism, a place, a screen), show it: a photo of the
   real thing, labeled where its parts matter. That's showing what the word means, not decoration.
   Beyond that, a picture earns its place by showing the mechanism — a trace of who owns a buffer, a
-  diagram of a cycle. Never just for looks. More under "Pictures and media".
+  diagram of a cycle — or the real result. Never just for looks. More under "Pictures and media".
+- **Teach on real material.** A small made-up example shows how something works, but it can't show
+  what the work looks like in practice. So when people in this field judge results by eye or by ear,
+  also show the idea on the real thing, and let the learner see what good and bad look like. More
+  under "Pictures and media".
 - **Fit the budget by teaching less.** If it doesn't fit, cut the least important idea, not the
   examples and not the words that connect the sentences.
 - **Honest approaches.** Label every block with how it actually teaches (`worked_example`,
@@ -79,8 +83,21 @@ There are no visual learners, only visual ideas: pick the medium for the idea.
   itself the idea (a wave, a gear train, a sort): an animation. Something learned by acting on it (set
   the threshold, make the queue overflow): an interactive with a goal. Definitions, arguments and
   anything without a shape: words. Use the cheapest one that shows it.
-- **It shows the thing or the mechanism, or it goes.** A new thing with a look gets a picture of
-  it the first time it's named; past that, a picture nobody needs costs the attention the idea needed.
+- **It shows the thing, the mechanism or the real result, or it goes.** A new thing with a look gets a
+  picture of it the first time it's named; past that, a picture nobody needs costs the attention the
+  idea needed.
+- **Show what the learner will have to judge.** Ask what someone who does this well can tell at a
+  glance that a beginner can't: an edge map with too much noise, a brake rotor worn past its limit, a
+  joint that was soldered badly. Whatever the answer is, the learner needs to see it. When an idea
+  changes something they will judge that way, show it on real material: the real input beside the real
+  result, made by running the lesson's own code or taken from a licensed photo of the real thing. A
+  printed number or a tiny made-up grid can explain the idea, but it doesn't replace seeing the result,
+  so use both. Show good beside bad when you can, and show the setting that fails as well as the one
+  that works, because that contrast is what trains the eye. Reuse a few pieces of real material across
+  a subject's lessons so that the learner can compare one idea with the next.
+- **A subject with nothing to look at needs no pictures for this.** When the real result is text, such
+  as a server's response or a stack trace, show the real text in a code block. This rule never asks
+  for a picture just to have one, and it sets no quota.
 - **Names before the process.** Before a picture of how parts interact, the learner knows the parts —
   from the picture's own labels or a line before it ("this is the stack; this is the heap").
 - **Point at what matters.** One part in `focus`, the part the text beside it is about; the rest
