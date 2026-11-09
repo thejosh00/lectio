@@ -43,7 +43,7 @@ flowchart LR
 | Widget sandbox | `src/server/widgets.ts`, `src/core/widget.ts` | Serves widgets under a CSP sandbox: opaque origin, no network |
 | Web app | `src/web/` | React 19, bundled by Bun from `src/web/index.html` |
 | Service | `src/local/service.ts` | launchd agent per instance (macOS) |
-| Skills | `skills/lectio-teach/`, `skills/lectio-examine/`, `skills/lectio-build/` | Each has a SKILL.md and a `check.sh` that wakes it only when there is work |
+| Skills | `skills/lectio-teach/`, `skills/lectio-examine/`, `skills/lectio-build/` | Each has a SKILL.md and a check.sh that wakes it only when there is work |
 | Migration check | `scripts/check-migrations.ts` | Runs this checkout's migrations on a copy of your newest backup |
 
 ## Where state lives
@@ -136,13 +136,13 @@ Rung 3 on the verifiability ladder (`~/workspace/architect/VISION.md`), re-check
 Rung 2: `tests/browser/instance.ts` starts a real server on a free port against a temp database
 with seeded data (`tests/browser/seeds.ts`), and Playwright drives it in WebKit and Chromium at
 phone, tablet and desktop sizes. Rung 3 for screens: the same run writes every page at every
-size to `.playwright/gallery/` and compares five pages to saved pictures in
+size to .playwright/gallery/ (gitignored, made by the run) and compares five pages to saved pictures in
 `tests/browser/looks/`. Not rung 4: the builder attaches pictures by hand, and nothing produces
 CLI transcripts as evidence.
 
 ```bash
 bun install --frozen-lockfile
-bun run test               # typecheck + bun test + Playwright (writes .playwright/gallery/)
+bun run test               # typecheck + bun test + Playwright
 bun run check:migrations   # a change with a migration: runs it on a copy of your newest backup
 ```
 
