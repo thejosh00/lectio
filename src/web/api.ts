@@ -200,6 +200,7 @@ export interface Checkups {
   expected: number | null;
   score_where_expected: Rate;
   gap: number | null;
+  by_concept?: Array<{concept: string; asked: number; right: number; aims: string[]; last_checkup: string; last_asked: number; last_right: number}>;
 }
 
 export interface PredictionBin {

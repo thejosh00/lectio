@@ -336,7 +336,12 @@ function examsReport(ctx: Ctx, subjectId?: string) {
       ? ctx.db.query("SELECT COUNT(*) AS n FROM quizzes WHERE kind = 'exam' AND state = 'finished'").get()
       : ctx.db.query("SELECT COUNT(*) AS n FROM quizzes WHERE kind = 'exam' AND state = 'finished' AND subject_id = ?").get(subjectId)
   ) as {n: number};
-  return {checkups: finished.n, ...examOutcomes(examFacts(ctx, subjectId), numberSetting(ctx.db, 'memory_gap_hours'))};
+  const outcomes = examOutcomes(examFacts(ctx, subjectId), numberSetting(ctx.db, 'memory_gap_hours'));
+  const keys = new Map((ctx.db.query('SELECT id, key FROM concepts').all() as Array<{id: string; key: string}>).map(r => [r.id, r.key]));
+  const byConcept = outcomes.by_concept
+    .map(c => ({...c, concept: keys.get(c.concept) ?? c.concept}))
+    .sort((a, b) => a.concept.localeCompare(b.concept));
+  return {checkups: finished.n, ...outcomes, by_concept: byConcept};
 }
 
 /** The predictions measure, with each surprise's question and answer for the tutor to read. */

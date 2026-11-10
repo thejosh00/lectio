@@ -218,6 +218,22 @@ test("the examiner's examples run as documented", async () => {
   const today = (await lc.j(['today'])).json;
   expect(today.subjects[0].quizzes.map((q: {kind: string; progress: {total: number}}) => [q.kind, q.progress.total])).toEqual([['exam', 3]]);
   expect((await lc.j(['exam', 'due'], {as: 'agent:examiner'})).json.waiting[0].why).toBe('waiting_for_learner');
+
+  // Once the learner finishes it, the tutor's preflight `lectio context --json` keeps the checkup's
+  // results per concept in the measures (#8): every drawn concept, counts only.
+  const quiz = today.subjects[0].quizzes[0].id as string;
+  const items = lc.db
+    .query('SELECT qi.question_id, c.key FROM quiz_items qi JOIN question_concepts qc ON qc.question_id = qi.question_id JOIN concepts c ON c.id = qc.concept_id WHERE qi.quiz_id = ?')
+    .all(quiz) as Array<{question_id: string; key: string}>;
+  // A wrong answer to each: the choice with the misconception, or a short text no one accepts.
+  const wrong: Record<string, string> = {'stack-vs-heap': 'stack', ownership: 'two', moves: 'fine'};
+  for (const {question_id, key} of items) {
+    expect((await answerQ(lc, {question: question_id, quiz, answer: wrong[key]})).attempt).toMatchObject({score: 0});
+  }
+  const context = (await lc.j(['context'], TUTOR)).json;
+  const byConcept = context.subjects[0].measures.exams.by_concept as Array<{concept: string; asked: number; right: number; last_right: number}>;
+  expect(byConcept.map(c => c.concept).toSorted()).toEqual(keys.toSorted());
+  for (const c of byConcept) expect(c).toMatchObject({right: 0, last_right: 0, asked: expect.any(Number)});
 });
 
 test('the document shows exactly those examples, the registries and the limits', async () => {

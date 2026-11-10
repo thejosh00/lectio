@@ -382,6 +382,22 @@ export interface ExamOutcomes {
   gap: number | null;
   by_aim: Array<{aim: string} & Rate>;
   by_week: Array<{week: string; expected: number | null} & Rate>;
+  /**
+   * Per concept a checkup asked about, as concept ids (#8): every first try, delayed or not, so a
+   * concept the learner happened to review the day before still shows. `right` is right, unhinted,
+   * not guessing; `last_*` are that concept's own counts on its most recent checkup day.
+   */
+  by_concept: ExamConcept[];
+}
+
+export interface ExamConcept {
+  concept: string;
+  asked: number;
+  right: number;
+  aims: string[];
+  last_checkup: string;
+  last_asked: number;
+  last_right: number;
 }
 
 const mean = (xs: readonly number[]): number | null => (xs.length === 0 ? null : round3(xs.reduce((a, b) => a + b, 0) / xs.length));
@@ -409,7 +425,30 @@ export function examOutcomes(facts: readonly ExamFact[], gapHours: number): Exam
       ...rate(list.filter(retained).length, list.length),
       expected: mean(list.filter(f => f.expected !== null).map(f => f.expected!)),
     })),
+    by_concept: examByConcept(facts),
   };
+}
+
+/** Checkup first tries per concept: no question text or answers, only counts, aims and days. */
+export function examByConcept(facts: readonly ExamFact[]): ExamConcept[] {
+  const asked = facts.filter(f => f.attempt_no === 1 && !f.void && f.score !== null);
+  const byConcept = new Map<string, ExamFact[]>();
+  for (const f of asked) for (const c of new Set(f.concepts)) (byConcept.get(c) ?? byConcept.set(c, []).get(c)!).push(f);
+  return [...byConcept]
+    .map(([concept, list]) => {
+      const lastDay = list.reduce((d, f) => (f.day > d ? f.day : d), list[0]!.day);
+      const last = list.filter(f => f.day === lastDay);
+      return {
+        concept,
+        asked: list.length,
+        right: list.filter(retained).length,
+        aims: [...new Set(list.map(f => f.aim))].sort(),
+        last_checkup: lastDay,
+        last_asked: last.length,
+        last_right: last.filter(retained).length,
+      };
+    })
+    .sort((a, b) => a.concept.localeCompare(b.concept));
 }
 
 // --- playbook versions (M13) ----------------------------------------------------------

@@ -4,7 +4,7 @@
  * the learner relies on are broken.
  */
 import {describe, expect, test} from 'bun:test';
-import {approachOutcomes, calibration, experimentOutcomes, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, throughput, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
+import {approachOutcomes, calibration, examByConcept, examOutcomes, experimentOutcomes, misconceptions, observedDifficulty, playbookOutcomes, predictions, questionStats, throughput, retention, retentionByWeek, sameDayAccuracy, weekOf, type AttemptFact, type PredictionFact} from '../../src/core/measures.ts';
 
 let n = 0;
 function fact(over: Partial<AttemptFact>): AttemptFact {
@@ -242,5 +242,34 @@ describe('throughput', () => {
       {week: '2026-09-14', introduced: 2, minutes: 30, retention: {n: 2, rate: 0.5}, retained_per_hour: 2},
       {week: '2026-09-21', introduced: 1, minutes: 15, retention: {n: 0, rate: null}, retained_per_hour: null},
     ]);
+  });
+});
+
+describe('checkup results per concept (#8)', () => {
+  const exam = (over: Partial<AttemptFact>) => ({...fact({context: 'exam', role: 'exam', aim: 'apply', counts_for_memory: false, ...over}), expected: null});
+
+  test('counts every first try per concept, with its aims and its latest checkup day on its own', () => {
+    const facts = [
+      exam({concepts: ['moves'], score: 0, day: '2026-11-01'}),
+      exam({concepts: ['moves'], score: 1, aim: 'transfer', day: '2026-11-01'}),
+      exam({concepts: ['moves'], score: 1, day: '2026-11-08'}),
+      exam({concepts: ['ownership'], score: 1, confidence: 'guess', day: '2026-11-08'}),
+      // A second try, a void answer and an unanswered item ask nothing more.
+      exam({concepts: ['ownership'], score: 1, attempt_no: 2, day: '2026-11-08'}),
+      exam({concepts: ['ownership'], score: 0, void: true, day: '2026-11-08'}),
+      exam({concepts: ['ownership'], score: null, day: '2026-11-08'}),
+      // A delayed-by-minutes answer still counts here, though the score leaves it out.
+      exam({concepts: ['borrowing', 'moves'], score: 0, gap_hours: 1, day: '2026-11-08'}),
+    ];
+    expect(examByConcept(facts)).toEqual([
+      {concept: 'borrowing', asked: 1, right: 0, aims: ['apply'], last_checkup: '2026-11-08', last_asked: 1, last_right: 0},
+      {concept: 'moves', asked: 4, right: 2, aims: ['apply', 'transfer'], last_checkup: '2026-11-08', last_asked: 2, last_right: 1},
+      {concept: 'ownership', asked: 1, right: 0, aims: ['apply'], last_checkup: '2026-11-08', last_asked: 1, last_right: 0},
+    ]);
+    expect(examOutcomes(facts, 20).by_concept).toEqual(examByConcept(facts));
+  });
+
+  test('no checkup answers: no concepts', () => {
+    expect(examOutcomes([], 20).by_concept).toEqual([]);
   });
 });
