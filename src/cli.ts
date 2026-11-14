@@ -170,7 +170,19 @@ function stdinLines(): (prompt: string) => Promise<string | undefined> {
   };
 }
 
+/** A database this build must not open still ends as the error line or envelope, and exit 4. */
 export async function run(options: RunOptions): Promise<number> {
+  try {
+    return await runCommand(options);
+  } catch (error) {
+    if (!(error instanceof AppError) || error.code !== EXIT_UNAVAILABLE) throw error;
+    if (options.argv.includes('--json')) options.out(JSON.stringify(failure(error.message, error.code), null, 2));
+    else options.err(`lectio: ${error.message}`);
+    return error.code;
+  }
+}
+
+async function runCommand(options: RunOptions): Promise<number> {
   const {out, err} = options;
   const env = options.env ?? process.env;
   const now = options.now ?? nowIso;

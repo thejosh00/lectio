@@ -11,6 +11,7 @@
 import {Database} from 'bun:sqlite';
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
+import {AppError, EXIT_UNAVAILABLE} from '../core/errors.ts';
 import {BACKUP_DIR, labelledName, takeBackup} from './backup.ts';
 import {PRIVATE_DIR, PRIVATE_FILE, dbFiles, tighten} from './fileModes.ts';
 
@@ -374,6 +375,14 @@ export function openDatabase(path: string, options: OpenOptions = {}): Database 
     // the -wal and -shm it creates the database file's mode.
     writeFileSync(path, '', {flag: 'a', mode: PRIVATE_FILE});
     tighten(path, PRIVATE_FILE);
+  }
+  // A database a newer lectio wrote is not this build's to touch. Its version is read through a
+  // read-only connection, so refusing writes nothing: closing it cannot checkpoint a leftover -wal.
+  const peek = path === ':memory:' ? undefined : new Database(path, {readonly: true});
+  const found = peek === undefined ? 0 : (peek.query('PRAGMA user_version').get() as {user_version: number}).user_version;
+  peek?.close();
+  if (found > MIGRATIONS.length) {
+    throw new AppError(`${path} is at schema version ${found}, but this lectio only knows up to version ${MIGRATIONS.length}: a newer lectio wrote it. Nothing was changed. Run that newer lectio, or restore a backup from ${join(dirname(path), BACKUP_DIR)}`, EXIT_UNAVAILABLE);
   }
   const db = new Database(path, {create: true, strict: true});
   db.exec('PRAGMA journal_mode = WAL');
