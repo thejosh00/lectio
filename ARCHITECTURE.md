@@ -1,6 +1,6 @@
 # lectio — architecture
 
-Last checked against: `fdbba03` on 2026-11-09
+Last checked against: `dee45e8` on 2026-11-13
 
 ## Purpose and boundaries
 
@@ -60,7 +60,7 @@ transaction and recorded in PRAGMA user_version; there are no down migrations. A
 caught three ways: before migrating an existing database the server takes a
 `pre-migration-v<n>` backup; `bun run check:migrations` runs the new migrations on a copy of
 your newest backup and fails if a table or rows vanish, integrity or foreign keys break, or the
-API stops answering. Undoing one means `lectio backup restore <file>`, which keeps the replaced db.
+API stops answering. A database at a higher version than the code knows is refused before any write (exit 4), so an older build never runs on a newer schema. Undoing one means `lectio backup restore <file>`, which keeps the replaced db.
 
 ## Trust boundaries
 
@@ -108,6 +108,7 @@ not include examiner.json, assets/ or logs/.
 | I22 | Tests never touch the real data directory | **unenforced:** the preload `tests/setup.ts` points LECTIO_DIR at a temp dir; no test asserts it |
 | I23 | `src/core/` is pure | **unenforced:** a convention in `PLAN.md`; candidate for an import check |
 | I24 | No AI in the app | **unenforced:** nothing stops a model SDK being added to `package.json` |
+| I25 | A database newer than the code is refused (exit 4) with the file and its -wal byte-for-byte unchanged; one exactly at the code's version opens | `tests/e2e/r16-newer-database-refused.test.ts`: "a database one version newer than this build is refused, byte-for-byte unchanged, naming both versions and the backup folder", "a newer database with un-checkpointed -wal frames is refused, the main file and the -wal both byte-for-byte unchanged", "the CLI and lectio serve refuse a newer database with exit 4, and the envelope with --json", "a database exactly at this build's version opens as before" |
 
 ## Decisions
 
@@ -119,6 +120,7 @@ The design record is `PLAN.md` (principles, data model, contract, milestones); i
 - 2026-10-28 · Widgets in a CSP sandbox (M21) · agent-written code must not reach the API or network · c63fd8b
 - 2026-10-31 · Separate token files; the examiner's own; widget scores out of the measures (R5) · 13ed069, 70ae18b, 81ed277
 - 2026-11-05 · A pre-migration backup and `check:migrations`; a real browser harness · migrations run on real data when a change lands · 1d26351, c0f154f
+- 2026-11-13 · Refuse a database newer than the code (R16), copied from legenda and omnifactum · after a rollback, old code would run on a schema it doesn't know · dee45e8
 
 ## Family
 
